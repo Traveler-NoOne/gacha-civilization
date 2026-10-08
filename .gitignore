@@ -1,0 +1,15 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# 截图自检输出（由 tests/screenshot.tscn 生成，可随时重新生成）
+tests/_shots/
+# AI 工具（godot-mcp-enhanced 监控面板）产物，非游戏文件
+面板入口.html
+
+# Python 缓存（技能脚本运行后生成）
+__pycache__/
+*.pyc
+
+# AI 助手的偏好学习状态（自动生成，不属于项目内容）
+.commandcode/taste/

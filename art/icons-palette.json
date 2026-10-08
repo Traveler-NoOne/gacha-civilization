@@ -1,0 +1,61 @@
+{
+  "colors": {
+    "outline": "#241b2e",
+    "glass": "#d9eef2",
+    "shine": "#ffffff",
+
+    "prod": "#d98c3a",
+    "prod-dark": "#a4621f",
+    "prod-light": "#f0b96a",
+
+    "sci": "#3b6fe0",
+    "sci-dark": "#22409c",
+    "sci-light": "#86b8ff",
+
+    "admin": "#8a5bd6",
+    "admin-dark": "#5f3a9c",
+    "admin-light": "#f2e6b0",
+
+    "order": "#4fd1e0",
+    "order-dark": "#2a8fa0",
+    "order-light": "#dcfaff",
+
+    "coh": "#e0576f",
+    "coh-light": "#f7b0bd",
+
+    "pop": "#d4713f",
+    "pop-light": "#f6c39c",
+
+    "food": "#a8bf4a",
+    "food-dark": "#748a24",
+    "food-light": "#e4ef9a",
+
+    "wood": "#a9743f",
+    "wood-dark": "#774a22",
+    "wood-light": "#dcb287",
+
+    "coal": "#54525f",
+    "coal-dark": "#33313c",
+    "coal-light": "#8a8794",
+
+    "copper": "#c9703a",
+    "copper-dark": "#8f461c",
+    "copper-light": "#f2b483",
+
+    "iron": "#7a8ca0",
+    "iron-dark": "#4e5d70",
+    "iron-light": "#c3d2e2",
+
+    "oil": "#463a56",
+    "oil-dark": "#2a2234",
+    "oil-light": "#a58fc0",
+
+    "cur": "#d9b04a",
+    "cur-dark": "#9c7526",
+    "cur-light": "#f7e7a8",
+
+    "shard": "#b58cf0",
+    "shard-dark": "#7d54bc",
+    "shard-light": "#e8d8ff"
+  }
+}

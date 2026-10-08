@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/diag_v12.gd" id="1_v12"]
+
+[node name="DiagV12" type="Node"]
+script = ExtResource("1_v12")

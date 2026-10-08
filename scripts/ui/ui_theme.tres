@@ -1,0 +1,16 @@
+[gd_resource type="Theme" format=3 uid="uid://cwsa0bel5y3s"]
+
+[sub_resource type="SystemFont" id="SystemFont_bold"]
+font_names = PackedStringArray("Microsoft YaHei", "微软雅黑", "SimHei", "黑体", "Noto Sans SC", "Source Han Sans SC", "sans-serif")
+font_weight = 700
+
+[sub_resource type="SystemFont" id="SystemFont_regular"]
+font_names = PackedStringArray("Microsoft YaHei", "微软雅黑", "SimHei", "黑体", "Noto Sans SC", "Source Han Sans SC", "sans-serif")
+
+[resource]
+default_font = SubResource("SystemFont_regular")
+default_font_size = 12
+RichTextLabel/fonts/bold_font = SubResource("SystemFont_bold")
+RichTextLabel/fonts/bold_italics_font = SubResource("SystemFont_bold")
+RichTextLabel/fonts/italics_font = SubResource("SystemFont_regular")
+RichTextLabel/fonts/normal_font = SubResource("SystemFont_regular")

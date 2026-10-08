@@ -1,0 +1,7 @@
+# Normalize EOL for all files that Git considers text files.
+* text=auto eol=lf
+
+# 行尾例外：.bat 必须 CRLF。
+# cmd.exe 解析 LF 换行的 .bat 会逐行错位（每行丢一个字符），症状是"命令找不到"。
+*.bat text eol=crlf
+*.cmd text eol=crlf

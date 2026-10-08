@@ -1,0 +1,156 @@
+{
+  "schema": "codeart2d.codeart_meta.v1",
+  "art_source": "code",
+  "placeholder": false,
+  "disclosure": "code-drawn, no image model",
+  "generator": "svg_render.py",
+  "spec_sha256": "07e7d3c2db851ce938e7c75655ac7f79c590f7e47fc24d157758edbd3202460e",
+  "renderer": {
+    "backend": "resvg_py",
+    "name": "resvg-py",
+    "version": "0.5.0",
+    "engine": "resvg 0.48.1",
+    "zoom": 4,
+    "size": [
+      896,
+      256
+    ]
+  },
+  "palette": {
+    "colors": {
+      "outline": "#241b2e",
+      "glass": "#d9eef2",
+      "shine": "#ffffff",
+      "prod": "#d98c3a",
+      "prod-dark": "#a4621f",
+      "prod-light": "#f0b96a",
+      "sci": "#3b6fe0",
+      "sci-dark": "#22409c",
+      "sci-light": "#86b8ff",
+      "admin": "#8a5bd6",
+      "admin-dark": "#5f3a9c",
+      "admin-light": "#f2e6b0",
+      "order": "#4fd1e0",
+      "order-dark": "#2a8fa0",
+      "order-light": "#dcfaff",
+      "coh": "#e0576f",
+      "coh-light": "#f7b0bd",
+      "pop": "#d4713f",
+      "pop-light": "#f6c39c",
+      "food": "#a8bf4a",
+      "food-dark": "#748a24",
+      "food-light": "#e4ef9a",
+      "wood": "#a9743f",
+      "wood-dark": "#774a22",
+      "wood-light": "#dcb287",
+      "coal": "#54525f",
+      "coal-dark": "#33313c",
+      "coal-light": "#8a8794",
+      "copper": "#c9703a",
+      "copper-dark": "#8f461c",
+      "copper-light": "#f2b483",
+      "iron": "#7a8ca0",
+      "iron-dark": "#4e5d70",
+      "iron-light": "#c3d2e2",
+      "oil": "#463a56",
+      "oil-dark": "#2a2234",
+      "oil-light": "#a58fc0",
+      "cur": "#d9b04a",
+      "cur-dark": "#9c7526",
+      "cur-light": "#f7e7a8",
+      "shard": "#b58cf0",
+      "shard-dark": "#7d54bc",
+      "shard-light": "#e8d8ff"
+    },
+    "variants": {}
+  },
+  "outputs": [
+    {
+      "path": "base/icons.resources.svg",
+      "sha256": "b307775911818b6e4bc20afb6bafd30e000c2d3fea079f2e7e18604d6425d975",
+      "bytes": 12164
+    },
+    {
+      "path": "base/icons.resources.png",
+      "sha256": "d8d7d9b3d34a52d5087683e104b8c5cdc2367b212657cb60871aa7510dda528f",
+      "bytes": 51366
+    }
+  ],
+  "qa": {
+    "status": "pass",
+    "method": "svg_render.py render: every variant's compiled SVG passed codeart_core.lint_portable_svg (portable profile) before rasterizing",
+    "notProven": [
+      "Appearance, readability and appeal; look at the PNGs at game size.",
+      "Agreement with other renderers on this machine; run svg_render.py doctor (renders are bit-exact only for the recorded renderer version).",
+      "That the art matches the brief and the intent of the SVG.",
+      "Pixel gates: vector renders are anti-aliased by design, so partial alpha and colours outside the palette are expected and not checked (render with --crisp for pixel art)."
+    ],
+    "checks": [
+      {
+        "id": "lint",
+        "status": "pass",
+        "value": 0,
+        "threshold": 0,
+        "profile": "portable"
+      }
+    ],
+    "inputs": [
+      {
+        "path": "../icons.resources.svg",
+        "sha256": "07e7d3c2db851ce938e7c75655ac7f79c590f7e47fc24d157758edbd3202460e",
+        "bytes": 12185
+      },
+      {
+        "path": "../icons-palette.json",
+        "sha256": "ff0e09aa2e7fc1627c4a0859f799ec64bf6ea990e8be249f22eee47f20d3e25d",
+        "bytes": 1175
+      }
+    ],
+    "outputs": [
+      {
+        "path": "base/icons.resources.svg",
+        "sha256": "b307775911818b6e4bc20afb6bafd30e000c2d3fea079f2e7e18604d6425d975",
+        "bytes": 12164
+      },
+      {
+        "path": "base/icons.resources.png",
+        "sha256": "d8d7d9b3d34a52d5087683e104b8c5cdc2367b212657cb60871aa7510dda528f",
+        "bytes": 51366
+      }
+    ],
+    "tool": {
+      "name": "svg_render.py render",
+      "version": "0.4.0"
+    }
+  },
+  "svg": {
+    "mode": "vector",
+    "profile": "portable",
+    "zoom": 4,
+    "canvas": [
+      224,
+      64
+    ],
+    "anchor_px": null,
+    "palette_source": "file",
+    "variants": {
+      "base": "base"
+    },
+    "images": [
+      {
+        "variant": "base",
+        "file": "base/icons.resources.png",
+        "scale": 4,
+        "size": [
+          896,
+          256
+        ],
+        "anchor_px": null,
+        "visible": 98370,
+        "partial_alpha": 5460,
+        "off_palette": 12795,
+        "colors": 1052
+      }
+    ]
+  }
+}
