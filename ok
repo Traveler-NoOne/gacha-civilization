@@ -1,0 +1,33 @@
+[1mdiff --git a/scripts/ui/game_screen.gd b/scripts/ui/game_screen.gd[m
+[1mindex 8ba4fe2..f35fdcd 100644[m
+[1m--- a/scripts/ui/game_screen.gd[m
+[1m+++ b/scripts/ui/game_screen.gd[m
+[36m@@ -14,8 +14,9 @@[m [mconst VIEWS := [[m
+ 	{"id": "log", "name": "日志", "script": "res://scripts/ui/views/log_view.gd"},[m
+ 	{"id": "world", "name": "世界", "script": "res://scripts/ui/views/view_world_page.gd"},[m
+ ][m
+[32m+[m[32mconst DEFAULT_VIEW := "world"[m
+ [m
+[31m-var current_view := "manage"[m
+[32m+[m[32mvar current_view := "DEFAULT_VIEW"[m
+ var views: Dictionary = {}[m
+ var resource_bar: HBoxContainer[m
+ var abstract_box: VBoxContainer[m
+[36m@@ -40,7 +41,7 @@[m [mfunc _ready() -> void:[m
+ 	GameState.toast.connect(_on_toast)[m
+ 	# 作弊开关是全局设置，改了要立刻反映到顶部按钮上[m
+ 	AppSettings.changed.connect(_refresh)[m
+[31m-	_switch_view("manage")[m
+[32m+[m	[32m_switch_view("DEFAULT_VIEW")[m
+ [m
+ [m
+ # ---------------------------------------------------------------------------[m
+[36m@@ -137,7 +138,7 @@[m [mfunc _build() -> void:[m
+ [m
+ 	# 左右两区都 EXPAND_FILL -> 宽度相等 -> 中间那格必然在正中[m
+ 	[m
+[31m-	#  左区：包含结束周期;end_btn[m
+[32m+[m	[32m# 左区：包含结束周期;end_btn[m
+ 	var left_wrap := HBoxContainer.new()[m
+ 	left_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL[m
+ 	bh.add_child(left_wrap)[m

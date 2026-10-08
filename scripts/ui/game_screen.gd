@@ -14,8 +14,9 @@ const VIEWS := [
 	{"id": "log", "name": "日志", "script": "res://scripts/ui/views/log_view.gd"},
 	{"id": "world", "name": "世界", "script": "res://scripts/ui/views/view_world_page.gd"},
 ]
+const DEFAULT_VIEW := "world"
 
-var current_view := "manage"
+var current_view := "DEFAULT_VIEW"
 var views: Dictionary = {}
 var resource_bar: HBoxContainer
 var abstract_box: VBoxContainer
@@ -40,7 +41,7 @@ func _ready() -> void:
 	GameState.toast.connect(_on_toast)
 	# 作弊开关是全局设置，改了要立刻反映到顶部按钮上
 	AppSettings.changed.connect(_refresh)
-	_switch_view("manage")
+	_switch_view("DEFAULT_VIEW")
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +138,7 @@ func _build() -> void:
 
 	# 左右两区都 EXPAND_FILL -> 宽度相等 -> 中间那格必然在正中
 	
-	#  左区：包含结束周期;end_btn
+	# 左区：包含结束周期;end_btn
 	var left_wrap := HBoxContainer.new()
 	left_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bh.add_child(left_wrap)
