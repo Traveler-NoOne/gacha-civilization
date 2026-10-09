@@ -75,8 +75,9 @@ func _ready() -> void:
 		world.call("_on_tile_clicked", cks[0], "", Vector2.ZERO)
 		for i in 3:
 			await get_tree().process_frame
-		if world.get("info_box") is Node:
-			txt = _collect_text(world.get("info_box") as Node)
+		# v1.8.5：旧右侧规划面板已删除，「占领」按钮搬进了「简约地块信息小窗」
+		if world.get("tile_info_popup") is Node:
+			txt = _collect_text(world.get("tile_info_popup") as Node)
 	print("  按钮文案含「行政点数」：%s（且不含「生产力」）" % txt.contains("行政点数"))
 	if not txt.contains("行政点数") or txt.contains("生产力"):
 		failed += 1

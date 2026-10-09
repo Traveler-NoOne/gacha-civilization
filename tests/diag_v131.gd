@@ -117,7 +117,7 @@ func _ready() -> void:
 	if c2 < base_cost * (1.0 - Consts.ADMIN_INFLUENCE_MAX) - 0.01:
 		failed += 1
 
-	print("\n== 7. UI：规划面板 + 据点详情 + 规划队列 ==")
+	print("\n== 7. UI：修建浮窗（v1.8.5：旧右侧规划面板已删除） ==")
 	var holder := Control.new()
 	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(holder)
@@ -128,29 +128,23 @@ func _ready() -> void:
 	world.size = Vector2(1280, 600)
 	for i in 4:
 		await get_tree().process_frame
-	var tabs: Array = world.get("PLAN_TABS")
-	var tab_names: Array[String] = []
-	for t in tabs:
-		tab_names.append(str(t["name"]))
-	print("  规划面板页签：%s（%d 个，期望 2）" % ["、".join(tab_names), tab_names.size()])
-	if tab_names.size() != 2:
+	# 旧面板的入口应该已经彻底不存在（不是"隐藏"，是方法都没了）
+	print("  旧规划面板已删除？%s（期望 true）" % str(not world.has_method("switch_plan_tab") and not world.has_method("_refresh_build_list")))
+	if world.has_method("switch_plan_tab") or world.has_method("_refresh_build_list"):
 		failed += 1
-	var pages: Dictionary = world.get("plan_pages")
-	print("  页签容器：%s" % str(pages.keys()))
-	if pages.size() != 2:
-		failed += 1
-	# 切到地块规划页，选中首都后检查建筑列表有内容
-	world.call("switch_plan_tab", "plan")
-	world.set("selected", str(GameState.state["capital"]))
-	world.call("_refresh_build_list")
+	# 新的修建入口：右键地块 → 🔨 → 修建浮窗
+	world.call("_run_tile_action", "build", str(GameState.state["capital"]))
 	for i in 4:
 		await get_tree().process_frame
-	var bbox: Variant = world.get("build_box")
+	var bp: Variant = world.get("build_panel")
+	var bvisible := bp != null and (bp as Control).visible
 	var brows := 0
-	if bbox is Node:
-		brows = (bbox as Node).get_child_count()
-	print("  地块规划页建筑行数：%d（应 > 2：土地行 + 多种建筑）" % brows)
-	if brows <= 2:
+	if bp != null:
+		var lb: Variant = (bp as Node).get("list_box")
+		if lb is Node:
+			brows = (lb as Node).get_child_count()
+	print("  修建浮窗：可见=%s  建筑行数=%d（应 > 2）" % [str(bvisible), brows])
+	if not bvisible or brows <= 2:
 		failed += 1
 
 	var mgr: Control = load("res://scripts/ui/views/view_manage_page.gd").new()

@@ -125,24 +125,54 @@ func _ready() -> void:
 			await get_tree().process_frame
 		await _shoot("%02d_view_%s" % [i + 3, views[i]])
 
-	# v1.3.1：世界页「规划面板」的两个页签
+	# v1.8.5：旧的右侧规划面板已删除，改拍新浮窗（简约地块信息 / 据点管理窗口 / 右键菜单 / 修建浮窗）
 	gs.call("goto_view", "world")
 	for f in 4:
 		await get_tree().process_frame
 	var wp: Variant = gs.get("views")["world"]
-	wp.call("switch_plan_tab", "info")
+	var v185_cap := str(GameState.state["capital"])
+	# ① 简约地块信息小窗：点一块非我方地块
+	var v185_other := ""
+	for k in GameState.state["tiles"].keys():
+		if str(k) != v185_cap and str(GameState.tile_at(str(k)).get("owner", "")) != "player":
+			v185_other = str(k)
+			break
+	if v185_other != "":
+		(wp as Node).call("_on_tile_clicked", v185_other, "", Vector2(520, 330))
+		for f in 4:
+			await get_tree().process_frame
+		await _shoot("08a_tile_info")
+	# ② 据点管理窗口（三个页签各一张）
+	(wp as Node).call("_on_tile_clicked", v185_cap, "", Vector2(400, 300))
 	for f in 4:
 		await get_tree().process_frame
-	await _shoot("08a_plan_info")
-	wp.call("switch_plan_tab", "plan")
+	await _shoot("08b_stronghold_info")
+	var v185_sp: Variant = (wp as Node).get("stronghold_panel")
+	if v185_sp != null:
+		for v185_tab in [["decree", "08c_stronghold_decree"], ["labor", "08d_stronghold_labor"]]:
+			(v185_sp as Node).set("tab", str(v185_tab[0]))
+			(v185_sp as Node).call("refresh")
+			for f in 4:
+				await get_tree().process_frame
+			await _shoot(str(v185_tab[1]))
+		(v185_sp as Control).visible = false
+	# ③ 右键菜单 + 修建浮窗（选中态各一张）
+	(wp as Node).call("_on_tile_right_clicked", v185_cap, Vector2(520, 330))
 	for f in 4:
 		await get_tree().process_frame
-	await _shoot("08b_plan_tile")
-	# v1.3.1：管理页「据点详情 + 规划队列」
-	gs.call("goto_view", "manage")
-	for f in 4:
+	await _shoot("08e_tile_menu")
+	(wp as Node).call("_hide_action_menu")
+	(wp as Node).call("_run_tile_action", "build", v185_cap)
+	for f in 5:
 		await get_tree().process_frame
-	await _shoot("08c_stronghold_queue")
+	await _shoot("08f_build_panel")
+	var v185_bp: Variant = (wp as Node).get("build_panel")
+	if v185_bp != null:
+		(v185_bp as Node).call("select_row", "classic_field")
+		for f in 4:
+			await get_tree().process_frame
+		await _shoot("08g_build_selected")
+		(v185_bp as Control).visible = false
 
 	# v1.3：中控区的三个页签（指挥 / 军队 / 科技树）
 	gs.call("goto_view", "manage")
