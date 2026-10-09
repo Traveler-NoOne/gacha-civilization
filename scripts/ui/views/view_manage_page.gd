@@ -421,9 +421,11 @@ func _refresh_labor() -> void:
 			var def := GameState.find_building(str(b.get("id", "")))
 			if def == null:
 				continue
-			any = true
 			var level := int(b.get("level", 1))
 			var maxw := def.max_workers(level)
+			if maxw <= 0:
+				continue	
+			any = true
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 4)
 			labor_list.add_child(row)
@@ -431,9 +433,6 @@ func _refresh_labor() -> void:
 			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			row.add_child(l)
-			if maxw <= 0:
-				row.add_child(UIKit.dim("无需人力", 10))
-				continue
 			var bid := str(b.get("bid", ""))
 			var minus := UIKit.tiny("−", 12)
 			minus.pressed.connect(func() -> void:
