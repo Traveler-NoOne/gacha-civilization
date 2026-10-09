@@ -274,9 +274,9 @@ func _ready() -> void:
 	for fw1 in 4:
 		await get_tree().process_frame
 	if wv != null:
-		# 同格连点两次：第 1 档市中心、第 2 档单位 → 左下角弹出单位操作窗
-		(wv as Node).call("_on_tile_clicked", cap2, "", Vector2.ZERO)
-		(wv as Node).call("_on_tile_clicked", cap2, "", Vector2.ZERO)
+		# v1.8.2：直接点中棋子图标（信号里带 uid）→ 左下角弹出单位操作窗。
+		# （以前靠"同格连点两次轮换"轮到单位，那个机制已取消。）
+		(wv as Node).call("_on_tile_clicked", cap2, str(c_shot["uid"]), Vector2.ZERO)
 	for fw2 in 3:
 		await get_tree().process_frame
 	await _shoot("20_unit_panel")

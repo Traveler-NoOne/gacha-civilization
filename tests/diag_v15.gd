@@ -205,7 +205,7 @@ func _ready() -> void:
 			elif int(mv_u["move_left"]) != 0:
 				_fail("攻击后应耗尽本周期行动")
 
-	print("\n== 6. 点击轮换（市中心 → 单位 → 地块） ==")
+	print("\n== 6. 左键语义（v1.8.2：点图标=选单位 / 点领地 / 点别处=看信息） ==")
 	var holder := _host()
 	var w: Control = load("res://scripts/ui/views/view_world_page.gd").new()
 	w.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -213,27 +213,38 @@ func _ready() -> void:
 	w.size = Vector2(1280, 720)
 	for i in 4:
 		await get_tree().process_frame
-	w.call("_on_tile_clicked", cap, "", Vector2.ZERO)
-	var s1 := int(w.get("click_step"))
-	var u1 := str(w.get("sel_uid"))
-	w.call("_on_tile_clicked", cap, "", Vector2.ZERO)
-	var s2 := int(w.get("click_step"))
-	w.call("_on_tile_clicked", cap, "", Vector2.ZERO)
-	var s3 := int(w.get("click_step"))
-	print("  同格连点 step：%d → %d → %d；首档 sel=%s" % [s1, s2, s3, u1])
-	if s1 != 0 or s2 != 1 or s3 != 2:
-		_fail("同格重复点击没有按档轮换")
-	if bool(GameState.tile_at(cap).get("is_capital", false)) and u1 != "":
-		_fail("首档应选市中心，却选了单位")
+	# ① 点中棋子图标 → 选中该单位
+	var some_uid := ""
+	var cap_units := GameState.units_on_tile(cap)
+	if not cap_units.is_empty():
+		some_uid = str((cap_units[0] as Dictionary)["uid"])
+	if some_uid == "":
+		print("  （首都没有单位，跳过第 ① 项）")
+	else:
+		w.call("_on_tile_clicked", cap, some_uid, Vector2(100, 100))
+		print("  点中棋子图标 -> sel_uid=[%s]（期望 [%s]）" % [str(w.get("sel_uid")), some_uid])
+		if str(w.get("sel_uid")) != some_uid:
+			_fail("点中棋子图标没有选中该单位")
+	# ② 点我方领地（没点到图标）→ 不选单位（据点管理窗口 v1.8.4 才接入）
+	w.call("_on_tile_clicked", cap, "", Vector2(100, 100))
+	print("  点我方领地 -> sel_uid=[%s]（期望空）" % str(w.get("sel_uid")))
+	if str(w.get("sel_uid")) != "":
+		_fail("点我方领地时不该选中单位")
+	# ③ 点非我方地块 → 弹出简约地块信息小窗
 	var other := ""
 	for k in GameState.state["tiles"].keys():
-		if str(k) != cap:
+		if str(k) != cap and str(GameState.tile_at(str(k)).get("owner", "")) != "player":
 			other = str(k)
 			break
-	w.call("_on_tile_clicked", other, "", Vector2.ZERO)
-	print("  换到另一格后 step=%d（期望 0）" % int(w.get("click_step")))
-	if int(w.get("click_step")) != 0:
-		_fail("换格后没有从头开始")
+	if other == "":
+		print("  （找不到非我方地块，跳过第 ③ 项）")
+	else:
+		w.call("_on_tile_clicked", other, "", Vector2(200, 200))
+		var popup: Variant = w.get("tile_info_popup")
+		var vis := popup != null and (popup as Control).visible
+		print("  点非我方地块 [%s] -> 简约信息小窗可见？%s" % [other, vis])
+		if not vis:
+			_fail("点非我方地块没有弹出简约信息小窗")
 	w.queue_free()
 	holder.queue_free()
 

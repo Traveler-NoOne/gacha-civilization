@@ -22,8 +22,9 @@ var build_box: VBoxContainer
 # ---------------------------------------------------------------------------
 # v1.5：单位操作（点击轮换 / 招募选地 / 移动 / 攻击）
 # ---------------------------------------------------------------------------
-var click_key := ""
-var click_step := 0
+## v1.8.2：简约地块信息小窗（点在非我方地块时，在鼠标位置弹出）
+var tile_info_popup: PanelContainer = null
+var tile_info_box: VBoxContainer = null
 var sel_uid := ""
 var pick_mode := ""      # "" / "recruit" / "move" / "attack"
 var pick_unit := ""
@@ -320,42 +321,40 @@ func _build_row(def: BuildingDef, t: Dictionary) -> void:
 	h.add_child(b)
 
 
-func _on_tile_clicked(key: String, uid: String, _gpos: Vector2) -> void:
-	# v1.5：处于选地模式时，点击只用于选目标
+## v1.8.2：左键点击 = 三档分派（"更具体的目标优先"）
+##   ① 选地/选目标模式 → 指目标
+##   ② 点中棋子图标（最具体）→ 选中该单位
+##   ③ 我方领地（没点到图标）→ 据点管理窗口（v1.8.4 接入；本段先只提示）
+##   ④ 其它地块（没点到图标）→ 简约地块信息小窗（鼠标位置）
+## 注：原来的"重复点同一格轮换内容"已取消 —— 地块不再可选中。
+func _on_tile_clicked(key: String, uid: String, gpos: Vector2) -> void:
+	# ① 选地 / 选目标模式优先（保持原行为）
 	if pick_mode != "":
 		_pick_tile(key)
 		return
-	# v1.8.2：**点中棋子图标 → 直接选中它**，不必再"点几下轮换"。
-	# 其余情况暂时仍走下面的旧轮换逻辑；"领地 / 单位 / 简约信息"三档分派在 2-C 补上。
+	# ② 点中了棋子图标 → 直接选中它
 	if uid != "":
 		selected = key
-		click_key = key
 		sel_uid = uid
-		_refresh_info()
-		_refresh_unit_strip()
-		_refresh_unit_panel()
-		_refresh_marks()
-		_refresh_build_list()
+		_hide_tile_info()
+		_refresh_after_select()
 		return
+	# 没点到棋子：先把"选中单位"清掉，再按地块归属分派
 	selected = key
-	if key != click_key:
-		click_key = key
-		click_step = 0
-	else:
-		click_step += 1
-	# 权重降序的轮换序列：市中心(1000) → 每个公民单位各一档(800) → 地块(500)
-	var cands: Array[String] = []
-	if bool(GameState.tile_at(key).get("is_capital", false)):
-		cands.append("capital")
-	for u in GameState.units_on_tile(key):
-		if GameState.is_citizen(u):
-			cands.append("u:" + str(u["uid"]))
-	cands.append("tile")
-	if cands.is_empty():
-		cands.append("tile")
-	click_step = click_step % cands.size()
-	var pick := cands[click_step]
-	sel_uid = "" if pick == "tile" else ("" if pick == "capital" else pick.substr(2))
+	sel_uid = ""
+	# ③ 我方领地 → 据点管理窗口（v1.8.4 接入）
+	if str(GameState.tile_at(key).get("owner", "")) == "player":
+		_hide_tile_info()
+		_refresh_after_select()
+		GameState.toast.emit("据点管理窗口将在 v1.8.4 接入")
+		return
+	# ④ 其它地块 → 简约地块信息小窗
+	_refresh_after_select()
+	_show_tile_info(key, gpos)
+
+
+## 选中状态变化后要刷新的一串地方（原来在点击处理里抄了两遍，收成一处）
+func _refresh_after_select() -> void:
 	_refresh_info()
 	_refresh_unit_strip()
 	_refresh_unit_panel()
@@ -425,6 +424,91 @@ func _refresh_marks() -> void:
 		for k in WorldGen.claimable_keys(GameState.state):
 			map.marks[k] = Color(0.55, 0.95, 0.65)
 	map.queue_redraw()
+
+
+## 简约地块信息小窗：**懒创建**（第一次要用时才建），挂在本页上。
+## 不放进 map —— map 开了 clip_contents，会把浮出格子的东西剪掉。
+func _ensure_tile_info_popup() -> void:
+	if tile_info_popup != null:
+		return
+	tile_info_popup = PanelContainer.new()
+	tile_info_popup.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	tile_info_popup.custom_minimum_size = Vector2(210, 0)
+	tile_info_popup.visible = false
+	tile_info_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UIKit.apply_panel(tile_info_popup, Color(0.07, 0.07, 0.11, 0.96), UIKit.LINE, 6)
+	add_child(tile_info_popup)
+	tile_info_box = VBoxContainer.new()
+	tile_info_box.add_theme_constant_override("separation", 3)
+	tile_info_popup.add_child(tile_info_box)
+	# 容器的"最小尺寸"要到下一帧才会按新内容重算 —— 所以光在当前帧设一次不够，
+	# 会留下一个过时的尺寸（实测 354px，而内容只需要 66px）。等它算好时自动校一次。
+	tile_info_popup.minimum_size_changed.connect(_fit_tile_info_size)
+
+
+## 在鼠标位置显示某一格的简约信息（取代"选中地块"）
+func _show_tile_info(key: String, gpos: Vector2) -> void:
+	_ensure_tile_info_popup()
+	for c in tile_info_box.get_children():
+		c.queue_free()
+	var t := GameState.tile_at(key)
+	tile_info_box.add_child(UIKit.title("地块 %s" % key, 13))
+	var discovered := bool(t.get("discovered", false))
+	if not discovered:
+		tile_info_box.add_child(UIKit.dim("（未点亮：迷雾）", 11))
+		tile_info_popup.visible = true
+		_place_tile_info(gpos)
+		return
+	var owner_txt := "无主"
+	var owner_col := UIKit.TEXT_DIM
+	match str(t.get("owner", "")):
+		"player":
+			owner_txt = "我方领地"
+			owner_col = Color(0.55, 0.85, 1.0)
+		"enemy":
+			owner_txt = "敌方"
+			owner_col = Color(0.95, 0.45, 0.45)
+	tile_info_box.add_child(UIKit.text_label("势力：%s" % owner_txt, 11, owner_col))
+	# 地块明细（单格版）—— 与据点详情里那行同格式，避免两处口径不同
+	var nm := str(t.get("name", ""))
+	if nm != "":
+		tile_info_box.add_child(UIKit.text_label("名称：%s" % nm, 11, UIKit.TEXT))
+	var bcount := (t.get("buildings", []) as Array).size()
+	var line := "地形 %s　土地 %.1f/%.1f　建筑 %d" % [
+		Consts.terrain_name(str(t.get("terrain", ""))),
+		GameState.land_used(t), GameState.land_cap(t), bcount]
+	var l := UIKit.dim(line, 11)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tile_info_box.add_child(l)
+	var res := str(t.get("resource", ""))
+	if res != "":
+		tile_info_box.add_child(UIKit.text_label("资源点：%s" % Consts.res_name(res), 11, UIKit.OK))
+	tile_info_popup.visible = true
+	_place_tile_info(gpos)
+
+
+## 把窗口放到鼠标旁边；贴边时往回收，避免跑出屏幕
+func _place_tile_info(gpos: Vector2) -> void:
+	_fit_tile_info_size()
+	var sz := tile_info_popup.size
+	var vp := get_viewport_rect().size
+	tile_info_popup.global_position = Vector2(
+		clampf(gpos.x + 14.0, 0.0, maxf(0.0, vp.x - sz.x)),
+		clampf(gpos.y + 10.0, 0.0, maxf(0.0, vp.y - sz.y)))
+
+
+## 让面板收缩到刚好包住内容。
+## { 面板是自由摆放的（没进容器），尺寸不会自动跟着内容缩；而"最小尺寸"又要到下一帧才重算 }
+## → 所以既要在这里主动设一次，也要靠 minimum_size_changed 在算好后补一次。
+func _fit_tile_info_size() -> void:
+	if tile_info_popup == null:
+		return
+	tile_info_popup.size = tile_info_popup.get_combined_minimum_size()
+
+
+func _hide_tile_info() -> void:
+	if tile_info_popup != null:
+		tile_info_popup.visible = false
 
 
 func _refresh_info() -> void:
