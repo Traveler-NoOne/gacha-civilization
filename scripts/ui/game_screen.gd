@@ -11,7 +11,6 @@ const VIEWS := [
 	{"id": "manage", "name": "管理", "script": "res://scripts/ui/views/view_manage_page.gd"},
 	{"id": "treasure", "name": "至宝", "script": "res://scripts/ui/views/treasure_view.gd"},
 	{"id": "gacha", "name": "世界泡", "script": "res://scripts/ui/views/gacha_view.gd"},
-	{"id": "log", "name": "日志", "script": "res://scripts/ui/views/log_view.gd"},
 	{"id": "world", "name": "世界", "script": "res://scripts/ui/views/view_world_page.gd"},
 ]
 const DEFAULT_VIEW := "world"
@@ -30,6 +29,14 @@ var nav_buttons: Dictionary = {}
 var cycle_label: Label
 var detail_label: Label
 var cheat_button: Button
+
+## v1.8.6：角落浮动按钮与浮窗（左上科技树 / 右上日志）
+const CORNER_MARGIN := 16.0
+const CORNER_TOP := 112.0
+var corner_tech_btn: Button
+var corner_log_btn: Button
+var tech_panel: TechPanel = null
+var log_panel: LogPanel = null
 
 var _dialog: DialogLayer
 
@@ -184,6 +191,9 @@ func _build() -> void:
 		nav_bar.add_child(b)
 		nav_buttons[vid] = b
 
+	# v1.8.6：角落浮动按钮（左上科技树 / 右上日志）＋ 它们对应的浮窗
+	_build_corner_ui()
+
 	_refresh()
 
 
@@ -216,6 +226,68 @@ func _switch_view(id: String) -> void:
 	_refresh_nav()
 
 ##刷新系统按钮排布
+# ---------------------------------------------------------------------------
+# v1.8.6：角落浮动按钮与浮窗
+# ---------------------------------------------------------------------------
+func _build_corner_ui() -> void:
+	corner_tech_btn = UIKit.normal("科技树", 13)
+	corner_tech_btn.custom_minimum_size = Vector2(84, 34)
+	corner_tech_btn.tooltip_text = "科技树"
+	corner_tech_btn.pressed.connect(_toggle_tech_panel)
+	add_child(corner_tech_btn)
+
+	corner_log_btn = UIKit.image_button("book-ball", "日志", 40, 40)
+	corner_log_btn.pressed.connect(_toggle_log_panel)
+	add_child(corner_log_btn)
+
+	resized.connect(_place_corner_ui)
+	# 状态变了就顺带刷新开着的科技浮窗（科研点与解锁状态会变）
+	GameState.state_changed.connect(func() -> void:
+		if tech_panel != null and is_instance_valid(tech_panel) and tech_panel.visible:
+			tech_panel.refresh())
+	_place_corner_ui()
+
+
+## ⚠️ 浮层一律用 **TOP_LEFT 锚点 + 按屏幕尺寸算绝对位置**，并在 resized 时重摆。
+##（"锚右上 + 负偏移"那套很容易摆错：锚点若在 add_child 之前设，还没有父节点可参照。）
+func _place_corner_ui() -> void:
+	if is_instance_valid(corner_tech_btn):
+		corner_tech_btn.position = Vector2(CORNER_MARGIN, CORNER_TOP)
+	if is_instance_valid(corner_log_btn):
+		corner_log_btn.position = Vector2(size.x - CORNER_MARGIN - 40.0, CORNER_TOP - 6.0)
+	if tech_panel != null and is_instance_valid(tech_panel):
+		var sz := Vector2(560, 480)
+		tech_panel.size = sz
+		tech_panel.position = Vector2(maxf(0.0, (size.x - sz.x) * 0.5), maxf(0.0, (size.y - sz.y) * 0.5))
+	if log_panel != null and is_instance_valid(log_panel):
+		# 四周留边 —— 这就是"露出底下的世界"的那点边距
+		log_panel.position = Vector2(72.0, 64.0)
+		log_panel.size = Vector2(maxf(200.0, size.x - 144.0), maxf(160.0, size.y - 144.0))
+
+
+func _toggle_tech_panel() -> void:
+	if tech_panel == null:
+		tech_panel = TechPanel.new()
+		tech_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		add_child(tech_panel)
+		tech_panel.visible = false
+	tech_panel.visible = not tech_panel.visible
+	if tech_panel.visible:
+		_place_corner_ui()
+		tech_panel.refresh()
+
+
+func _toggle_log_panel() -> void:
+	if log_panel == null:
+		log_panel = LogPanel.new()
+		log_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		add_child(log_panel)
+		log_panel.visible = false
+	log_panel.visible = not log_panel.visible
+	if log_panel.visible:
+		_place_corner_ui()
+
+
 func _refresh_nav() -> void:
 	# v1.7.1：改成按「配对」刷新。以前是靠按钮在栏里的顺序去 VIEWS 对号入座，
 	# 世界球搬到栏外（顺序变了）就会整体错位；存配对就不会。

@@ -50,7 +50,7 @@ func _ready() -> void:
 	if not is_equal_approx(GameState.storage_cap("wood"), 200.0):
 		failed += 1
 
-	print("\n== 3. 中控区只剩军队 / 科技树 ==")
+	print("\n== 3. 中控区只剩军队（v1.8.6：科技树已搬到左上角浮窗） ==")
 	var holder := Control.new()
 	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(holder)
@@ -64,9 +64,9 @@ func _ready() -> void:
 	var names: Array[String] = []
 	for t in tabs:
 		names.append(str(t["name"]))
-	print("  中控区页签：%s（期望 军队、科技树，共 2）；enemy_box=%s" % [
+	print("  中控区页签：%s（期望 军队，共 1）；enemy_box=%s" % [
 		"、".join(names), str(mgr.get("enemy_box"))])
-	if names.size() != 2 or mgr.get("enemy_box") != null:
+	if names.size() != 1 or names.has("科技树") or mgr.get("enemy_box") != null:
 		failed += 1
 
 	print("\n== 4. 人力管理（只列已建建筑） ==")

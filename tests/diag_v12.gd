@@ -159,18 +159,18 @@ func _ready() -> void:
 	else:
 		print("  标题文字：%s" % str((title as Button).text))
 
-	print("\n== 6.5 中控区：军队 / 科技树 两个页签切换（v1.4 删除了指挥） ==")
+	print("\n== 6.5 中控区：只剩「军队」页签（v1.8.6：科技树已搬到左上角浮窗） ==")
 	var tabs: Array = mgr.get("CTRL_TABS")
 	var tab_names: Array[String] = []
 	for t in tabs:
 		tab_names.append(str(t["name"]))
 	print("  页签名：%s（%d 个）" % ["、".join(tab_names), tab_names.size()])
-	if tab_names.size() != 2:
+	if tab_names.size() != 1 or tab_names.has("科技树"):
 		failed += 1
 	var pages: Dictionary = mgr.get("ctrl_pages")
 	print("  页签容器：%s" % str(pages.keys()))
-	if pages.size() != 2:
-		print("  [FAIL] 页签容器数量不是 2")
+	if pages.size() != 1:
+		print("  [FAIL] 页签容器数量不是 1")
 		failed += 1
 	# 逐个切换，检查同一时刻只有一个页签可见
 	for t2 in tabs:
@@ -189,17 +189,6 @@ func _ready() -> void:
 			str(t2["name"]), cur, str(visible_ids), "✔" if ok else "✘"])
 		if not ok:
 			failed += 1
-	# 检查科技树页签里的内容确实有节点（内容变多也不会被挤没）
-	mgr.call("switch_ctrl_tab", "tech")
-	for f in 3:
-		await get_tree().process_frame
-	var tech_box: Variant = mgr.get("tech_box")
-	var tech_rows := 0
-	if tech_box is Node:
-		tech_rows = (tech_box as Node).get_child_count()
-	print("  科技树页签里的条目数：%d（期望 = 科技总数 %d）" % [tech_rows, Consts.TECHS.size()])
-	if tech_rows != Consts.TECHS.size():
-		failed += 1
 	# 军队页签
 	mgr.call("switch_ctrl_tab", "army")
 	for f in 3:
@@ -212,7 +201,7 @@ func _ready() -> void:
 	if unit_rows <= 0:
 		failed += 1
 
-	print("\n== 7. 一级按钮只剩五个，休眠页已删除 ==")
+	print("\n== 7. 一级按钮只剩四个（v1.8.6：日志已搬到右上角浮窗），休眠页已删除 ==")
 	var gscr: Control = load("res://scripts/ui/game_screen.gd").new()
 	gscr.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(gscr)
@@ -223,7 +212,7 @@ func _ready() -> void:
 	for v in view_list:
 		names.append(str(v["name"]))
 	print("  一级按钮：%s（%d 个）" % ["、".join(names), names.size()])
-	if names.size() != 5 or names.has("休眠"):
+	if names.size() != 4 or names.has("休眠") or names.has("日志"):
 		failed += 1
 	if FileAccess.file_exists("res://scripts/ui/views/sleep_view.gd"):
 		print("  [FAIL] sleep_view.gd 仍然存在")

@@ -117,13 +117,30 @@ func _ready() -> void:
 	GameState.state_changed.emit()
 	await get_tree().process_frame
 
-	var views := ["manage", "treasure", "gacha", "log", "world"]
-	for i in views.size():
-		gs.call("goto_view", views[i])
+	# v1.8.6：日志已从一级按钮搬到右上角浮窗，所以这里不再拍"日志页"。
+	# 用显式文件名，避免删一张就整体倒号（旧名字保持不变，少一张就少一个号）。
+	var views := [["manage", "03_view_manage"], ["treasure", "04_view_treasure"], ["gacha", "05_view_gacha"], ["world", "07_view_world"]]
+	for v in views:
+		gs.call("goto_view", str(v[0]))
 		# 布局需要几帧才能稳定（尤其是世界页的地图控件）
 		for f in 4:
 			await get_tree().process_frame
-		await _shoot("%02d_view_%s" % [i + 3, views[i]])
+		await _shoot(str(v[1]))
+
+	# v1.8.6：两个角落浮窗 —— 日志（右上书本，四周留边露出地图）与科技树（左上）
+	gs.call("goto_view", "world")
+	for f in 4:
+		await get_tree().process_frame
+	gs.call("_toggle_log_panel")
+	for f in 4:
+		await get_tree().process_frame
+	await _shoot("06_log_window")
+	gs.call("_toggle_log_panel")
+	gs.call("_toggle_tech_panel")
+	for f in 4:
+		await get_tree().process_frame
+	await _shoot("06b_tech_window")
+	gs.call("_toggle_tech_panel")
 
 	# v1.8.5：旧的右侧规划面板已删除，改拍新浮窗（简约地块信息 / 据点管理窗口 / 右键菜单 / 修建浮窗）
 	gs.call("goto_view", "world")
@@ -206,11 +223,11 @@ func _ready() -> void:
 			await get_tree().process_frame
 		await _shoot("10_character_%s" % st)
 
-	# 日志的子页
-	gs.call("goto_view", "log")
+	# 日志的子页（v1.8.6：日志不再是页面，而是右上角书本打开的浮窗；内容还是同一个 log_view）
+	gs.call("_toggle_log_panel")
 	for f in 4:
 		await get_tree().process_frame
-	var lv: Variant = gs.get("views")["log"]
+	var lv: Variant = (gs.get("log_panel") as Node).get("page")
 	for sub2 in ["task", "record", "codex", "manual"]:
 		lv.call("_switch", sub2)
 		for f2 in 4:

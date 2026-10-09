@@ -1,5 +1,5 @@
 extends Control
-## 【管理】页：据点详情（人力管理 + 规划队列）＋ 中控区（军队 / 科技树）。
+## 【管理】页：据点详情（人力管理 + 规划队列）＋ 中控区（只剩军队；v1.8.6 起科技树搬到左上角浮窗）。
 ## 对应设计文档「1管理」章节。
 ##
 ## v1.2 减负：删掉「持有资源总览」与「部落概况」，领地列表合并进详情区。
@@ -10,7 +10,6 @@ extends Control
 ## 中控区的页签（v1.4：删除了「指挥」）
 const CTRL_TABS := [
 	{"id": "army", "name": "军队"},
-	{"id": "tech", "name": "科技树"},
 ]
 
 var yield_label: Label
@@ -26,7 +25,6 @@ var ctrl_pages: Dictionary = {}
 ## 中控区各页签里需要动态刷新的容器（直接持有引用，
 ## 因为 find_child 遍历不到被隐藏的页签，会拿不到节点）
 var unit_box: VBoxContainer
-var tech_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -144,8 +142,8 @@ func _build() -> void:
 	right.add_child(rv)
 
 	# v1.3：原来的「指挥」区改名为「中控区」，
-	# 指挥 / 军队 / 科技树 从「上中下堆叠」改成「左中右三个按钮切换」，
-	# 这样内容变多时科技树不会再被挤到看不见。
+	# 指挥已删除（v1.4）；科技树已搬到左上角浮窗（v1.8.6），这里只剩军队。
+	# 保留「按钮切换」的结构，以后加页签直接往 CTRL_TABS 里加即可。
 	rv.add_child(UIKit.title("中控区", 16))
 
 	ctrl_bar = HBoxContainer.new()
@@ -193,20 +191,6 @@ func _build() -> void:
 	army_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	av.add_child(army_tip)
 
-	# ---------- 页签 3：科技树 ----------
-	ctrl_pages["tech"] = VBoxContainer.new()
-	(ctrl_pages["tech"] as VBoxContainer).add_theme_constant_override("separation", 5)
-	ctrl_host.add_child(ctrl_pages["tech"])
-	var tv := ctrl_pages["tech"] as VBoxContainer
-
-	var tech_head := UIKit.dim("科技解锁后会开放对应建筑；前置可能需要发展系统得到的标记。")
-	tech_head.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tv.add_child(tech_head)
-
-	tech_box = VBoxContainer.new()
-	tech_box.name = "TechBox"
-	tech_box.add_theme_constant_override("separation", 4)
-	tv.add_child(UIKit.scroll(tech_box))
 
 	switch_ctrl_tab("army")
 	refresh()
@@ -225,7 +209,6 @@ func switch_ctrl_tab(id: String) -> void:
 	# 切到某个页签时刷新它自己的内容
 	match id:
 		"army": _refresh_units()
-		"tech": _refresh_tech()
 		_: pass
 
 
@@ -296,7 +279,6 @@ func refresh() -> void:
 	_refresh_ctrl_bar()
 	match ctrl_tab:
 		"army": _refresh_units()
-		"tech": _refresh_tech()
 		_: pass
 
 
@@ -508,40 +490,6 @@ func _queue_row(item: Dictionary, index: int, total: int) -> void:
 		GameState.queue_remove(selected_stronghold, index)
 		refresh())
 	ops.add_child(rm)
-
-
-func _refresh_tech() -> void:
-	var box := tech_box
-	if box == null:
-		return
-	for c in box.get_children():
-		c.queue_free()
-	for t in Consts.TECHS:
-		var id := str(t["id"])
-		var unlocked := GameState.tech_unlocked(id)
-		var row := UIKit.panel(UIKit.BG_PANEL_2, UIKit.OK if unlocked else UIKit.LINE_SOFT, 5)
-		box.add_child(row)
-		var v := UIKit.vbox(2)
-		row.add_child(v)
-		var head := UIKit.hbox(6)
-		v.add_child(head)
-		head.add_child(UIKit.text_label(str(t["name"]), 13, UIKit.OK if unlocked else UIKit.GOLD))
-		head.add_child(UIKit.dim(str(t["era"]), 11))
-		head.add_child(UIKit.dim("科研点 %d" % int(t["cost"]), 11))
-		v.add_child(UIKit.dim(str(t["desc"]), 11))
-		var b := UIKit.small("已完成" if unlocked else "研究", 12)
-		b.disabled = unlocked
-		if not unlocked:
-			var chk := GameState.can_research(id)
-			if not chk["ok"]:
-				b.disabled = true
-				b.tooltip_text = str(chk["why"])
-			b.pressed.connect(func() -> void:
-				var r: Dictionary = GameState.research(id)
-				if not r["ok"]:
-					GameState.toast.emit(str(r["why"]))
-				refresh())
-		v.add_child(b)
 
 
 func on_cycle_finished(_rep: Dictionary) -> void:
