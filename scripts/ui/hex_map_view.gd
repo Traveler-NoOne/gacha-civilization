@@ -200,18 +200,44 @@ func _draw_tile_border(v: Dictionary) -> void:
 		draw_polyline(o2, Color(0.95, 0.30, 0.32), 2.5)
 
 
+## 单位图标在屏幕上的位置。
+## 【重要】**绘制与点击命中共用这一份几何** —— 两处各算一遍的话，
+## 哪天挪了图标位置，命中就会悄悄失准（点得到的地方 ≠ 看到的地方），而且极难查。
+## 返回：[{ "u": Dictionary, "pos": Vector2 }, ...]
+##   "u" 就是该单位的存档数据（uid / profession 都从它取，避免再存一份造成两份口径）
+func unit_icon_positions(key: String) -> Array:
+	var out: Array = []
+	# 敌方地块不画单位标记，所以也没有可点的图标
+	if str(GameState.tile_at(key).get("owner", "")) == "enemy":
+		return out
+	var units := GameState.units_on_tile(key)
+	var n := units.size()
+	if n == 0:
+		return out
+	var center := axial_to_screen(WorldGen.coord_of(key))
+	var span: float = hex_size * 0.36
+	var uy := center + Vector2(0, -hex_size * 0.50)
+	var icon_start := uy + Vector2(hex_size * 0.10, 0.0)
+	for i in n:
+		out.append({
+			"u": units[i],
+			"pos": icon_start + Vector2(span * (float(i) - float(n - 1) * 0.5 + 0.5), 0.0),
+		})
+	return out
+
+
 func _draw_tile_units(v: Dictionary) -> void:
 	var t: Dictionary = v["t"]
 	if not t.get("discovered", false):
 		return
-	# v1.6.1 修复：不再限定「我方地块」——单位在领地外（无主地块）上也必须显示
 	if str(t.get("owner", "")) == "enemy":
 		return
-	var units := GameState.units_on_tile(str(v["key"]))
-	if units.is_empty():
+	# 图标位置走 unit_icon_positions()（与点击命中共用），不在这里另算一遍
+	var icons := unit_icon_positions(str(v["key"]))
+	if icons.is_empty():
 		return
 	var center: Vector2 = v["center"]
-	var n := units.size()
+	var n := icons.size()
 	var span: float = hex_size * 0.36
 	var uy := center + Vector2(0, -hex_size * 0.50)
 	# 背景条 + 数量文字，避免与地形/资源图标糊在一起
@@ -224,12 +250,10 @@ func _draw_tile_units(v: Dictionary) -> void:
 	draw_string(f0, uy + Vector2(-bar_w * 0.5 + hex_size * 0.07, hex_size * 0.09),
 		"%d" % n, HORIZONTAL_ALIGNMENT_LEFT, -1,
 		int(clampf(hex_size * 0.26, 9.0, 13.0)), Color(0.75, 0.9, 1.0))
-	var icon_start := uy + Vector2(hex_size * 0.10, 0.0)
-	for i in n:
-		var u: Dictionary = units[i]
+	for ic in icons:
+		var u: Dictionary = ic["u"]
 		var prof := str(u.get("profession", "melee"))
-		var upos := icon_start + Vector2(span * (float(i) - float(n - 1) * 0.5 + 0.5), 0.0)
-		GeoIcon._draw_shape(self, UnitDB.profession_icon(prof), upos,
+		GeoIcon._draw_shape(self, UnitDB.profession_icon(prof), ic["pos"],
 			hex_size * 0.13, UnitDB.profession_color(prof), true, 1.0)
 
 
