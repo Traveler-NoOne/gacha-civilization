@@ -8,7 +8,6 @@ extends Control
 signal exit_to_menu
 
 const VIEWS := [
-	{"id": "manage", "name": "管理", "script": "res://scripts/ui/views/view_manage_page.gd"},
 	{"id": "treasure", "name": "至宝", "script": "res://scripts/ui/views/treasure_view.gd"},
 	{"id": "gacha", "name": "世界泡", "script": "res://scripts/ui/views/gacha_view.gd"},
 	{"id": "world", "name": "世界", "script": "res://scripts/ui/views/view_world_page.gd"},
@@ -23,7 +22,6 @@ var concrete_box: VBoxContainer
 ## 资源收支悬浮窗（v1.4.1）
 var _res_popup: Control = null
 var content_host: MarginContainer
-var nav_bar: HBoxContainer
 ## v1.7.1:视窗ID <-> 按钮 配对，刷新高亮用
 var nav_buttons: Dictionary = {} 
 var cycle_label: Label
@@ -35,6 +33,7 @@ const CORNER_MARGIN := 16.0
 const CORNER_TOP := 112.0
 var corner_tech_btn: Button
 var corner_log_btn: Button
+var end_btn: Button
 var tech_panel: TechPanel = null
 var log_panel: LogPanel = null
 
@@ -133,66 +132,10 @@ func _build() -> void:
 	root.add_child(content_host)
 	content_host.set_script(preload("res://scripts/ui/view_host.gd"))
 
-	# --- 底部导航 ---
-	var bottom := PanelContainer.new()
-	UIKit.apply_panel(bottom, Color(0.08, 0.08, 0.12), UIKit.LINE_SOFT, 0)
-	bottom.custom_minimum_size = Vector2(0, 56)
-	root.add_child(bottom)
+	# v1.8.7：底部栏整个取消 —— 按钮改为直接悬浮在大世界上（见 _build_floating_ui）。
 
-	var bh := HBoxContainer.new()
-	bh.add_theme_constant_override("separation", 0)
-	bottom.add_child(bh)
-
-	# 左右两区都 EXPAND_FILL -> 宽度相等 -> 中间那格必然在正中
-	
-	# 左区：包含结束周期;end_btn
-	var left_wrap := HBoxContainer.new()
-	left_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bh.add_child(left_wrap)
-	
-	# 结束周期按钮
-	var end_btn := UIKit.primary("结束周期", 15)
-	end_btn.custom_minimum_size = Vector2(100, 40)
-	end_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	end_btn.pressed.connect(_end_cycle)
-	left_wrap.add_child(end_btn)
-	
-	# 中区： 包含世界按钮;world_btn
-	var mid_wrap := HBoxContainer.new()
-	mid_wrap.custom_minimum_size = Vector2(64, 44)
-	bh.add_child(mid_wrap)
-	
-	# 世界按钮
-	var world_btn := UIKit.image_button("world-ball-s", "世界", 64, 64)
-	world_btn.set_anchors_preset(Control.PRESET_CENTER)
-	world_btn.pressed.connect(func() -> void: _switch_view("world"))
-	mid_wrap.add_child(world_btn)
-	nav_buttons["world"] = world_btn
-	
-	# 右区：包含管理，至宝，世界泡，日志
-	var right_wrap := HBoxContainer.new()
-	right_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_wrap.alignment = BoxContainer.ALIGNMENT_END
-	bh.add_child(right_wrap)
-	
-	# 系统按钮排布
-	nav_bar = HBoxContainer.new()
-	nav_bar.add_theme_constant_override("separation", 6)
-	nav_bar.alignment = BoxContainer.ALIGNMENT_END
-	right_wrap.add_child(nav_bar)
-
-	for v in VIEWS:
-		var vid: String = v["id"]
-		if vid == "world":
-			continue
-		var b := UIKit.normal(str(v["name"]), 15)
-		b.custom_minimum_size = Vector2(96, 40)
-		b.pressed.connect(func() -> void: _switch_view(vid))
-		nav_bar.add_child(b)
-		nav_buttons[vid] = b
-
-	# v1.8.6：角落浮动按钮（左上科技树 / 右上日志）＋ 它们对应的浮窗
-	_build_corner_ui()
+	# v1.8.7：按钮全部改为悬浮（左上科技树 / 右上日志 / 左下至宝·世界泡 / 右下结束周期）
+	_build_floating_ui()
 
 	_refresh()
 
@@ -227,34 +170,66 @@ func _switch_view(id: String) -> void:
 
 ##刷新系统按钮排布
 # ---------------------------------------------------------------------------
-# v1.8.6：角落浮动按钮与浮窗
+# v1.8.7：悬浮按钮与浮窗（底栏取消，按钮直接悬在大世界上）
 # ---------------------------------------------------------------------------
-func _build_corner_ui() -> void:
+func _build_floating_ui() -> void:
+	# 左上角：科技树
 	corner_tech_btn = UIKit.normal("科技树", 13)
 	corner_tech_btn.custom_minimum_size = Vector2(84, 34)
 	corner_tech_btn.tooltip_text = "科技树"
 	corner_tech_btn.pressed.connect(_toggle_tech_panel)
 	add_child(corner_tech_btn)
 
+	# 右上角：日志（书本图标）
 	corner_log_btn = UIKit.image_button("book-ball", "日志", 40, 40)
 	corner_log_btn.pressed.connect(_toggle_log_panel)
 	add_child(corner_log_btn)
 
-	resized.connect(_place_corner_ui)
+	# 左下角：至宝 / 世界泡（原来在底栏右侧）
+	# 它们现在是"盖在世界上的页面"，所以再点一次收回世界 —— 否则关不掉（世界按钮已随底栏删除）。
+	for v in VIEWS:
+		var vid := str(v["id"])
+		if vid == "world":
+			continue
+		var b := UIKit.normal(str(v["name"]), 14)
+		b.custom_minimum_size = Vector2(96, 40)
+		b.pressed.connect(func() -> void: _toggle_page(vid))
+		add_child(b)
+		nav_buttons[vid] = b
+
+	# 右下角：结束周期（原来在底栏左侧）
+	end_btn = UIKit.primary("结束周期", 15)
+	end_btn.custom_minimum_size = Vector2(100, 40)
+	end_btn.pressed.connect(_end_cycle)
+	add_child(end_btn)
+
+	resized.connect(_place_floating_ui)
 	# 状态变了就顺带刷新开着的科技浮窗（科研点与解锁状态会变）
 	GameState.state_changed.connect(func() -> void:
 		if tech_panel != null and is_instance_valid(tech_panel) and tech_panel.visible:
 			tech_panel.refresh())
-	_place_corner_ui()
+	_place_floating_ui()
 
 
-## ⚠️ 浮层一律用 **TOP_LEFT 锚点 + 按屏幕尺寸算绝对位置**，并在 resized 时重摆。
+## ⚠️ 悬浮层一律用 **TOP_LEFT 锚点 + 按屏幕尺寸算绝对位置**，并在 resized 时重摆。
 ##（"锚右上 + 负偏移"那套很容易摆错：锚点若在 add_child 之前设，还没有父节点可参照。）
-func _place_corner_ui() -> void:
+func _place_floating_ui() -> void:
+	var bh := 40.0
 	if is_instance_valid(corner_tech_btn):
 		corner_tech_btn.position = Vector2(CORNER_MARGIN, CORNER_TOP)
 	if is_instance_valid(corner_log_btn):
-		corner_log_btn.position = Vector2(size.x - CORNER_MARGIN - 40.0, CORNER_TOP - 6.0)
+		corner_log_btn.position = Vector2(size.x - CORNER_MARGIN - bh, CORNER_TOP - 6.0)
+	# 左下角一排（至宝、世界泡），按 VIEWS 顺序相邻排开
+	var x := CORNER_MARGIN
+	var y := size.y - CORNER_MARGIN - bh
+	for vid in nav_buttons:
+		var b: Button = nav_buttons[vid]
+		if not is_instance_valid(b):
+			continue
+		b.position = Vector2(x, y)
+		x += b.custom_minimum_size.x + 8.0
+	if is_instance_valid(end_btn):
+		end_btn.position = Vector2(size.x - CORNER_MARGIN - 100.0, y)
 	if tech_panel != null and is_instance_valid(tech_panel):
 		var sz := Vector2(560, 480)
 		tech_panel.size = sz
@@ -265,6 +240,15 @@ func _place_corner_ui() -> void:
 		log_panel.size = Vector2(maxf(200.0, size.x - 144.0), maxf(160.0, size.y - 144.0))
 
 
+## v1.8.7：至宝 / 世界泡 变成"盖在世界上的页面"，再点一次收回世界。
+##（v1.8.8 会把它们正式变成浮窗，交互方向一致。）
+func _toggle_page(id: String) -> void:
+	if current_view == id:
+		_switch_view(DEFAULT_VIEW)
+	else:
+		_switch_view(id)
+
+
 func _toggle_tech_panel() -> void:
 	if tech_panel == null:
 		tech_panel = TechPanel.new()
@@ -273,7 +257,7 @@ func _toggle_tech_panel() -> void:
 		tech_panel.visible = false
 	tech_panel.visible = not tech_panel.visible
 	if tech_panel.visible:
-		_place_corner_ui()
+		_place_floating_ui()
 		tech_panel.refresh()
 
 
@@ -285,7 +269,7 @@ func _toggle_log_panel() -> void:
 		log_panel.visible = false
 	log_panel.visible = not log_panel.visible
 	if log_panel.visible:
-		_place_corner_ui()
+		_place_floating_ui()
 
 
 func _refresh_nav() -> void:
@@ -296,11 +280,8 @@ func _refresh_nav() -> void:
 		if not is_instance_valid(b):
 			continue
 		var active: bool = vid == current_view
-		if vid == "world":
-			UIKit.apply_icon_active(b, active)
-		else:
-			UIKit.style_button(b, active)
-			b.add_theme_color_override("font_color",UIKit.GOLD if active else  UIKit.TEXT)
+		UIKit.style_button(b, active)
+		b.add_theme_color_override("font_color", UIKit.GOLD if active else UIKit.TEXT)
 
 
 func _end_cycle() -> void:
@@ -696,12 +677,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	var k := event as InputEventKey
 	if k.echo:
 		return
+	# v1.8.7：管理页与日志页都不再是一级入口，编号重排
 	match k.keycode:
-		KEY_1: _switch_view("manage")
-		KEY_2: _switch_view("treasure")
-		KEY_3: _switch_view("gacha")
-		KEY_4: _switch_view("log")
-		KEY_5: _switch_view("world")
+		KEY_1: _switch_view("treasure")
+		KEY_2: _switch_view("gacha")
+		KEY_3: _switch_view("world")
 		KEY_SPACE: _end_cycle()
 		KEY_ESCAPE:
 			_close_res_popup()

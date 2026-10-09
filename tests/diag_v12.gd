@@ -201,7 +201,7 @@ func _ready() -> void:
 	if unit_rows <= 0:
 		failed += 1
 
-	print("\n== 7. 一级按钮只剩四个（v1.8.6：日志已搬到右上角浮窗），休眠页已删除 ==")
+	print("\n== 7. 一级入口只剩三个（v1.8.7：管理/日志都已不是一级入口），休眠页已删除 ==")
 	var gscr: Control = load("res://scripts/ui/game_screen.gd").new()
 	gscr.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(gscr)
@@ -212,7 +212,10 @@ func _ready() -> void:
 	for v in view_list:
 		names.append(str(v["name"]))
 	print("  一级按钮：%s（%d 个）" % ["、".join(names), names.size()])
-	if names.size() != 4 or names.has("休眠") or names.has("日志"):
+	if names.size() != 3 or names.has("休眠") or names.has("日志") or names.has("管理"):
+		failed += 1
+	print("  悬浮导航按钮：%s（%d 个，期望 2：至宝/世界泡）" % [str((gscr.get("nav_buttons") as Dictionary).keys()), (gscr.get("nav_buttons") as Dictionary).size()])
+	if (gscr.get("nav_buttons") as Dictionary).size() != 2:
 		failed += 1
 	if FileAccess.file_exists("res://scripts/ui/views/sleep_view.gd"):
 		print("  [FAIL] sleep_view.gd 仍然存在")

@@ -68,57 +68,68 @@ func _ready() -> void:
 	if enemy_label != "高危据点":
 		_fail("据点称呼不是通用称呼")
 
-	print("\n== 3. 管理页刷新：缓存视图切回来必须刷新（用户报的 bug） ==")
+	print("\n== 3. 切回据点管理窗口必须刷新（用户报过的 bug；v1.8.7 管理页不可达，改打窗口） ==")
 	var holder := _host()
-	var gs: Control = load("res://scripts/ui/game_screen.gd").new()
-	holder.add_child(gs)
-	gs.size = Vector2(1280, 720)
+	var world: Control = load("res://scripts/ui/views/view_world_page.gd").new()
+	world.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.add_child(world)
+	world.size = Vector2(1280, 720)
 	for i in 4:
 		await get_tree().process_frame
-	gs.call("goto_view", "manage")
-	for i in 3:
-		await get_tree().process_frame
-	var mg: Control = gs.get("views")["manage"]
-	var n_first := (mg.get("labor_list") as Node).get_child_count()
-	# 切到世界页，修建一个建筑 + 排队一个建筑
-	gs.call("goto_view", "world")
-	for i in 2:
-		await get_tree().process_frame
 	var cap_k := str(GameState.state["capital"])
-	GameState.add_res("production", 400.0)
-	var built_id := ""
-	for def in GameState.building_defs:
-		if GameState.can_build(GameState.tile_at(cap_k), def)["ok"]:
-			var r := GameState.build(cap_k, def.id)
-			print("  修建 %s：%s" % [def.id, str(r["ok"])])
-			if bool(r["ok"]):
-				built_id = def.id
-				break
-	GameState.state["res"]["production"] = 0.0
-	var q_id := ""
-	for def2 in GameState.building_defs:
-		if str(def2.id) == built_id:
-			continue
-		if GameState.can_build(GameState.tile_at(cap_k), def2)["ok"]:
-			q_id = str(def2.id)
-			break
-	if q_id != "":
-		var qr := GameState.request_build(cap_k, q_id)
-		print("  入队 %s：%s（queued=%s）" % [q_id, str(qr["ok"]), str(qr.get("queued", false))])
-	# 切回管理页 —— 走的是**缓存**路径（修复前这里不会刷新，两块都是空的）
-	gs.call("goto_view", "manage")
-	for i in 3:
+	# 打开据点管理窗口（点我方领地）
+	world.call("_on_tile_clicked", cap_k, "", Vector2.ZERO)
+	for i in 4:
 		await get_tree().process_frame
-	var n_labor := (mg.get("labor_list") as Node).get_child_count()
-	var n_queue := (mg.get("queue_list") as Node).get_child_count()
-	print("  首次进入时人力管理子项 %d → 修建/入队后切回 %d｜规划队列 %d" % [n_first, n_labor, n_queue])
-	if built_id == "":
-		_fail("没有可建造的建筑，测试无效")
-	if n_labor <= 0:
-		_fail("切回管理页后人力管理仍为空（缓存视图没有刷新）")
-	if n_queue <= 0:
-		_fail("切回管理页后规划队列仍为空（缓存视图没有刷新）")
-	gs.queue_free()
+	var sp: Variant = world.get("stronghold_panel")
+	if sp == null:
+		_fail("据点管理窗口没有打开")
+	else:
+		sp.set("tab", "labor")
+		sp.call("refresh")
+		for i in 3:
+			await get_tree().process_frame
+		var n_first := ((sp.get("content_box") as Node).get_child_count()) if (sp.get("content_box") is Node) else 0
+		# 修建一个建筑 + 排队一个建筑
+		GameState.add_res("production", 400.0)
+		var built_id := ""
+		for def in GameState.building_defs:
+			if GameState.can_build(GameState.tile_at(cap_k), def)["ok"]:
+				var r := GameState.build(cap_k, def.id)
+				print("  修建 %s：%s" % [def.id, str(r["ok"])])
+				if bool(r["ok"]):
+					built_id = def.id
+					break
+		GameState.state["res"]["production"] = 0.0
+		var q_id := ""
+		for def2 in GameState.building_defs:
+			if str(def2.id) == built_id:
+				continue
+			if GameState.can_build(GameState.tile_at(cap_k), def2)["ok"]:
+				q_id = str(def2.id)
+				break
+		if q_id != "":
+			var qr := GameState.request_build(cap_k, q_id)
+			print("  入队 %s：%s（queued=%s）" % [q_id, str(qr["ok"]), str(qr.get("queued", false))])
+		# 重新打开窗口（走**缓存**路径）—— 修复前这里两块都是空的
+		(sp as Control).visible = false
+		world.call("_on_tile_clicked", cap_k, "", Vector2.ZERO)
+		for i in 3:
+			await get_tree().process_frame
+		sp.set("tab", "labor")
+		sp.call("refresh")
+		for i in 3:
+			await get_tree().process_frame
+		var n_labor := ((sp.get("content_box") as Node).get_child_count()) if (sp.get("content_box") is Node) else 0
+		var n_queue := ((sp.get("build_box") as Node).get_child_count()) if (sp.get("build_box") is Node) else 0
+		print("  首次打开人力子项 %d → 修建/入队后 %d｜规划队列 %d" % [n_first, n_labor, n_queue])
+		if built_id == "":
+			_fail("没有可建造的建筑，测试无效")
+		if n_labor <= 0:
+			_fail("据点管理窗口的人力页仍为空（没有刷新）")
+		if n_queue <= 0:
+			_fail("据点管理窗口的规划队列仍为空（没有刷新）")
+	world.queue_free()
 	holder.queue_free()
 
 	print("\n== 4. 建筑详情与科技隐藏 ==")

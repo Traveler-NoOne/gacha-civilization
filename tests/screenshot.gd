@@ -119,7 +119,7 @@ func _ready() -> void:
 
 	# v1.8.6：日志已从一级按钮搬到右上角浮窗，所以这里不再拍"日志页"。
 	# 用显式文件名，避免删一张就整体倒号（旧名字保持不变，少一张就少一个号）。
-	var views := [["manage", "03_view_manage"], ["treasure", "04_view_treasure"], ["gacha", "05_view_gacha"], ["world", "07_view_world"]]
+	var views := [["treasure", "04_view_treasure"], ["gacha", "05_view_gacha"], ["world", "07_view_world"]]
 	for v in views:
 		gs.call("goto_view", str(v[0]))
 		# 布局需要几帧才能稳定（尤其是世界页的地图控件）
@@ -191,16 +191,6 @@ func _ready() -> void:
 		await _shoot("08g_build_selected")
 		(v185_bp as Control).visible = false
 
-	# v1.3：中控区的三个页签（指挥 / 军队 / 科技树）
-	gs.call("goto_view", "manage")
-	for f in 4:
-		await get_tree().process_frame
-	var mgr_page: Variant = gs.get("views")["manage"]
-	for tab in ["army", "tech"]:
-		mgr_page.call("switch_ctrl_tab", tab)
-		for f2 in 5:
-			await get_tree().process_frame
-		await _shoot("08b_ctrl_%s" % tab)
 
 	# 至宝的三个子页
 	gs.call("goto_view", "treasure")
@@ -253,30 +243,7 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await _shoot("14_codex_profession")
 
-	# v1.1：征兵对话框
-	gs.call("goto_view", "manage")
-	for f8 in 4:
-		await get_tree().process_frame
-	var mv: Variant = gs.get("views")["manage"]
-	mv.call("_open_recruit")
-	for f9 in 8:
-		await get_tree().process_frame
-	await _shoot("16_dialog_recruit")
-	gs.call("close_dialog")
-	for f10 in 2:
-		await get_tree().process_frame
 
-	# v1.2：据点下拉选择菜单（v1.4 起管理页里的对应方法是 _open_stronghold_picker）
-	if mv.has_method("_open_stronghold_picker"):
-		mv.call("_open_stronghold_picker")
-		for f11 in 8:
-			await get_tree().process_frame
-		await _shoot("18_dialog_stronghold_picker")
-		gs.call("close_dialog")
-		for f12 in 2:
-			await get_tree().process_frame
-	else:
-		print("  [skip] view_manage_page 没有 _open_stronghold_picker，跳过据点选择弹窗")
 
 	# v1.2：作弊菜单（先开启作弊功能）
 	GameState.set_cheat_enabled(true)
