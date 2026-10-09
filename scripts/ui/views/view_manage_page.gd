@@ -593,7 +593,7 @@ func _open_recruit() -> void:
 		return
 	var v := UIKit.vbox(6)
 	v.add_child(UIKit.text_label("招募募集兵", 15, UIKit.GOLD))
-	v.add_child(UIKit.dim("募集军是刚招募的军队单位，对战斗并不熟练，属性倍率只有 0.6~0.8，经验上限 100 点。\n需要一座「经典训练场地」。每个募集兵消耗：食物 20、货币 60。"))
+	v.add_child(UIKit.dim("募集军是刚招募的军队单位，对战斗并不熟练，属性倍率只有 0.6~0.8，经验上限 100 点。\n需要一座「经典训练场地」。执行时消耗：食物 20、货币 60。\n\nv1.8.3：征兵已改成**政事** —— 排入队列后每周期积累行政点数，攒够 %.0f 点才真正征到兵。" % DecreeDB.cost_of(DecreeDB.RECRUIT)))
 	for p in UnitDB.PROFESSION_ORDER:
 		var row := PanelContainer.new()
 		UIKit.apply_panel(row, UIKit.BG_PANEL_2, UnitDB.profession_color(p), 5)
@@ -612,13 +612,15 @@ func _open_recruit() -> void:
 		var dd := UIKit.dim(UnitDB.profession_desc(p), 10)
 		dd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		tv.add_child(dd)
-		var b := UIKit.small("招募", 12)
+		# v1.8.3：征兵改成"排进政事队列"（攒够行政点数才真的征到兵）。
+		# v1.8.4 会把这条政事搬到据点管理窗口的「政事」页；这里先留过渡入口。
+		var b := UIKit.small("排入政事", 12)
 		b.pressed.connect(func() -> void:
-			var r := GameState.recruit_soldier(p)
+			var r := GameState.enqueue_decree(DecreeDB.RECRUIT, p)
 			if not r["ok"]:
 				GameState.toast.emit(str(r["why"]))
 			else:
-				GameState.toast.emit("招募成功：%s" % str((r["unit"] as Dictionary)["name"]))
+				GameState.toast.emit("已排入政事队列：征兵（%s）" % UnitDB.profession_name(p))
 			gs.close_dialog()
 			refresh())
 		h.add_child(b)

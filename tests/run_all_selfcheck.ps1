@@ -16,7 +16,7 @@ $proj = Split-Path -Parent $PSScriptRoot
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor DarkCyan
-Write-Host "  抽卡文明 · 全套自检（12 项）" -ForegroundColor Cyan
+Write-Host ("  抽卡文明 · 全套自检（" + $tests.Count + " 项）") -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor DarkCyan
 Write-Host "  项目：$proj"
 Write-Host ""
@@ -50,6 +50,7 @@ $tests = @(
     ,@('diag_v17',           'v1.7 护栏（收支同源 / 高亮即可达 / 无死常量）')
     ,@('diag_cheat_mouse',   '作弊菜单端到端')
     ,@('diag_cheat_persist', '作弊设置持久化')
+    ,@('diag_v18',           'v1.8.3 政事系统（数据 / 队列 / 征兵 / 存档往返）')
     ,@('autoplay',           '自动试跑一遍（周期循环）')
 )
 
@@ -63,7 +64,7 @@ foreach ($t in $tests) {
     $i++
     $name = $t[0]
     $label = $t[1]
-    Write-Host ("  [{0,2}/12] {1}" -f $i, $label) -NoNewline
+    Write-Host ("  [{0,2}/{1}] {2}" -f $i, $tests.Count, $label) -NoNewline
 
     $out = Join-Path $tmp "$name.log"
     $err = Join-Path $tmp "$name.err"
@@ -104,9 +105,9 @@ foreach ($t in $tests) {
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor DarkCyan
 if ($failed.Count -eq 0) {
-    Write-Host "  全绿：$pass / 12 通过 —— 可以放心继续下一步" -ForegroundColor Green
+    Write-Host ("  全绿：{0} / {1} 通过 —— 可以放心继续下一步" -f $pass, $tests.Count) -ForegroundColor Green
 } else {
-    Write-Host "  通过 $pass / 12" -ForegroundColor Yellow
+    Write-Host ("  通过 {0} / {1}" -f $pass, $tests.Count) -ForegroundColor Yellow
     Write-Host "  有问题的是：" -ForegroundColor Red
     foreach ($f in $failed) { Write-Host "    - $f" -ForegroundColor Red }
     Write-Host "  （把上面整段截图发我，我来判断是哪里出问题）" -ForegroundColor Yellow

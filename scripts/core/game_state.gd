@@ -8,7 +8,9 @@ signal state_changed
 signal toast(text: String)
 
 const SAVE_MAGIC := "gacha_civilization_demo"
-const SAVE_VERSION := 2
+## v1.8.3：存档结构变了（据点新增 decrees 政事队列），所以 +1。
+## 按既有决策：1.0 期不做旧档兼容 —— 版本不符直接拒绝（见 load_from_slot）。
+const SAVE_VERSION := 3
 
 var state: Dictionary = {}
 var building_defs: Array[BuildingDef] = []
@@ -178,7 +180,8 @@ func _setup_capital_stronghold() -> void:
 		"name": "首都",
 		"core": str(state.get("capital", "0,0")),
 		"control": 1.0,          # 掌控力（预留，本作恒 1.0）
-		"queue": [],             # 规划队列
+		"queue": [],             # 规划队列（吃生产力）
+		"decrees": [],           # v1.8.3 政事队列（吃行政点数）
 	}]
 	var cap := tile_at(str(state.get("capital", "0,0")))
 	if not cap.is_empty():
@@ -987,27 +990,41 @@ func reset_unit_moves() -> void:
 
 ## 征兵：把空闲人力转成募集军（对应文档「军事建筑 - 经典训练场地」的思路，
 ## 但募集军是「刚招募、经验为负修正」的那一类，见 v1.1 第 25 条）
-func recruit_soldier(profession: String) -> Dictionary:
+## 征兵的花费（唯一来源：检查与支付都用它）
+const RECRUIT_COST := {"food": 20.0, "currency": 60.0}
+
+
+## 征兵是否可行 —— **只检查，不花钱、不落单位**。
+## v1.8.3：把这套检查抽出来，好让"直接征兵"与"政事：征兵"两条路**共用同一份判定**
+## （两处各写一遍的话，迟早一边改了另一边没改）。返回 "" 表示可以。
+func recruit_blocked_reason(profession: String) -> String:
 	if free_pop() <= 0:
-		return {"ok": false, "why": "没有空闲人力"}
+		return "没有空闲人力"
 	if not UnitDB.PROFESSIONS.has(profession):
-		return {"ok": false, "why": "未知职业"}
+		return "未知职业"
 	# 需要一座训练场地
 	var has_ground := false
 	for t in owned_tiles():
 		for b in t.get("buildings", []):
-			if b.get("id", "") == "classic_training_ground":
+			if str(b.get("id", "")) == "classic_training_ground":
 				has_ground = true
 	if not has_ground:
-		return {"ok": false, "why": "需要先建造「经典训练场地」"}
-	var cost := {"food": 20.0, "currency": 60.0}
-	if not can_afford(cost):
-		return {"ok": false, "why": "资源不足（%s）" % cost_to_text(cost)}
+		return "需要先建造「经典训练场地」"
+	if not can_afford(RECRUIT_COST):
+		return "资源不足（%s）" % cost_to_text(RECRUIT_COST)
 	# v1.5：公民必须存在于大世界 —— 直接派驻首都；首都满员则拒绝
+	if units_on_tile(str(state.get("capital", ""))).size() >= UnitDB.UNITS_PER_TILE:
+		return "首都已驻满 %d 个单位，先空出位置再征兵" % UnitDB.UNITS_PER_TILE
+	return ""
+
+
+func recruit_soldier(profession: String) -> Dictionary:
+	var why := recruit_blocked_reason(profession)
+	if why != "":
+		return {"ok": false, "why": why}
+	pay(RECRUIT_COST)
+	# v1.5：公民必须存在于大世界 —— 直接派驻首都
 	var cap_key := str(state.get("capital", ""))
-	if units_on_tile(cap_key).size() >= UnitDB.UNITS_PER_TILE:
-		return {"ok": false, "why": "首都已驻满 %d 个单位，先空出位置再征兵" % UnitDB.UNITS_PER_TILE}
-	pay(cost)
 	var nm := "%s·募集兵" % UnitDB.profession_name(profession)
 	var u := UnitDB.make_soldier("recruit", profession, UnitDB.RECRUIT, nm, 1)
 	u["tile"] = cap_key
@@ -1283,6 +1300,80 @@ func _process_build_queue(avail: float) -> float:
 	return maxf(0.0, avail)
 
 
+# ===========================================================================
+# v1.8.3：政事队列（吃行政点数）
+# ===========================================================================
+## 政事能不能排？"" 表示可以。同样**只检查，不改状态**。
+func decree_blocked_reason(id: String) -> String:
+	if not DecreeDB.exists(id):
+		return "没有这条政事"
+	if id == DecreeDB.RECRUIT:
+		return recruit_blocked_reason(UnitDB.MELEE)
+	return ""
+
+
+## 把一条政事排进据点队列
+func enqueue_decree(id: String, profession: String = UnitDB.MELEE) -> Dictionary:
+	if not DecreeDB.exists(id):
+		return {"ok": false, "why": "没有这条政事"}
+	var why := decree_blocked_reason(id)
+	if why != "":
+		return {"ok": false, "why": why}
+	var sh := current_stronghold()
+	if sh.is_empty():
+		return {"ok": false, "why": "没有据点"}
+	if not sh.has("decrees"):
+		sh["decrees"] = []
+	(sh["decrees"] as Array).append({
+		"id": id,
+		"profession": profession,
+		"cost": DecreeDB.cost_of(id),
+		"paid": 0.0,
+	})
+	add_log("政事「%s」已排入队列。" % DecreeDB.display_name(id), "admin")
+	state_changed.emit()
+	return {"ok": true, "why": ""}
+
+
+## 每周期用**当期入账的行政点数**推进政事队列。
+## 结构与 _process_build_queue 一致：**队首没办完，后面的不推进**（避免摊薄）。
+func _process_decree_queue(avail: float) -> void:
+	for sh in strongholds():
+		var q: Array = sh.get("decrees", [])
+		var i := 0
+		while i < q.size():
+			if avail <= 0.0:
+				break
+			var item: Dictionary = q[i]
+			var need := float(item.get("cost", 0.0)) - float(item.get("paid", 0.0))
+			var put := minf(avail, maxf(0.0, need))
+			item["paid"] = float(item.get("paid", 0.0)) + put
+			avail -= put
+			if float(item["paid"]) + 0.0001 >= float(item.get("cost", 0.0)):
+				q.remove_at(i)
+				_execute_decree(item)
+			else:
+				break
+
+
+## 政事完成时执行效果。
+## 若效果**执行不了**（前置在这期间变了，比如首都已驻满），
+## **把已投入的行政点数退还**并记日志 —— 不白吞玩家的点数。
+func _execute_decree(item: Dictionary) -> void:
+	var id := str(item.get("id", ""))
+	var paid := float(item.get("paid", 0.0))
+	if id == DecreeDB.RECRUIT:
+		var r := recruit_soldier(str(item.get("profession", UnitDB.MELEE)))
+		if bool(r["ok"]):
+			add_log("政事「征兵」完成：%s 进驻首都。" % str((r["unit"] as Dictionary).get("name", "")), "admin")
+		else:
+			add_res("admin", paid)
+			add_log("政事「征兵」未能执行（%s），已退还行政点数 %.1f。" % [str(r["why"]), paid], "admin")
+	else:
+		add_res("admin", paid)
+		add_log("未知政事「%s」，已退还行政点数 %.1f。" % [id, paid], "admin")
+
+
 ## 队列编辑（UI 用）
 func queue_move(sid: String, index: int, delta: int) -> void:
 	var sh := stronghold_by_id(sid)
@@ -1545,6 +1636,11 @@ func end_cycle() -> Dictionary:
 
 	# 9.5 行政点数的周期结算（基底 + 限时 buff/debuff + 当期收支项；见 v1.3.1）
 	settle_admin(report)
+
+	# 9.6 v1.8.3：政事队列推进。
+	# 必须排在 9.5 之后 —— 它吃的是"本期刚入账的行政点数"
+	#（与规划队列吃当期生产力同一套手感）。
+	_process_decree_queue(float((report.get("income", {}) as Dictionary).get("admin", 0.0)))
 
 	# 10. 单位经验：通过周期循环缓缓增长（每个单位最多因此获得 100 点）
 	grow_unit_exp(report)
