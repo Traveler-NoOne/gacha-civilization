@@ -7,10 +7,12 @@ extends Control
 
 signal exit_to_menu
 
+## v1.8.8：现在只有 world 是"页面"（常驻底层），其余都是二级浮窗。
+## 浮窗尺寸**待试玩后定**（先用 1120×620）。
 const VIEWS := [
-	{"id": "treasure", "name": "至宝", "script": "res://scripts/ui/views/treasure_view.gd"},
-	{"id": "gacha", "name": "世界泡", "script": "res://scripts/ui/views/gacha_view.gd"},
-	{"id": "world", "name": "世界", "script": "res://scripts/ui/views/view_world_page.gd"},
+	{"id": "treasure", "name": "至宝", "script": "res://scripts/ui/views/treasure_view.gd", "w": 1120.0, "h": 620.0},
+	{"id": "gacha", "name": "世界泡", "script": "res://scripts/ui/views/gacha_view.gd", "w": 1120.0, "h": 620.0},
+	{"id": "world", "name": "世界", "script": "res://scripts/ui/views/view_world_page.gd", "w": 0.0, "h": 0.0},
 ]
 const DEFAULT_VIEW := "world"
 
@@ -34,6 +36,10 @@ const CORNER_TOP := 112.0
 var corner_tech_btn: Button
 var corner_log_btn: Button
 var end_btn: Button
+## v1.8.8：二级浮窗注册表 id -> PagePanel（内部页面同时挂到 views[id]，保持旧调用点可用）
+var panels: Dictionary = {}
+## 压暗层（浮窗打开时出现；mouse_filter = IGNORE，所以**地图仍然能拖能点**）
+var dim: ColorRect
 var tech_panel: TechPanel = null
 var log_panel: LogPanel = null
 
@@ -47,7 +53,9 @@ func _ready() -> void:
 	GameState.toast.connect(_on_toast)
 	# 作弊开关是全局设置，改了要立刻反映到顶部按钮上
 	AppSettings.changed.connect(_refresh)
-	_switch_view(DEFAULT_VIEW)
+	# v1.8.8：大世界是底层（root），先把它立起来；浮窗只是叠在它上面的窗。
+	_setup_world()
+	_refresh_nav()
 
 
 # ---------------------------------------------------------------------------
@@ -134,6 +142,14 @@ func _build() -> void:
 
 	# v1.8.7：底部栏整个取消 —— 按钮改为直接悬浮在大世界上（见 _build_floating_ui）。
 
+	# v1.8.8：压暗层。加在按钮**之前** → 它在按钮和浮窗下面；IGNORE 让它不吃输入。
+	dim = ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.35)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dim.visible = false
+	add_child(dim)
+
 	# v1.8.7：按钮全部改为悬浮（左上科技树 / 右上日志 / 左下至宝·世界泡 / 右下结束周期）
 	_build_floating_ui()
 
@@ -143,30 +159,89 @@ func _build() -> void:
 # ---------------------------------------------------------------------------
 # 视图切换
 # ---------------------------------------------------------------------------
+func _view_def(id: String) -> Dictionary:
+	for v in VIEWS:
+		if str(v["id"]) == id:
+			return v
+	return {}
+
+
+## v1.8.8：世界常驻底层；切到别的 id = 打开它对应的二级浮窗；切回 world = 关掉所有浮窗。
 func _switch_view(id: String) -> void:
-	current_view = id
-	if views.has(id):
-		content_host.show_view(views[id])
-		# v1.6 修复：切回**已缓存**的视图时必须重新刷新一次，否则显示的是上次刷新时的旧内容。
-		# 典型症状：修建建筑后进管理页，人力管理与规划队列仍是空的，
-		# 必须手动点一次「据点」弹窗才触发刷新、内容才出来。
-		var cached: Variant = views[id]
-		if cached != null and is_instance_valid(cached) and (cached as Node).has_method("refresh"):
-			(cached as Node).call("refresh")
+	if id == "" or id == DEFAULT_VIEW:
+		_close_all_panels()
+		current_view = DEFAULT_VIEW
 		_refresh_nav()
 		return
-	var def: Dictionary = {}
-	for v in VIEWS:
-		if v["id"] == id:
-			def = v
-			break
+	_open_panel(id)
+
+
+## 打开（或唤起）一个二级浮窗。同一时刻只留一个页级浮窗，避免叠罗汉。
+func _open_panel(id: String) -> void:
+	var def := _view_def(id)
+	if def.is_empty():
+		return
+	for other in panels.keys():
+		if str(other) != id and (panels[other] as Control).visible:
+			(panels[other] as PagePanel).close_panel()
+	if not panels.has(id):
+		var p := PagePanel.new(str(def["name"]), str(def["script"]),
+			float(def.get("w", 1120.0)), float(def.get("h", 620.0)))
+		p.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		p.visible = false
+		p.closed.connect(_on_panel_closed)
+		add_child(p)
+		panels[id] = p
+		# 兼容：旧代码/测试用 views[id] 拿"页面"，现在指向浮窗内部那一页
+		views[id] = p.page
+	var panel: PagePanel = panels[id]
+	# ⚠️ v1.6 的保证不能丢：**每次打开都刷新**，否则会重现"修建后进来看空列表"那类旧缓存 bug。
+	if panel.page != null and is_instance_valid(panel.page) and panel.page.has_method("refresh"):
+		panel.page.call("refresh")
+	panel.visible = true
+	current_view = id
+	_place_floating_ui()
+	_update_dim()
+	_refresh_nav()
+
+
+func _close_all_panels() -> void:
+	for id in panels.keys():
+		if (panels[id] as Control).visible:
+			(panels[id] as Control).visible = false
+	_update_dim()
+
+
+func _on_panel_closed() -> void:
+	_update_dim()
+	if not _any_page_panel_open():
+		current_view = DEFAULT_VIEW
+	_refresh_nav()
+
+
+func _any_page_panel_open() -> bool:
+	for id in panels.keys():
+		if (panels[id] as Control).visible:
+			return true
+	return false
+
+
+## 有页级浮窗打开时压暗底下（但不拦输入 —— 地图仍可拖动，保持"我在世界之上操作"的手感）
+func _update_dim() -> void:
+	if is_instance_valid(dim):
+		dim.visible = _any_page_panel_open()
+
+
+## v1.8.8：把大世界立成常驻底层
+func _setup_world() -> void:
+	var def := _view_def(DEFAULT_VIEW)
 	if def.is_empty():
 		return
 	var scr: Control = load(str(def["script"])).new()
-	views[id] = scr
-	content_host.add_view(scr, id)
+	views[DEFAULT_VIEW] = scr
+	content_host.add_view(scr, DEFAULT_VIEW)
 	content_host.show_view(scr)
-	_refresh_nav()
+	current_view = DEFAULT_VIEW
 
 ##刷新系统按钮排布
 # ---------------------------------------------------------------------------
@@ -238,6 +313,14 @@ func _place_floating_ui() -> void:
 		# 四周留边 —— 这就是"露出底下的世界"的那点边距
 		log_panel.position = Vector2(72.0, 64.0)
 		log_panel.size = Vector2(maxf(200.0, size.x - 144.0), maxf(160.0, size.y - 144.0))
+	# v1.8.8：页级浮窗居中；夹在屏幕内（窗口比屏幕大时贴左上）
+	for id in panels.keys():
+		var p: Control = panels[id]
+		if not is_instance_valid(p):
+			continue
+		var sz := p.custom_minimum_size
+		p.size = sz
+		p.position = Vector2(maxf(8.0, (size.x - sz.x) * 0.5), maxf(8.0, (size.y - sz.y) * 0.5))
 
 
 ## v1.8.7：至宝 / 世界泡 变成"盖在世界上的页面"，再点一次收回世界。
@@ -684,6 +767,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_3: _switch_view("world")
 		KEY_SPACE: _end_cycle()
 		KEY_ESCAPE:
+			# v1.8.8：浮窗能关了，所以 Esc 先关浮窗
+			if _any_page_panel_open():
+				_close_all_panels()
+				_refresh_nav()
 			_close_res_popup()
 			close_dialog()
 
