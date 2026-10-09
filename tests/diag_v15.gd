@@ -213,12 +213,12 @@ func _ready() -> void:
 	w.size = Vector2(1280, 720)
 	for i in 4:
 		await get_tree().process_frame
-	w.call("_on_tile_selected", cap)
+	w.call("_on_tile_clicked", cap, "", Vector2.ZERO)
 	var s1 := int(w.get("click_step"))
 	var u1 := str(w.get("sel_uid"))
-	w.call("_on_tile_selected", cap)
+	w.call("_on_tile_clicked", cap, "", Vector2.ZERO)
 	var s2 := int(w.get("click_step"))
-	w.call("_on_tile_selected", cap)
+	w.call("_on_tile_clicked", cap, "", Vector2.ZERO)
 	var s3 := int(w.get("click_step"))
 	print("  同格连点 step：%d → %d → %d；首档 sel=%s" % [s1, s2, s3, u1])
 	if s1 != 0 or s2 != 1 or s3 != 2:
@@ -230,7 +230,7 @@ func _ready() -> void:
 		if str(k) != cap:
 			other = str(k)
 			break
-	w.call("_on_tile_selected", other)
+	w.call("_on_tile_clicked", other, "", Vector2.ZERO)
 	print("  换到另一格后 step=%d（期望 0）" % int(w.get("click_step")))
 	if int(w.get("click_step")) != 0:
 		_fail("换格后没有从头开始")

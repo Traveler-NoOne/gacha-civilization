@@ -90,7 +90,7 @@ func _build() -> void:
 	map.custom_minimum_size = Vector2(120, 120)
 	map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map.tile_selected.connect(_on_tile_selected)
+	map.tile_clicked.connect(_on_tile_clicked)
 	mv.add_child(map)
 
 	# ---- 右侧：规划面板（信息页 / 地块规划页） ----
@@ -320,10 +320,22 @@ func _build_row(def: BuildingDef, t: Dictionary) -> void:
 	h.add_child(b)
 
 
-func _on_tile_selected(key: String) -> void:
+func _on_tile_clicked(key: String, uid: String, _gpos: Vector2) -> void:
 	# v1.5：处于选地模式时，点击只用于选目标
 	if pick_mode != "":
 		_pick_tile(key)
+		return
+	# v1.8.2：**点中棋子图标 → 直接选中它**，不必再"点几下轮换"。
+	# 其余情况暂时仍走下面的旧轮换逻辑；"领地 / 单位 / 简约信息"三档分派在 2-C 补上。
+	if uid != "":
+		selected = key
+		click_key = key
+		sel_uid = uid
+		_refresh_info()
+		_refresh_unit_strip()
+		_refresh_unit_panel()
+		_refresh_marks()
+		_refresh_build_list()
 		return
 	selected = key
 	if key != click_key:
@@ -412,8 +424,6 @@ func _refresh_marks() -> void:
 	else:
 		for k in WorldGen.claimable_keys(GameState.state):
 			map.marks[k] = Color(0.55, 0.95, 0.65)
-	if selected != "":
-		map.selected_key = selected
 	map.queue_redraw()
 
 

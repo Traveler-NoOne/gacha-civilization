@@ -72,7 +72,7 @@ func _ready() -> void:
 	var cks := WorldGen.claimable_keys(GameState.state)
 	var txt := ""
 	if not cks.is_empty():
-		world.call("_on_tile_selected", cks[0])
+		world.call("_on_tile_clicked", cks[0], "", Vector2.ZERO)
 		for i in 3:
 			await get_tree().process_frame
 		if world.get("info_box") is Node:

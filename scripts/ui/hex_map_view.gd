@@ -3,7 +3,12 @@ extends Control
 ## 六边形世界地图视图：绘制、平移、缩放、点击选格。
 ## 对应设计文档「世界」章节。
 
-signal tile_selected(key: String)
+## v1.8.2：左键点击的统一出口。
+##   key  = 点到了哪一格（轴向坐标的字符串键）
+##   uid  = 点到了哪个单位的图标（没点到单位则 ""）
+##   gpos = 鼠标的全局坐标（浮窗要出现在鼠标位置）
+## 地图只报告"空间事实"；"这格是不是我的领地、要不要开窗口"属于语义，由 view_world_page 判断。
+signal tile_clicked(key: String, uid: String, gpos: Vector2)
 
 const SIZE_BASE := 34.0
 const SIZE_MIN := 20.0
@@ -12,7 +17,6 @@ const SIZE_MAX := 62.0
 var hex_size := SIZE_BASE
 var origin := Vector2.ZERO
 var hover_key := ""
-var selected_key := ""
 ## 可选的高亮标记：{ "q,r": Color }
 var marks: Dictionary = {}
 var show_axis := false
@@ -280,15 +284,11 @@ func _draw_tile_overlay(v: Dictionary) -> void:
 		o3.append(pts[0])
 		draw_polyline(o3, mc, 3.0)
 		draw_colored_polygon(pts, Color(mc.r, mc.g, mc.b, 0.16))
-	# 悬浮 / 选中
-	if key == hover_key and key != selected_key:
+	# 悬浮高亮（v1.8.2：取消"选中地块"的黄框 —— 地块不再可选中）
+	if key == hover_key:
 		var o4 := pts.duplicate()
 		o4.append(pts[0])
 		draw_polyline(o4, Color(1, 1, 1, 0.45), 1.5)
-	if key == selected_key:
-		var o5 := pts.duplicate()
-		o5.append(pts[0])
-		draw_polyline(o5, Color(1.0, 0.92, 0.5), 3.5)
 
 
 func _draw_tile_text(v: Dictionary, capital: Vector2i) -> void:
@@ -379,8 +379,9 @@ func _gui_input(event: InputEvent) -> void:
 				if mb.position.distance_to(_drag_start) < 5.0:
 					var k := screen_to_key(mb.position)
 					if GameState.state["tiles"].has(k):
-						selected_key = k
-						tile_selected.emit(k)
+						# v1.8.2：把"点在哪一格 + 有没有点到棋子 + 鼠标位置"一起报出去
+						var uid := unit_uid_at(k, mb.position)
+						tile_clicked.emit(k, uid, get_global_transform() * mb.position)
 						queue_redraw()
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_MIDDLE and mb.pressed:
@@ -397,6 +398,21 @@ func _gui_input(event: InputEvent) -> void:
 			if k2 != hover_key:
 				hover_key = k2
 				queue_redraw()
+
+
+## 这一格上，点到了哪个单位的图标？（没点中返回 ""）
+## 命中口径**与绘制共用** unit_icon_positions() —— 位置一致，不会"看得到却点不到"。
+## 多个图标都落进范围内时取**最近**的那个。
+func unit_uid_at(key: String, pos: Vector2) -> String:
+	var best := ""
+	var best_d := INF
+	var reach: float = hex_size * 0.22
+	for ic in unit_icon_positions(key):
+		var d: float = pos.distance_to(ic["pos"])
+		if d <= reach and d < best_d:
+			best_d = d
+			best = str((ic["u"] as Dictionary).get("uid", ""))
+	return best
 
 
 func _zoom(factor: float, pivot: Vector2) -> void:
