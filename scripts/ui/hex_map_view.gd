@@ -10,6 +10,9 @@ extends Control
 ## 地图只报告"空间事实"；"这格是不是我的领地、要不要开窗口"属于语义，由 view_world_page 判断。
 signal tile_clicked(key: String, uid: String, gpos: Vector2)
 
+## v1.8.5：右键点地块（用于弹"球形图标操作菜单"）
+signal tile_right_clicked(key: String, gpos: Vector2)
+
 const SIZE_BASE := 34.0
 const SIZE_MIN := 20.0
 const SIZE_MAX := 62.0
@@ -383,6 +386,12 @@ func _gui_input(event: InputEvent) -> void:
 						var uid := unit_uid_at(k, mb.position)
 						tile_clicked.emit(k, uid, get_global_transform() * mb.position)
 						queue_redraw()
+			accept_event()
+		elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+			# v1.8.5：右键 = 弹该地块的操作菜单（球形图标按钮）
+			var kr := screen_to_key(mb.position)
+			if GameState.state["tiles"].has(kr):
+				tile_right_clicked.emit(kr, get_global_transform() * mb.position)
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_MIDDLE and mb.pressed:
 			_center_view()

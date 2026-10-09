@@ -28,6 +28,13 @@ var tile_info_box: VBoxContainer = null
 
 ## v1.8.4：据点管理窗口（点我方领地块时在右侧打开）
 var stronghold_panel: StrongholdPanel = null
+
+## v1.8.5：右键菜单（球形图标按钮）。**数据驱动**：以后加"拆除 / 驻军 / 巡查"只要加一行。
+const TILE_ACTIONS := [
+	{"id": "build", "icon": "hammer-ball", "tip": "修建建筑"},
+]
+var action_menu: PanelContainer = null
+var build_panel: BuildPanel = null
 var sel_uid := ""
 var pick_mode := ""      # "" / "recruit" / "move" / "attack"
 var pick_unit := ""
@@ -95,6 +102,7 @@ func _build() -> void:
 	map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	map.tile_clicked.connect(_on_tile_clicked)
+	map.tile_right_clicked.connect(_on_tile_right_clicked)
 	mv.add_child(map)
 
 	# ---- 右侧：规划面板（信息页 / 地块规划页） ----
@@ -335,6 +343,8 @@ func _on_tile_clicked(key: String, uid: String, gpos: Vector2) -> void:
 	if pick_mode != "":
 		_pick_tile(key)
 		return
+	# 左键点任何地方都先收起右键菜单
+	_hide_action_menu()
 	# ② 点中了棋子图标 → 直接选中它
 	if uid != "":
 		selected = key
@@ -461,6 +471,89 @@ func _ensure_stronghold_panel() -> void:
 	stronghold_panel.size = Vector2(340, 520)
 	add_child(stronghold_panel)
 	stronghold_panel.visible = false
+
+
+# ---------------------------------------------------------------------------
+# v1.8.5：右键菜单 + 修建浮窗
+# ---------------------------------------------------------------------------
+func _on_tile_right_clicked(key: String, gpos: Vector2) -> void:
+	# 选地 / 选目标模式下不给右键菜单（免得和"点格子选目标"混在一起）
+	if pick_mode != "":
+		return
+	_hide_tile_info()
+	_show_tile_actions(key, gpos)
+
+
+func _show_tile_actions(key: String, gpos: Vector2) -> void:
+	_ensure_action_menu()
+	for c in action_menu.get_children():
+		c.queue_free()
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	action_menu.add_child(row)
+	row.add_child(UIKit.dim(key, 10))
+	for a in TILE_ACTIONS:
+		var aid := str(a["id"])
+		var b := UIKit.image_button(str(a["icon"]), str(a["tip"]), 40, 40)
+		b.pressed.connect(func() -> void:
+			_hide_action_menu()
+			_run_tile_action(aid, key))
+		row.add_child(b)
+	action_menu.visible = true
+	action_menu.reset_size()
+	var sz := action_menu.size
+	var vp := get_viewport_rect().size
+	action_menu.position = Vector2(
+		clampf(gpos.x + 6.0, 0.0, maxf(0.0, vp.x - sz.x)),
+		clampf(gpos.y + 6.0, 0.0, maxf(0.0, vp.y - sz.y)))
+
+
+func _hide_action_menu() -> void:
+	if action_menu != null:
+		action_menu.visible = false
+
+
+func _ensure_action_menu() -> void:
+	if action_menu != null:
+		return
+	action_menu = PanelContainer.new()
+	action_menu.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	action_menu.visible = false
+	UIKit.apply_panel(action_menu, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
+	add_child(action_menu)
+
+
+## 菜单里每个动作的落点（加动作就在这里加一个分支）
+func _run_tile_action(id: String, key: String) -> void:
+	match id:
+		"build":
+			_open_build_panel(key)
+		_:
+			GameState.toast.emit("这个动作还没做：%s" % id)
+
+
+func _open_build_panel(key: String) -> void:
+	_ensure_build_panel()
+	build_panel.visible = true
+	build_panel.setup(key)
+	_place_center(build_panel)
+
+
+func _ensure_build_panel() -> void:
+	if build_panel != null:
+		return
+	build_panel = BuildPanel.new()
+	build_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	build_panel.size = Vector2(560, 420)
+	add_child(build_panel)
+	build_panel.visible = false
+
+
+## 把尺寸固定的浮窗摆到页面中间
+func _place_center(p: Control) -> void:
+	p.position = Vector2(
+		maxf(0.0, (size.x - p.size.x) * 0.5),
+		maxf(0.0, (size.y - p.size.y) * 0.5))
 
 
 ## 简约地块信息小窗：**懒创建**（第一次要用时才建），挂在本页上。
