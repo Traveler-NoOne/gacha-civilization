@@ -2,6 +2,9 @@
 .godot/
 /android/
 
+# 发布产物（export_presets.cfg 导出的 exe 与发布目录，可随时重新导出）
+/dist/
+
 # 截图自检输出（由 tests/screenshot.tscn 生成，可随时重新生成）
 tests/_shots/
 # AI 工具（godot-mcp-enhanced 监控面板）产物，非游戏文件

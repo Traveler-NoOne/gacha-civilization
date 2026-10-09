@@ -16,7 +16,7 @@ const VIEWS := [
 ]
 const DEFAULT_VIEW := "world"
 
-var current_view := "DEFAULT_VIEW"
+var current_view := DEFAULT_VIEW
 var views: Dictionary = {}
 var resource_bar: HBoxContainer
 var abstract_box: VBoxContainer
@@ -41,7 +41,7 @@ func _ready() -> void:
 	GameState.toast.connect(_on_toast)
 	# 作弊开关是全局设置，改了要立刻反映到顶部按钮上
 	AppSettings.changed.connect(_refresh)
-	_switch_view("DEFAULT_VIEW")
+	_switch_view(DEFAULT_VIEW)
 
 
 # ---------------------------------------------------------------------------
