@@ -25,6 +25,9 @@ var build_box: VBoxContainer
 ## v1.8.2：简约地块信息小窗（点在非我方地块时，在鼠标位置弹出）
 var tile_info_popup: PanelContainer = null
 var tile_info_box: VBoxContainer = null
+
+## v1.8.4：据点管理窗口（点我方领地块时在右侧打开）
+var stronghold_panel: StrongholdPanel = null
 var sel_uid := ""
 var pick_mode := ""      # "" / "recruit" / "move" / "attack"
 var pick_unit := ""
@@ -342,11 +345,11 @@ func _on_tile_clicked(key: String, uid: String, gpos: Vector2) -> void:
 	# 没点到棋子：先把"选中单位"清掉，再按地块归属分派
 	selected = key
 	sel_uid = ""
-	# ③ 我方领地 → 据点管理窗口（v1.8.4 接入）
+	# ③ 我方领地 → 打开右侧「据点管理窗口」
 	if str(GameState.tile_at(key).get("owner", "")) == "player":
 		_hide_tile_info()
 		_refresh_after_select()
-		GameState.toast.emit("据点管理窗口将在 v1.8.4 接入")
+		_open_stronghold_panel()
 		return
 	# ④ 其它地块 → 简约地块信息小窗
 	_refresh_after_select()
@@ -380,6 +383,9 @@ func refresh() -> void:
 	_refresh_build_list()
 	_refresh_unit_strip()
 	_refresh_unit_panel()
+	# v1.8.4：据点管理窗口开着的话，内容跟着状态走（否则会显示旧数据）
+	if stronghold_panel != null and is_instance_valid(stronghold_panel) and stronghold_panel.visible:
+		stronghold_panel.refresh()
 	map.queue_redraw()
 
 
@@ -426,6 +432,37 @@ func _refresh_marks() -> void:
 	map.queue_redraw()
 
 
+## v1.8.4：打开据点管理窗口。
+## 关闭方式：窗口右上角的 ✕（**故意不"点别处就自动关"** —— 管理窗口不该因为你点了一下地图就消失）。
+func _open_stronghold_panel() -> void:
+	_ensure_stronghold_panel()
+	stronghold_panel.visible = true
+	_place_stronghold_panel()
+	stronghold_panel.refresh()
+
+
+## 贴着世界页右侧摆（上下留边距）。窗口尺寸固定，所以只要按页宽算一次。
+func _place_stronghold_panel() -> void:
+	if stronghold_panel == null or not is_instance_valid(stronghold_panel):
+		return
+	stronghold_panel.position = Vector2(maxf(0.0, size.x - 356.0), 56.0)
+
+
+## 懒创建（第一次用到才建）；固定尺寸 + 锚在右侧。
+## 注意：挂在本页上，**不放进 map**（map 开了 clip_contents，会把浮层剪掉）。
+func _ensure_stronghold_panel() -> void:
+	if stronghold_panel != null:
+		return
+	stronghold_panel = StrongholdPanel.new()
+	# ⚠️ 锚点用 TOP_LEFT + 绝对定位。
+	# 别用「锚右上 + 负偏移」那一套：锚点若在 add_child **之前**设，那时还没有父节点可参照，
+	# 负偏移会被当成绝对坐标，窗口直接跑到屏幕外（实测 global_position = -356，白忙一场）。
+	stronghold_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	stronghold_panel.size = Vector2(340, 520)
+	add_child(stronghold_panel)
+	stronghold_panel.visible = false
+
+
 ## 简约地块信息小窗：**懒创建**（第一次要用时才建），挂在本页上。
 ## 不放进 map —— map 开了 clip_contents，会把浮出格子的东西剪掉。
 func _ensure_tile_info_popup() -> void:
@@ -436,7 +473,7 @@ func _ensure_tile_info_popup() -> void:
 	tile_info_popup.custom_minimum_size = Vector2(210, 0)
 	tile_info_popup.visible = false
 	tile_info_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	UIKit.apply_panel(tile_info_popup, Color(0.07, 0.07, 0.11, 0.96), UIKit.LINE, 6)
+	UIKit.apply_panel(tile_info_popup, Color(0.07, 0.07, 0.11, 1.0), UIKit.LINE, 6)
 	add_child(tile_info_popup)
 	tile_info_box = VBoxContainer.new()
 	tile_info_box.add_theme_constant_override("separation", 3)
