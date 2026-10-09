@@ -7,11 +7,22 @@ var failed := 0
 func _ready() -> void:
 	GameState.new_game(20240607)
 	print("== 1. 自动存档周期数 ==")
-	print("  默认值：%d（期望 %d）" % [GameState.autosave_interval(), Consts.AUTOSAVE_INTERVAL_DEFAULT])
-	if GameState.autosave_interval() != Consts.AUTOSAVE_INTERVAL_DEFAULT:
+	# ⚠️ 自动存档间隔是**全局设置**（落到 user://settings.cfg），会跨会话保留。
+	# 所以**不能断言"当前值 == 默认常量"**——那会随玩家自己改过的设置变红（测试不隔离，
+	# 而且会让人误以为改坏了代码）。正确做法三步：
+	#   ① 断言常量本身（纯值，不随机器变）
+	#   ② 测"设值 → 读回"的往返
+	#   ③ 测完把原来的值**还原**，别让测试改了玩家的设置
+	print("  默认常量：%d（期望 1）" % Consts.AUTOSAVE_INTERVAL_DEFAULT)
+	if Consts.AUTOSAVE_INTERVAL_DEFAULT != 1:
+		print("  [FAIL] 默认常量不是 1")
 		failed += 1
+	var kept_interval := GameState.autosave_interval()
 	GameState.set_autosave_interval(3)
 	print("  设为 3：%d" % GameState.autosave_interval())
+	if GameState.autosave_interval() != 3:
+		print("  [FAIL] 设成 3 之后读回不是 3")
+		failed += 1
 	# 跑 6 个周期，看 autosaved 标记落在哪些周期
 	var saved_cycles: Array[int] = []
 	for i in 6:
@@ -22,7 +33,8 @@ func _ready() -> void:
 	if saved_cycles.size() != 2:
 		print("  [FAIL] 触发次数不是 2")
 		failed += 1
-	GameState.set_autosave_interval(1)
+	GameState.set_autosave_interval(kept_interval)
+	print("  已还原为测试前的值：%d" % GameState.autosave_interval())
 
 	print("\n== 2. 作弊功能开关 ==")
 	# 作弊开关现在是全局设置（AppSettings，落到 user://settings.cfg），
