@@ -181,8 +181,11 @@ func _draw_tile(key: String, t: Dictionary, c: Vector2i, center: Vector2,
 		var f := ThemeDB.fallback_font
 		var fs := int(clampf(hex_size * 0.30, 9.0, 14.0))
 		if owner == "player":
-			draw_string(f, center + Vector2(-hex_size * 0.9, hex_size * 0.92), nm,
-				HORIZONTAL_ALIGNMENT_CENTER, hex_size * 1.8, fs, Color(0.85, 0.95, 1.0))
+			if t.get("is_capital", false) or c == capital:
+				var max_w: float = hex_size * 2.6
+				while fs > 9 and f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
+					fs -= 1
+				draw_string(f, center + Vector2(-max_w * 0.5, hex_size * 0.92), nm, HORIZONTAL_ALIGNMENT_CENTER, max_w, fs, Color(0.85, 0.95, 1.0))
 		elif owner == "enemy":
 			var label := "危险" if t.get("danger", false) else ("威胁" if t.get("threat", false) else "敌人")
 			draw_string(f, center + Vector2(-hex_size * 0.9, hex_size * 0.92), label,
