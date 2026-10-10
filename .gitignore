@@ -16,3 +16,6 @@ __pycache__/
 
 # AI 助手的偏好学习状态（自动生成，不属于项目内容）
 .commandcode/taste/
+
+# AI 助手的技能包（辅助工具，非游戏内容；不随项目发布）
+.commandcode/skills/
