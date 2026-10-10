@@ -1,0 +1,86 @@
+extends Control
+## v1.8.9：过场加载界面。**新游戏 / 读取存档**都先经过它。
+##
+## 布局：标题与立绘居中，**左下角 tips**（随机一条），**右下角进度条**。
+##
+## ⚠️ 进度条是**仪式感，不是性能需要** —— 这一点很重要，写在这里免得以后有人误会：
+## 本作（2D、数据量小）的加载近乎瞬间，照实做的话加载界面会**闪一下就没**，等于没做。
+## 所以这里固定 MIN_SHOW 秒把进度条走满，只是让这段时间"看起来在做事"。
+## 如果哪天真的有慢加载（大地图 / 大量资源），应该把工作搬进 `begin()` 里配真实进度，
+## **而不是把这个数字调大硬撑**。
+
+signal finished
+
+## 保底显示时长（秒）。调试手感就调这一个数。
+const MIN_SHOW := 1.25
+
+## 左下角的 tips。随机取一条 —— 加内容往这里加就行。
+const TIPS: Array[String] = [
+	"世界泡是承载着文明的气泡，它之外是一片量子之海。",
+	"左键点击地块看详情，右键点地块打开行动菜单。",
+	"生产力管修建，行政点数管扩张与政事，别搞混。",
+	"结束周期会结算一次产出 —— 先把规划队列排好更划算。",
+	"科技树在左上角，日志在右上角的书本图标里。",
+]
+
+var _bar: ProgressBar
+var _tip: Label
+
+
+func _ready() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	var bg := ColorRect.new()
+	bg.color = UIKit.BG_DARK
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(bg)
+
+	var col := VBoxContainer.new()
+	col.set_anchors_preset(Control.PRESET_CENTER)
+	col.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	col.grow_vertical = Control.GROW_DIRECTION_BOTH
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 10)
+	add_child(col)
+	col.add_child(UIKit.title("抽卡文明", 44))
+	col.add_child(UIKit.dim("%s　·　正在载入世界泡……" % Consts.DEMO_VERSION_FULL, 14))
+
+	# 立绘：有图就用，没图就不硬撑（"缺图自动降级"是本项目的既定做法）
+	var pp := "res://art/units/grieso/portrait.png"
+	if ResourceLoader.exists(pp):
+		var tr := TextureRect.new()
+		tr.texture = load(pp)
+		tr.custom_minimum_size = Vector2(190, 170)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		col.add_child(tr)
+
+	# 左下角：tips
+	var tips_h := HBoxContainer.new()
+	tips_h.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	tips_h.position = Vector2(28.0, -48.0)
+	tips_h.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	tips_h.add_theme_constant_override("separation", 6)
+	add_child(tips_h)
+	tips_h.add_child(UIKit.dim("提示：", 13))
+	_tip = UIKit.text_label(TIPS[randi() % TIPS.size()], 13, UIKit.TEXT)
+	tips_h.add_child(_tip)
+
+	# 右下角：进度条
+	_bar = ProgressBar.new()
+	_bar.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_bar.position = Vector2(-312.0, -50.0)
+	_bar.custom_minimum_size = Vector2(284, 16)
+	_bar.min_value = 0.0
+	_bar.max_value = 100.0
+	_bar.value = 0.0
+	_bar.show_percentage = false
+	_bar.add_theme_stylebox_override("background", UIKit.panel_style(Color(0.14, 0.14, 0.19), UIKit.LINE_SOFT, 3))
+	_bar.add_theme_stylebox_override("fill", UIKit.panel_style(UIKit.GOLD, UIKit.GOLD, 3))
+	add_child(_bar)
+
+
+## 走满进度条 → 发 finished。调用方收到后自己切场景。
+func begin() -> void:
+	var tw := create_tween()
+	tw.tween_property(_bar, "value", 100.0, MIN_SHOW)
+	tw.tween_callback(func() -> void: finished.emit())

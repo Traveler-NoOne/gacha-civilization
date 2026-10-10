@@ -25,6 +25,22 @@ func _ready() -> void:
 	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	menu_holder.add_child(menu)
 	await _shoot("01_menu")
+	# v1.8.9：加载界面（右下进度条 + 左下 tips）。
+	# 它是过场，只在"新游戏/读档"的主流程里出现，所以这里单独摆一个来拍。
+	var load_holder := _host()
+	var load_scr: Control = load("res://scripts/ui/loading_screen.gd").new()
+	load_scr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	load_holder.add_child(load_scr)
+	for fl in 4:
+		await get_tree().process_frame
+	load_scr.call("begin")
+	# 让它走一会儿，拍"进度条在走"的中间态（而不是 0% 或 100%）
+	for fl2 in 30:
+		await get_tree().process_frame
+	await _shoot("01b_loading")
+	load_holder.queue_free()
+	for fl3 in 3:
+		await get_tree().process_frame
 	# 展开「开始游戏」的三个小按钮
 	menu.call("_toggle_expand")
 	await _shoot("02_menu_expanded")

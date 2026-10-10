@@ -3,6 +3,7 @@ extends Control
 
 const MENU_SCENE := "res://scripts/ui/menu_screen.gd"
 const GAME_SCENE := "res://scripts/ui/game_screen.gd"
+const LOADING_SCENE := "res://scripts/ui/loading_screen.gd"
 
 var _toast_layer: Control
 var _toast_box: VBoxContainer
@@ -89,7 +90,22 @@ func _on_start_game(mode: String) -> void:
 			pass   # 由菜单自己处理读档，读成功后直接过来
 		_:
 			GameState.new_game()
-	show_game()
+	# v1.8.9：真正的准备在上面就做完了（本作加载近乎瞬间），
+	# 这里的加载界面是**过场仪式** —— 固定停留一下再进场，免得一闪而过。
+	show_loading(show_game)
+
+
+## v1.8.9：过场加载界面。进度条走完后回调 done。
+func show_loading(done: Callable) -> void:
+	_clear_current()
+	var scr: Control = load(LOADING_SCENE).new()
+	scr.name = "LoadingScreen"
+	scr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(scr)
+	move_child(scr, 0)
+	_current = scr
+	scr.finished.connect(done)
+	scr.begin()
 
 
 func show_game() -> void:
