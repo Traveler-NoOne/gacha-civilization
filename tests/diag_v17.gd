@@ -1,17 +1,11 @@
 extends Node
+const U := preload("res://tests/test_util.gd")
 ## v1.7 护栏：把"整体优化"这一轮定下的规矩钉死，防止以后再漂。
 ## 覆盖：收支口径同源 / 移动高亮即可达 / 资源↔图标一一对应 / 职业映射合法 /
 ##       卡组列表一致 / 建筑每级加成 > 维护费 / 无死常量。
 ## 用法：godot --headless --path <项目> res://tests/diag_v17.tscn
 
-var failed := 0
-
-
-func _fail(msg: String) -> void:
-	print("  [FAIL] " + msg)
-	failed += 1
-
-
+var suite := U.reporter("v1.7 护栏")
 func _read(path: String) -> String:
 	if not FileAccess.file_exists(path):
 		return ""
@@ -54,12 +48,20 @@ func _ready() -> void:
 			bad += 1
 	print("  income_estimate 有 %d 项，与明细不一致 %d 项" % [est.size(), bad])
 	if bad > 0:
-		_fail("income_estimate 与 resource_breakdown 口径不一致")
-	var mp := _read("res://scripts/ui/views/view_manage_page.gd")
-	if mp.contains("_estimate_income"):
-		_fail("view_manage_page 里又出现了私有的 _estimate_income（应只用 GameState.income_estimate）")
-	if not mp.contains("income_estimate"):
-		_fail("view_manage_page 没有用 income_estimate")
+		suite.fail("income_estimate 与 resource_breakdown 口径不一致")
+	# v1.8.10：管理页自 v1.8.7 起**已无入口**，原来的护栏是在检查一具尸体。
+	# 这条护栏的本意是"界面显示收支，不许自己再写一套算法" —— 现在把它盯到**活的展示方**上：
+	#   · 统计面板（v1.8.11，资源页会显示每周期净收支）
+	#   · 顶栏资源栏的收支悬浮窗（game_screen._show_res_info）
+	for src_path in [
+		"res://scripts/ui/panels/stats_panel.gd",
+		"res://scripts/ui/game_screen.gd",
+	]:
+		var src := _read(src_path)
+		if src.contains("_estimate_income"):
+			suite.fail("%s 里出现了私有的 _estimate_income（应只用 GameState.resource_breakdown / income_estimate）" % src_path.get_file())
+		if not src.contains("resource_breakdown"):
+			suite.fail("%s 没有用 resource_breakdown（收支口径应同源）" % src_path.get_file())
 
 	print("\n== 2. 移动高亮 == 实际可达 ==")
 	GameState.reset_unit_moves()
@@ -74,7 +76,7 @@ func _ready() -> void:
 				bad_move += 1
 	print("  候选格 %d 个，move_unit 会拒绝的 %d 个" % [checked, bad_move])
 	if bad_move > 0:
-		_fail("move_candidates 给出了 can_move_to 不接受的格子（高亮却走不过去）")
+		suite.fail("move_candidates 给出了 can_move_to 不接受的格子（高亮却走不过去）")
 
 	print("\n== 3. 资源 ↔ 图标一一对应 ==")
 	var missing: Array[String] = []
@@ -83,7 +85,7 @@ func _ready() -> void:
 			missing.append(k)
 	print("  RES_KEYS %d 项，缺图 %d 项 %s" % [Consts.RES_KEYS.size(), missing.size(), str(missing)])
 	if not missing.is_empty():
-		_fail("有资源没有对应图标（改名后最容易漏图）")
+		suite.fail("有资源没有对应图标（改名后最容易漏图）")
 
 	print("\n== 4. 职业映射合法 ==")
 	var illegal: Array[String] = []
@@ -93,7 +95,7 @@ func _ready() -> void:
 			illegal.append("%s->%s" % [card_id, p])
 	print("  映射 %d 条，非法 %d 条 %s" % [CardDB.PROFESSION_BY_ID.size(), illegal.size(), str(illegal)])
 	if not illegal.is_empty():
-		_fail("PROFESSION_BY_ID 里有 UnitDB.PROFESSIONS 不认的职业")
+		suite.fail("PROFESSION_BY_ID 里有 UnitDB.PROFESSIONS 不认的职业")
 
 	print("\n== 5. 卡组列表一致（GROUPS 去掉「通用」应等于 CIV_GROUPS）==")
 	var g: Array[String] = []
@@ -102,7 +104,7 @@ func _ready() -> void:
 			g.append(str(x))
 	print("  轮换顺序 %s ｜ 展示顺序 %s" % [str(g), str(CardDB.CIV_GROUPS)])
 	if g != CardDB.CIV_GROUPS:
-		_fail("GROUPS 与 CIV_GROUPS 的顺序/内容不一致（轮换顺序会与界面不符）")
+		suite.fail("GROUPS 与 CIV_GROUPS 的顺序/内容不一致（轮换顺序会与界面不符）")
 
 	print("\n== 6. 建筑：每级加成必须 > 每级维护 ==")
 	var weak: Array[String] = []
@@ -113,7 +115,7 @@ func _ready() -> void:
 	print("  每级维护 %.2f；加成不足的建筑 %d 个 %s" % [
 		Consts.BUILDING_UPKEEP_PRODUCTION, weak.size(), str(weak)])
 	if not weak.is_empty():
-		_fail("有建筑的每级加成 <= 每级维护（升级会变成负收益）")
+		suite.fail("有建筑的每级加成 <= 每级维护（升级会变成负收益）")
 
 	print("\n== 7. 无死常量（constants.gd 每个常量都被引用过）==")
 	var files: Array = []
@@ -136,12 +138,11 @@ func _ready() -> void:
 	print("  常量 %d 个，无人引用 %d 个 %s" % [
 		scr.get_script_constant_map().size(), dead.size(), str(dead)])
 	if not dead.is_empty():
-		_fail("constants.gd 里存在死常量：" + str(dead))
+		suite.fail("constants.gd 里存在死常量：" + str(dead))
 
 	print("\n== 8. 版本号一致（DEMO_VERSION_FULL 应包含 DEMO_VERSION）==")
 	print("  %s ｜ %s" % [Consts.DEMO_VERSION, Consts.DEMO_VERSION_FULL])
 	if not Consts.DEMO_VERSION_FULL.contains(Consts.DEMO_VERSION):
-		_fail("版本号两个常量不一致")
+		suite.fail("版本号两个常量不一致")
 
-	print("\n== v1.7 护栏自检结束，失败 %d 项 ==" % failed)
-	get_tree().quit(0 if failed == 0 else 1)
+	suite.finish(get_tree())

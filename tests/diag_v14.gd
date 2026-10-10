@@ -1,10 +1,9 @@
 extends Node
+const U := preload("res://tests/test_util.gd")
 ## v1.4 自检：存储上限、经典仓储、中控区精简、人力管理、资源栏分类、土地口径。
 ## 用法：godot --headless --path <项目> res://tests/diag_v14.tscn
 
-var failed := 0
-
-
+var suite := U.reporter("v1.4 自检")
 func _ready() -> void:
 	await get_tree().process_frame
 
@@ -27,28 +26,28 @@ func _ready() -> void:
 		print("  %s：%.0f +%d -> %.0f（期望 %.0f）%s" % [
 			Consts.res_name(key), before, int(c[1]), got, expect, "✔" if ok else "✘"])
 		if not ok:
-			failed += 1
+			suite.failed += 1
 
 	print("\n== 2. 经典仓储提升上限 ==")
 	var cap := str(GameState.state["capital"])
 	print("  建前 storage_cap(wood)：%.0f（期望 100）" % GameState.storage_cap("wood"))
 	if not is_equal_approx(GameState.storage_cap("wood"), 100.0):
-		failed += 1
+		suite.failed += 1
 	GameState.state["res"]["production"] = 100.0
 	var rb: Dictionary = GameState.build(cap, "classic_warehouse")
 	print("  建造经典仓储：%s %s" % [rb["ok"], str(rb.get("why", ""))])
 	if not rb["ok"]:
-		failed += 1
+		suite.failed += 1
 	print("  建后 storage_cap(wood)：%.0f（期望 150）" % GameState.storage_cap("wood"))
 	if not is_equal_approx(GameState.storage_cap("wood"), 150.0):
-		failed += 1
+		suite.failed += 1
 	var wh := GameState.tile_building(GameState.tile_at(cap), "classic_warehouse")
 	GameState.state["res"]["production"] = 100.0
 	var ru: Dictionary = GameState.request_upgrade_by_bid(cap, str(wh.get("bid", "")))
 	print("  升级仓储到 Lv.2：ok=%s" % ru["ok"])
 	print("  升级后 storage_cap(wood)：%.0f（期望 200）" % GameState.storage_cap("wood"))
 	if not is_equal_approx(GameState.storage_cap("wood"), 200.0):
-		failed += 1
+		suite.failed += 1
 
 	print("\n== 3. 中控区只剩军队（v1.8.6：科技树已搬到左上角浮窗） ==")
 	var holder := Control.new()
@@ -67,7 +66,7 @@ func _ready() -> void:
 	print("  中控区页签：%s（期望 军队，共 1）；enemy_box=%s" % [
 		"、".join(names), str(mgr.get("enemy_box"))])
 	if names.size() != 1 or names.has("科技树") or mgr.get("enemy_box") != null:
-		failed += 1
+		suite.failed += 1
 
 	print("\n== 4. 人力管理（只列已建建筑） ==")
 	GameState.new_game(20270102)
@@ -86,13 +85,13 @@ func _ready() -> void:
 		rows = (ll as Node).get_child_count()
 	print("  人力管理行数：%d（应 > 0）" % rows)
 	if rows <= 0:
-		failed += 1
+		suite.failed += 1
 	var fld := GameState.tile_building(GameState.tile_at(cap), "classic_field")
 	var w0 := int(fld.get("workers", 0))
 	var wr: Dictionary = GameState.assign_worker_by_bid(cap, str(fld.get("bid", "")), 1)
 	print("  按 bid 投入人力：ok=%s，人力 %d -> %d" % [wr["ok"], w0, int(fld.get("workers", 0))])
 	if not wr["ok"] or int(fld.get("workers", 0)) != w0 + 1:
-		failed += 1
+		suite.failed += 1
 
 	print("\n== 5. 资源栏分类 + 具体资源全显 ==")
 	var gs: Control = load("res://scripts/ui/game_screen.gd").new()
@@ -107,33 +106,21 @@ func _ready() -> void:
 		groups = (bar as Node).get_child_count()
 	print("  资源栏子容器数：%d（期望 3：抽象盒 / 间隔 / 具体盒）" % groups)
 	if groups != 3:
-		failed += 1
-	var text := _collect_text(bar as Node)
+		suite.failed += 1
+	var text := U.collect_text(bar as Node)
 	for nm in ["生产力", "科研点", "行政点数", "秩序结晶", "凝聚力", "人力",
 			"食物", "货币", "木材", "煤", "铜矿", "铁矿", "原油", "水晶碎屑"]:
 		if not text.contains(nm):
 			print("  [FAIL] 资源栏缺少：%s" % nm)
-			failed += 1
+			suite.failed += 1
 
 	print("\n== 6. 土地口径（已用/上限） ==")
 	var ok_land := false
 	if mgr2.get("tile_info") is Node:
-		var lt := _collect_text(mgr2.get("tile_info") as Node)
+		var lt := U.collect_text(mgr2.get("tile_info") as Node)
 		ok_land = lt.contains("已用土地") and not lt.contains("可用土地")
 	print("  管理页据点详情土地文案：%s（应含「已用土地」、不含「可用土地」）" % ok_land)
 	if not ok_land:
-		failed += 1
+		suite.failed += 1
 
-	print("\n== v1.4 自检结束，失败 %d 项 ==" % failed)
-	get_tree().quit(0 if failed == 0 else 1)
-
-
-func _collect_text(n: Node) -> String:
-	var s := ""
-	if n is Label:
-		s += (n as Label).text + " | "
-	if n is Button:
-		s += "[" + (n as Button).text + "] "
-	for c in n.get_children():
-		s += _collect_text(c)
-	return s
+	suite.finish(get_tree())

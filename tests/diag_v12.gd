@@ -1,9 +1,8 @@
 extends Node
+const U := preload("res://tests/test_util.gd")
 ## v1.2 自检：自动存档周期、管理页减负、地块下拉、单位列表可选中、作弊菜单、反馈信息。
 
-var failed := 0
-
-
+var suite := U.reporter("v1.2 自检")
 func _ready() -> void:
 	GameState.new_game(20240607)
 	print("== 1. 自动存档周期数 ==")
@@ -16,13 +15,13 @@ func _ready() -> void:
 	print("  默认常量：%d（期望 1）" % Consts.AUTOSAVE_INTERVAL_DEFAULT)
 	if Consts.AUTOSAVE_INTERVAL_DEFAULT != 1:
 		print("  [FAIL] 默认常量不是 1")
-		failed += 1
+		suite.failed += 1
 	var kept_interval := GameState.autosave_interval()
 	GameState.set_autosave_interval(3)
 	print("  设为 3：%d" % GameState.autosave_interval())
 	if GameState.autosave_interval() != 3:
 		print("  [FAIL] 设成 3 之后读回不是 3")
-		failed += 1
+		suite.failed += 1
 	# 跑 6 个周期，看 autosaved 标记落在哪些周期
 	var saved_cycles: Array[int] = []
 	for i in 6:
@@ -32,7 +31,7 @@ func _ready() -> void:
 	print("  设成每 3 周期后，实际触发存档的周期：%s（期望每 3 个一次）" % str(saved_cycles))
 	if saved_cycles.size() != 2:
 		print("  [FAIL] 触发次数不是 2")
-		failed += 1
+		suite.failed += 1
 	GameState.set_autosave_interval(kept_interval)
 	print("  已还原为测试前的值：%d" % GameState.autosave_interval())
 
@@ -42,7 +41,7 @@ func _ready() -> void:
 	GameState.set_cheat_enabled(false)
 	print("  归零后：%s（期望 false）" % GameState.cheat_enabled())
 	if GameState.cheat_enabled():
-		failed += 1
+		suite.failed += 1
 	GameState.set_cheat_enabled(true)
 	print("  开启后：%s" % GameState.cheat_enabled())
 
@@ -84,7 +83,7 @@ func _ready() -> void:
 		print("  一键清空 -> 摧毁 %d 个，剩余 %d 个" % [n, GameState.enemy_tiles().size()])
 		if GameState.enemy_tiles().size() != 0:
 			print("  [FAIL] 没有清空")
-			failed += 1
+			suite.failed += 1
 
 	print("\n== 5. 单位列表：多角色后可选中（v1.2 修复的 bug） ==")
 	var cap: String = str(GameState.state["capital"])
@@ -112,7 +111,7 @@ func _ready() -> void:
 	print("  列表里的行数：%d" % list_box.get_child_count())
 	if list_box.get_child_count() < 2:
 		print("  [FAIL] 列表行数不足，无法测试选择")
-		failed += 1
+		suite.failed += 1
 	else:
 		# 逐行模拟点击，检查 selected_id 是否真的换成了该行的单位
 		var tested := 0
@@ -120,7 +119,7 @@ func _ready() -> void:
 			var row := list_box.get_child(idx) as Button
 			if row == null:
 				print("  [FAIL] 第 %d 行不是 Button，无法点击" % (idx + 1))
-				failed += 1
+				suite.failed += 1
 				continue
 			var units: Array = page.call("_filtered_units")
 			var expect_uid := str((units[idx] as Dictionary)["uid"])
@@ -133,7 +132,7 @@ func _ready() -> void:
 			print("  点击第 %d 行（%s）-> selected_id %s %s" % [
 				idx + 1, expect_name, got, "✔" if ok else "✘"])
 			if not ok:
-				failed += 1
+				suite.failed += 1
 			tested += 1
 		print("  共测试 %d 行" % tested)
 
@@ -151,11 +150,11 @@ func _ready() -> void:
 	print("  部落概况标签还在？%s（期望 false）" % has_happy)
 	print("  独立领地列表还在？%s（期望 false）" % has_tile_list)
 	if has_res_grid or has_happy or has_tile_list:
-		failed += 1
+		suite.failed += 1
 	var title: Variant = mgr.get("stronghold_title")
 	print("  据点标题是可点击按钮？%s" % (title is Button))
 	if not (title is Button):
-		failed += 1
+		suite.failed += 1
 	else:
 		print("  标题文字：%s" % str((title as Button).text))
 
@@ -166,12 +165,12 @@ func _ready() -> void:
 		tab_names.append(str(t["name"]))
 	print("  页签名：%s（%d 个）" % ["、".join(tab_names), tab_names.size()])
 	if tab_names.size() != 1 or tab_names.has("科技树"):
-		failed += 1
+		suite.failed += 1
 	var pages: Dictionary = mgr.get("ctrl_pages")
 	print("  页签容器：%s" % str(pages.keys()))
 	if pages.size() != 1:
 		print("  [FAIL] 页签容器数量不是 1")
-		failed += 1
+		suite.failed += 1
 	# 逐个切换，检查同一时刻只有一个页签可见
 	for t2 in tabs:
 		var tid := str(t2["id"])
@@ -188,7 +187,7 @@ func _ready() -> void:
 		print("  切到「%s」-> ctrl_tab=%s，可见页签 %s %s" % [
 			str(t2["name"]), cur, str(visible_ids), "✔" if ok else "✘"])
 		if not ok:
-			failed += 1
+			suite.failed += 1
 	# 军队页签
 	mgr.call("switch_ctrl_tab", "army")
 	for f in 3:
@@ -199,7 +198,7 @@ func _ready() -> void:
 		unit_rows = (unit_box as Node).get_child_count()
 	print("  军队页签里的条目数：%d（应 > 0）" % unit_rows)
 	if unit_rows <= 0:
-		failed += 1
+		suite.failed += 1
 
 	print("\n== 7. 一级入口只剩三个（v1.8.7：管理/日志都已不是一级入口），休眠页已删除 ==")
 	var gscr: Control = load("res://scripts/ui/game_screen.gd").new()
@@ -213,13 +212,13 @@ func _ready() -> void:
 		names.append(str(v["name"]))
 	print("  一级按钮：%s（%d 个）" % ["、".join(names), names.size()])
 	if names.size() != 3 or names.has("休眠") or names.has("日志") or names.has("管理"):
-		failed += 1
+		suite.failed += 1
 	print("  悬浮导航按钮：%s（%d 个，期望 2：至宝/世界泡）" % [str((gscr.get("nav_buttons") as Dictionary).keys()), (gscr.get("nav_buttons") as Dictionary).size()])
 	if (gscr.get("nav_buttons") as Dictionary).size() != 2:
-		failed += 1
+		suite.failed += 1
 	if FileAccess.file_exists("res://scripts/ui/views/sleep_view.gd"):
 		print("  [FAIL] sleep_view.gd 仍然存在")
-		failed += 1
+		suite.failed += 1
 	else:
 		print("  sleep_view.gd 已删除 ✔")
 
@@ -247,14 +246,13 @@ func _ready() -> void:
 	print("  全局设置未被影响？作弊 %s→%s｜间隔 %d→%d（期望不变）" % [
 		cheat_before, GameState.cheat_enabled(), interval_before, GameState.autosave_interval()])
 	if rejected:
-		failed += 1
+		suite.failed += 1
 	if int(GameState.state["cycle"]) == 9:
-		failed += 1
+		suite.failed += 1
 	if GameState.cheat_enabled() != cheat_before:
-		failed += 1
+		suite.failed += 1
 	if GameState.autosave_interval() != interval_before:
-		failed += 1
+		suite.failed += 1
 	GameState.delete_slot(slot)
 
-	print("\n== v1.2 自检结束，失败 %d 项 ==" % failed)
-	get_tree().quit(0 if failed == 0 else 1)
+	suite.finish(get_tree())

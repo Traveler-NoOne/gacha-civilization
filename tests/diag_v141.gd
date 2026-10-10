@@ -1,10 +1,9 @@
 extends Node
+const U := preload("res://tests/test_util.gd")
 ## v1.4.1 自检：资源收支悬浮窗 + 「占领地块」按钮文案改为行政点数。
 ## 用法：godot --headless --path <项目> res://tests/diag_v141.tscn
 
-var failed := 0
-
-
+var suite := U.reporter("v1.4.1 自检")
 func _ready() -> void:
 	await get_tree().process_frame
 
@@ -19,7 +18,7 @@ func _ready() -> void:
 	var upk: Array = bd["upkeep"]
 	print("  生产力：收入行 %d，支出行 %d（都应 > 0）" % [inc.size(), upk.size()])
 	if inc.is_empty() or upk.is_empty():
-		failed += 1
+		suite.failed += 1
 	for e in inc:
 		print("    ＋ %s %.1f" % [e["label"], e["amount"]])
 	for e in upk:
@@ -31,7 +30,7 @@ func _ready() -> void:
 			has_pop = true
 	print("  食物支出含「人口维护」：%s" % has_pop)
 	if not has_pop:
-		failed += 1
+		suite.failed += 1
 
 	print("\n== 2. 悬浮窗弹出 / 关闭 ==")
 	var holder := Control.new()
@@ -49,18 +48,18 @@ func _ready() -> void:
 	var pop: Variant = gs.get("_res_popup")
 	print("  点击后悬浮窗存在：%s" % (pop != null))
 	if pop == null:
-		failed += 1
+		suite.failed += 1
 	else:
-		var t := _collect_text(pop as Node)
+		var t := U.collect_text(pop as Node)
 		print("  悬浮窗文字：%s" % t)
 		if not t.contains("每周期收支") or not t.contains("建筑"):
-			failed += 1
+			suite.failed += 1
 	gs.call("_close_res_popup")
 	for i in 2:
 		await get_tree().process_frame
 	print("  关闭后：%s（期望 null）" % str(gs.get("_res_popup")))
 	if gs.get("_res_popup") != null:
-		failed += 1
+		suite.failed += 1
 
 	print("\n== 3. 世界页「占领地块」按钮文案 ==")
 	var world: Control = load("res://scripts/ui/views/view_world_page.gd").new()
@@ -77,21 +76,9 @@ func _ready() -> void:
 			await get_tree().process_frame
 		# v1.8.5：旧右侧规划面板已删除，「占领」按钮搬进了「简约地块信息小窗」
 		if world.get("tile_info_popup") is Node:
-			txt = _collect_text(world.get("tile_info_popup") as Node)
+			txt = U.collect_text(world.get("tile_info_popup") as Node)
 	print("  按钮文案含「行政点数」：%s（且不含「生产力」）" % txt.contains("行政点数"))
 	if not txt.contains("行政点数") or txt.contains("生产力"):
-		failed += 1
+		suite.failed += 1
 
-	print("\n== v1.4.1 自检结束，失败 %d 项 ==" % failed)
-	get_tree().quit(0 if failed == 0 else 1)
-
-
-func _collect_text(n: Node) -> String:
-	var s := ""
-	if n is Label:
-		s += (n as Label).text + " | "
-	if n is Button:
-		s += "[" + (n as Button).text + "] "
-	for c in n.get_children():
-		s += _collect_text(c)
-	return s
+	suite.finish(get_tree())

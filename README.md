@@ -79,13 +79,13 @@ $godot = "C:\Program Files\Godot_v4.4.1-stable_mono_win64\Godot_v4.7.2-stable_wi
 # 2. 单位系统专项自检：征兵 / 派驻 / 编队 / 伤害克制 / 经验晋升 / 旧存档迁移
 & $godot --headless --path <项目目录> res://tests/diag_units.tscn
 
-# 3. v1.2 专项自检：自动存档周期 / 作弊 / 管理页减负 / 单位列表可选中 / 中控区页签
+# 3. v1.2 专项自检：自动存档周期 / 作弊 / 单位列表可选中 / 存档版本校验
 & $godot --headless --path <项目目录> res://tests/diag_v12.tscn
 
 # 4. v1.3.1 专项自检：据点/地块解耦 / 可用土地 / 规划队列 / 行政点数与影响力 / 面板改名
 & $godot --headless --path <项目目录> res://tests/diag_v131.tscn
 
-# 5. v1.4 专项自检：存储上限 / 经典仓储 / 中控区精简 / 人力管理 / 资源栏分类 / 土地口径
+# 5. v1.4 专项自检：存储上限 / 经典仓储 / 人力管理 / 资源栏分类 / 土地口径
 & $godot --headless --path <项目目录> res://tests/diag_v14.tscn
 
 # 6. v1.4.1 专项自检：资源收支悬浮窗 / 「占领地块」按钮文案
@@ -94,7 +94,7 @@ $godot = "C:\Program Files\Godot_v4.4.1-stable_mono_win64\Godot_v4.7.2-stable_wi
 # 6.1 v1.5 专项自检：客人·公民 / 招募遣返 / 单位维护费 / 移动与攻击 / 点击轮换
 & $godot --headless --path <项目目录> res://tests/diag_v15.tscn
 
-# 6.2 v1.6 专项自检：开局格蕾修 / 世界泡命名 / 管理页切回刷新 / 招募全流程
+# 6.2 v1.6 专项自检：开局格蕾修 / 世界泡命名 / 切回据点窗口刷新 / 招募全流程
 & $godot --headless --path <项目目录> res://tests/diag_v16.tscn
 
 # 7. 作弊功能端到端回归：开关 → 打开作弊菜单 → 加资源 → 资源栏刷新 → 摧毁敌人

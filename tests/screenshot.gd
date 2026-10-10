@@ -1,4 +1,5 @@
 extends Node
+const U := preload("res://tests/test_util.gd")
 ## 截图自检：真实渲染主页面、游戏主页各功能页，并保存 PNG 供人工/自动检查字体与排版。
 ## 用法：godot --path <项目> res://tests/screenshot.tscn
 
@@ -20,14 +21,14 @@ func _ready() -> void:
 	await get_tree().process_frame
 
 	# 1) 主页面
-	var menu_holder := _host()
+	var menu_holder := U.host(self)
 	var menu: Control = load("res://scripts/ui/menu_screen.gd").new()
 	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	menu_holder.add_child(menu)
 	await _shoot("01_menu")
 	# v1.8.9：加载界面（右下进度条 + 左下 tips）。
 	# 它是过场，只在"新游戏/读档"的主流程里出现，所以这里单独摆一个来拍。
-	var load_holder := _host()
+	var load_holder := U.host(self)
 	var load_scr: Control = load("res://scripts/ui/loading_screen.gd").new()
 	load_scr.set_anchors_preset(Control.PRESET_FULL_RECT)
 	load_holder.add_child(load_scr)
@@ -58,14 +59,14 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await _shoot("02c_dialog_feedback")
 	# v1.3：勾选「作弊功能」后的二次确认弹窗 + 勾选态
-	var cheat_box: Variant = _find_toggle(menu, "作弊功能")
+	var cheat_box: Variant = U.find_toggle(menu, "作弊功能")
 	if cheat_box != null:
 		(cheat_box as Button).button_pressed = true
 		for f2b in 6:
 			await get_tree().process_frame
 		await _shoot("02d_dialog_cheat_confirm")
 		# 点确认，看勾选态
-		var ok_btn: Variant = _find_button(menu, "确认")
+		var ok_btn: Variant = U.find_button(menu, "确认")
 		if ok_btn != null:
 			(ok_btn as Button).pressed.emit()
 			for f2c in 6:
@@ -80,7 +81,7 @@ func _ready() -> void:
 
 	# 2) 游戏主页各功能页
 	GameState.new_game(20240607)
-	var gs_holder := _host()
+	var gs_holder := U.host(self)
 	var gs: Control = load("res://scripts/ui/game_screen.gd").new()
 	gs.set_anchors_preset(Control.PRESET_FULL_RECT)
 	gs_holder.add_child(gs)
@@ -351,35 +352,6 @@ func _arm_watchdog() -> void:
 		get_tree().quit(1))
 	add_child(wd)
 	wd.start()
-
-
-func _host() -> Control:
-	var c := Control.new()
-	c.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(c)
-	return c
-
-
-## 按包含关系找 toggle 勾选框
-func _find_toggle(n: Node, text: String) -> Button:
-	if n is Button and not (n is CheckBox) and (n as Button).text.contains(text):
-		return n as Button
-	for c in n.get_children():
-		var r := _find_toggle(c, text)
-		if r != null:
-			return r
-	return null
-
-
-## 按精确文字找按钮
-func _find_button(n: Node, text: String) -> Button:
-	if n is Button and not (n is CheckBox) and (n as Button).text == text:
-		return n as Button
-	for c in n.get_children():
-		var r := _find_button(c, text)
-		if r != null:
-			return r
-	return null
 
 
 func _shoot(name: String) -> void:

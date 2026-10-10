@@ -1,24 +1,10 @@
 extends Node
+const U := preload("res://tests/test_util.gd")
 ## v1.6 自检：开局格蕾修 / 量子之海文案 / 管理页刷新（人力管理·规划队列）/ 建筑详情与科技隐藏 /
 ## 招募全流程（攒 1600 凝聚力 → 十连 → 至宝招募 → 部署 → 移动两格）。
 ## 用法：godot --headless --path <项目> res://tests/diag_v16.tscn
 
-var failed := 0
-
-
-func _fail(msg: String) -> void:
-	print("  [FAIL] " + msg)
-	failed += 1
-
-
-func _host() -> Control:
-	var c := Control.new()
-	c.set_anchors_preset(Control.PRESET_FULL_RECT)
-	c.custom_minimum_size = Vector2(1280, 720)
-	add_child(c)
-	return c
-
-
+var suite := U.reporter("v1.6 自检")
 func _ready() -> void:
 	await get_tree().process_frame
 
@@ -33,16 +19,16 @@ func _ready() -> void:
 		(GameState.state["units"] as Array).size(), str(not g.is_empty()),
 		str(g.get("status", "")), str(g.get("profession", "")), str(g.get("tile", ""))])
 	if g.is_empty():
-		_fail("开局没有赠送格蕾修")
+		suite.fail("开局没有赠送格蕾修")
 	else:
 		if str(g.get("status", "")) != UnitDB.STATUS_CITIZEN:
-			_fail("格蕾修不是公民")
+			suite.fail("格蕾修不是公民")
 		if str(g.get("profession", "")) != UnitDB.PROJECTILE:
-			_fail("格蕾修不是投射者")
+			suite.fail("格蕾修不是投射者")
 		if str(g.get("tile", "")) != cap:
-			_fail("格蕾修没有落在首都")
+			suite.fail("格蕾修没有落在首都")
 		if int(g.get("move_left", 0)) <= 0:
-			_fail("格蕾修没有初始移动力")
+			suite.fail("格蕾修没有初始移动力")
 
 	print("\n== 2. 文案：量子之海 / 世界泡 / 通用敌人称呼 ==")
 	var scr_v: Script = load("res://scripts/ui/views/gacha_view.gd")
@@ -52,7 +38,7 @@ func _ready() -> void:
 		titles.append(str(p["title"]))
 	print("  三个子系统：%s" % " / ".join(titles))
 	if titles[0] != "召唤系统" or titles[1] != "打捞系统" or titles[2] != "发展系统":
-		_fail("子系统命名不对")
+		suite.fail("子系统命名不对")
 	var scr_gs: Script = load("res://scripts/ui/game_screen.gd")
 	var gsc: Dictionary = scr_gs.get_script_constant_map()
 	var names: Array[String] = []
@@ -60,16 +46,16 @@ func _ready() -> void:
 		names.append(str(v["name"]))
 	print("  一级按钮：%s" % " / ".join(names))
 	if not names.has("世界泡") or names.has("攫取"):
-		_fail("一级按钮没有改成「世界泡」")
+		suite.fail("一级按钮没有改成「世界泡」")
 	var enemy_label := ""
 	var t_test := {"owner": "enemy", "danger": true}
 	enemy_label = GameState.enemy_label(t_test)
 	print("  据点型敌人称呼：%s（期望 高危据点）" % enemy_label)
 	if enemy_label != "高危据点":
-		_fail("据点称呼不是通用称呼")
+		suite.fail("据点称呼不是通用称呼")
 
 	print("\n== 3. 切回据点管理窗口必须刷新（用户报过的 bug；v1.8.7 管理页不可达，改打窗口） ==")
-	var holder := _host()
+	var holder := U.host(self)
 	var world: Control = load("res://scripts/ui/views/view_world_page.gd").new()
 	world.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(world)
@@ -83,7 +69,7 @@ func _ready() -> void:
 		await get_tree().process_frame
 	var sp: Variant = world.get("stronghold_panel")
 	if sp == null:
-		_fail("据点管理窗口没有打开")
+		suite.fail("据点管理窗口没有打开")
 	else:
 		sp.set("tab", "labor")
 		sp.call("refresh")
@@ -124,11 +110,11 @@ func _ready() -> void:
 		var n_queue := ((sp.get("build_box") as Node).get_child_count()) if (sp.get("build_box") is Node) else 0
 		print("  首次打开人力子项 %d → 修建/入队后 %d｜规划队列 %d" % [n_first, n_labor, n_queue])
 		if built_id == "":
-			_fail("没有可建造的建筑，测试无效")
+			suite.fail("没有可建造的建筑，测试无效")
 		if n_labor <= 0:
-			_fail("据点管理窗口的人力页仍为空（没有刷新）")
+			suite.fail("据点管理窗口的人力页仍为空（没有刷新）")
 		if n_queue <= 0:
-			_fail("据点管理窗口的规划队列仍为空（没有刷新）")
+			suite.fail("据点管理窗口的规划队列仍为空（没有刷新）")
 	world.queue_free()
 	holder.queue_free()
 
@@ -156,21 +142,21 @@ func _ready() -> void:
 	var guests := GameState.guest_units()
 	print("  十连后客人数：%d" % guests.size())
 	if guests.is_empty():
-		_fail("十连没有召来任何客人")
+		suite.fail("十连没有召来任何客人")
 	else:
 		var guest: Dictionary = guests[0]
 		var uid := str(guest["uid"])
 		var br := GameState.begin_recruit(uid)
 		print("  begin_recruit：%s（可部署 %d 块）" % [str(br["ok"]), int(br.get("tiles", []).size())])
 		if not bool(br["ok"]):
-			_fail("无法开始招募：" + str(br.get("why", "")))
+			suite.fail("无法开始招募：" + str(br.get("why", "")))
 		else:
 			var ck := GameState.confirm_recruit(uid, cap)
 			print("  确认招募：%s %s" % [str(ck["ok"]), str(ck.get("why", ""))])
 			if not bool(ck["ok"]):
-				_fail("确认招募失败")
+				suite.fail("确认招募失败")
 			elif str(guest["status"]) != UnitDB.STATUS_CITIZEN:
-				_fail("招募后不是公民")
+				suite.fail("招募后不是公民")
 			else:
 				# 移动两格（一次距离 2 的跳跃，耗 2 移动力）
 				GameState.reset_unit_moves()
@@ -193,7 +179,7 @@ func _ready() -> void:
 					if dest != "":
 						break
 				if dest == "":
-					_fail("找不到距离 2 的可移动地块")
+					suite.fail("找不到距离 2 的可移动地块")
 				else:
 					var mv_before := int(guest["move_left"])
 					var mr := GameState.move_unit(uid, dest)
@@ -201,16 +187,16 @@ func _ready() -> void:
 						from, dest, str(mr["ok"]), mv_before, int(guest["move_left"]),
 						Consts.MOVE_COST_FAR])
 					if not bool(mr["ok"]):
-						_fail("距离 2 移动失败：" + str(mr.get("why", "")))
+						suite.fail("距离 2 移动失败：" + str(mr.get("why", "")))
 					elif int(guest["move_left"]) != mv_before - Consts.MOVE_COST_FAR:
-						_fail("距离 2 应消耗 2 移动力")
+						suite.fail("距离 2 应消耗 2 移动力")
 					elif str(guest["tile"]) != dest:
-						_fail("移动后没有落在目标地块")
+						suite.fail("移动后没有落在目标地块")
 
 	print("\n== 6. 驻军：维护费打折 / 禁止行动 ==")
 	var gu := GameState.units_on_tile(cap)
 	if gu.is_empty():
-		_fail("首都没有单位，无法测驻军")
+		suite.fail("首都没有单位，无法测驻军")
 	else:
 		var gu0: Dictionary = gu[0]
 		gu0["garrisoned"] = false
@@ -220,9 +206,9 @@ func _ready() -> void:
 		print("  行军维护 %.2f → 驻军维护 %.2f（领地内应 ×%.1f）" % [
 			float(free_up["food"]), float(g_up["food"]), Consts.UPKEEP_MUL_IN_TERRITORY])
 		if not bool(tg["ok"]):
-			_fail("toggle_garrison 失败")
+			suite.fail("toggle_garrison 失败")
 		if float(g_up["food"]) >= float(free_up["food"]) - 0.0001:
-			_fail("驻军后维护费没有打折")
+			suite.fail("驻军后维护费没有打折")
 		GameState.reset_unit_moves()
 		var a2 := WorldGen.coord_of(str(gu0["tile"]))
 		var dest2 := ""
@@ -235,11 +221,10 @@ func _ready() -> void:
 			var mv2 := GameState.move_unit(str(gu0["uid"]), dest2)
 			print("  驻军时移动：%s（期望失败）" % str(mv2["ok"]))
 			if bool(mv2["ok"]):
-				_fail("驻军中仍可移动")
+				suite.fail("驻军中仍可移动")
 		var tg2 := GameState.toggle_garrison(str(gu0["uid"]))
 		print("  解除驻军：%s（garrisoned=%s）" % [str(tg2["ok"]), str(gu0.get("garrisoned", false))])
 		if bool(gu0.get("garrisoned", false)):
-			_fail("解除驻军失败")
+			suite.fail("解除驻军失败")
 
-	print("\n== v1.6 自检结束，失败 %d 项 ==" % failed)
-	get_tree().quit(0 if failed == 0 else 1)
+	suite.finish(get_tree())
