@@ -9,6 +9,14 @@ var _btn_continue: Button
 var _btn_load: Button
 var _dialog: DialogLayer
 
+## v1.8.12：设置菜单的类别。
+## 目前分类为：画面设置、辅助设置、音效设置、键位设置
+const SETTING_TABS := [
+	{"id": "video", "name": "画面设置"},
+	{"id": "assist", "name": "辅助设置"},
+	{"id": "audio", "name": "音效设置"},
+	{"id": "keys", "name": "键位设置"},
+]
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -162,13 +170,60 @@ func _open_load_dialog() -> void:
 
 func _open_settings() -> void:
 	_close_dialog()
-	var d := UIKit.dialog("游戏设置")
+	var d := UIKit.dialog("游戏设置", 640.0)
 	_dialog = d
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 8)
-	d.set_content(list)
-
-	list.add_child(_section("画面设置"))
+	
+	# 创建设置菜单一级容器竖式
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	d.set_content(outer)
+	
+	# 创建设置菜单二级容器横式
+	var mid := HBoxContainer.new()
+	mid.add_theme_constant_override("separation", 14)
+	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(mid)
+	
+	# 创建设置菜单按钮列表
+	var tabs := VBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 6)
+	tabs.custom_minimum_size = Vector2(100, 0)
+	mid.add_child(tabs)
+	
+	# 创建设置菜单的内容页父容器
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_child(body)
+	
+	# 创建主要的四个设置菜单的变量
+	# 画面设置菜单
+	var page_video := VBoxContainer.new()
+	# 辅助设置菜单
+	var page_assist := VBoxContainer.new()
+	# 音效设置菜单
+	var page_audio := VBoxContainer.new()
+	# 键位设置菜单
+	var page_keys := VBoxContainer.new()
+	# 创建一个存储四个菜单的页面词典
+	var pages := {"video": page_video, "assist": page_assist, "audio": page_audio, "keys": page_keys}
+	# 通过循环初始化每页
+	for t in SETTING_TABS:
+		# 初始化页面
+		var pg: VBoxContainer = pages[str(t["id"])]
+		pg.add_theme_constant_override("separation", 8)
+		pg.visible = false
+		body.add_child(pg)
+		
+		# 初始化按钮
+		var b := UIKit.normal(str(t["name"]), 13)
+		b.set_meta("setting_id", str(t["id"]))
+		b.custom_minimum_size = Vector2(100, 34)
+		b.pressed.connect(_switch_setting_page.bind(pages, tabs, str(t["id"])))
+		tabs.add_child(b)
+		
+	# 初始化画面设置
+	# 初始化分辨率选项
 	var res_opt := OptionButton.new()
 	res_opt.add_item("1280 x 720")
 	res_opt.add_item("1600 x 900")
@@ -177,14 +232,16 @@ func _open_settings() -> void:
 	res_opt.item_selected.connect(func(idx: int) -> void:
 		var sizes := [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080)]
 		DisplayServer.window_set_size(sizes[idx]))
-	list.add_child(_row("分辨率", res_opt))
-
+	page_video.add_child(_row("分辨率", res_opt))
+	
+	# 初始化画质设置
 	var quality := OptionButton.new()
 	quality.add_item("兼容（GL Compatibility）")
 	quality.selected = 0
 	quality.disabled = true
-	list.add_child(_row("画质档位", quality))
+	page_video.add_child(_row("画质档位", quality))
 
+	# 初始化帧率设置
 	var fps := OptionButton.new()
 	fps.add_item("不限")
 	fps.add_item("60")
@@ -192,10 +249,9 @@ func _open_settings() -> void:
 	fps.selected = 0
 	fps.item_selected.connect(func(idx: int) -> void:
 		Engine.max_fps = [0, 60, 30][idx])
-	list.add_child(_row("帧率限制", fps))
+	page_video.add_child(_row("帧率限制", fps))
 
 	# v1.2：自动存档周期数
-	list.add_child(_section("存档设置"))
 	var auto_spin := SpinBox.new()
 	auto_spin.min_value = Consts.AUTOSAVE_INTERVAL_MIN
 	auto_spin.max_value = Consts.AUTOSAVE_INTERVAL_MAX
@@ -204,36 +260,46 @@ func _open_settings() -> void:
 	auto_spin.tooltip_text = "默认每 1 个周期自动存档一次；可以改成每 N 个周期存档一次"
 	auto_spin.value_changed.connect(func(v: float) -> void:
 		GameState.set_autosave_interval(int(v)))
-	list.add_child(_row("自动存档周期数", auto_spin))
+	page_assist.add_child(_row("自动存档周期数", auto_spin))
 	var auto_hint := Label.new()
 	auto_hint.text = "默认情况下为每周期自动存档；这里可以设置自定义数量的周期进行一次自动存档（%d ~ %d）。" % [
 		Consts.AUTOSAVE_INTERVAL_MIN, Consts.AUTOSAVE_INTERVAL_MAX]
 	auto_hint.add_theme_font_size_override("font_size", 11)
 	auto_hint.add_theme_color_override("font_color", Color(0.62, 0.64, 0.72))
 	auto_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	list.add_child(auto_hint)
+	page_assist.add_child(auto_hint)
+	
+	# 初始化音效设置
+	page_audio.add_child(_volume_row("总音量", "Master"))
+	page_audio.add_child(_volume_row("背景音乐", "Music"))
+	page_audio.add_child(_volume_row("战斗音效", "SFX"))
 
-	list.add_child(_section("音效设置"))
-	list.add_child(_volume_row("总音量", "Master"))
-	list.add_child(_volume_row("背景音乐", "Music"))
-	list.add_child(_volume_row("战斗音效", "SFX"))
-
-	list.add_child(_section("操控设置"))
+	# 初始化键位设置
 	var hint := Label.new()
 	hint.text = "世界地图：鼠标左键拖动平移、滚轮缩放、点击地块查看详情。\n快捷键：1-5 切换功能页，空格 = 结束周期，Esc = 关闭弹窗。"
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", Color(0.72, 0.74, 0.8))
-	list.add_child(hint)
-
+	page_keys.add_child(hint)
+	
+	_switch_setting_page(pages, tabs, "video")
 	add_child(d)
 
 
-func _section(text: String) -> Label:
-	var l := Label.new()
-	l.text = "— %s —" % text
-	l.add_theme_font_size_override("font_size", 15)
-	l.add_theme_color_override("font_color", Color(0.9, 0.8, 0.5))
-	return l
+func _switch_setting_page(pages: Dictionary, tabs: VBoxContainer, tid: String) -> void:
+	# 遍历所有页面，仅显示与 tid 匹配的页面
+	for id in pages.keys():
+		(pages[id] as Control).visible = str(id) == tid
+
+	# 遍历所有切换按钮
+	for child in tabs.get_children():
+		var btn := child as Button
+		# 跳过非按钮节点
+		if btn == null:
+			continue
+		# 获取按钮绑定的设置页 id
+		var btn_id := str(btn.get_meta("setting_id", ""))
+		# 根据 id 是否匹配来设置按钮高亮
+		UIKit.style_button(btn, btn_id == tid)
 
 
 func _row(label_text: String, node: Control) -> HBoxContainer:
