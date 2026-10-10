@@ -157,6 +157,21 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await _shoot("06b_tech_window")
 	gs.call("_toggle_tech_panel")
+	# v1.8.11：统计面板（资源栏中间的「统计」入口，默认看资源）
+	gs.call("_toggle_stats_panel")
+	for f111 in 5:
+		await get_tree().process_frame
+	await _shoot("06c_stats_res")
+	var v111_sp: Variant = gs.get("stats_panel")
+	if v111_sp != null:
+		(v111_sp as Node).set("tab", "unit")
+		(v111_sp as Node).call("refresh")
+		for f112 in 5:
+			await get_tree().process_frame
+		await _shoot("06d_stats_units")
+		(v111_sp as Control).visible = false
+		for f113 in 2:
+			await get_tree().process_frame
 
 	# v1.8.5：旧的右侧规划面板已删除，改拍新浮窗（简约地块信息 / 据点管理窗口 / 右键菜单 / 修建浮窗）
 	gs.call("goto_view", "world")

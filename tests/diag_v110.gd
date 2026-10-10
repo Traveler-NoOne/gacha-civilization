@@ -93,7 +93,25 @@ func _ready() -> void:
 	var sp: Variant = wp.get("stronghold_panel")
 	_ok(sp != null and (sp as Control).visible, "点我方领地能打开据点管理窗口")
 
-	# ⑦ 先把科技全解锁（顺序很重要：科技会开放建筑，建筑又决定征兵能不能排）
+	# ⑦ 资源栏中间的「统计」入口 —— 四种统计类型都要能出内容（不能有死页）
+	gs.call("_toggle_stats_panel")
+	await _frames(5)
+	var stp: Variant = (gs as Node).get("stats_panel")
+	_ok(stp != null and (stp as Control).visible, "资源栏中间的「统计」能打开")
+	if stp == null:
+		_ok(false, "统计面板没建出来，后面跳过")
+	else:
+		_ok(str((stp as Node).get("tab")) == "res", "统计面板**默认看「资源」**（用户定的）")
+		for tid in ["res", "unit", "tile", "land"]:
+			(stp as Node).set("tab", str(tid))
+			(stp as Node).call("refresh")
+			await _frames(3)
+			var rows := ((stp as Node).get("content_box") as Node).get_child_count()
+			_ok(rows > 2, "统计页「%s」有内容（%d 行）" % [str(tid), rows])
+		(stp as Control).visible = false
+		await _frames(2)
+
+	# ⑧ 先把科技全解锁（顺序很重要：科技会开放建筑，建筑又决定征兵能不能排）
 	GameState.add_res("research", 9999.0)
 	var first_id := str((Consts.TECHS[0] as Dictionary)["id"])
 	var tr: Dictionary = GameState.research(first_id)

@@ -16,6 +16,8 @@ const VIEWS := [
 ]
 const DEFAULT_VIEW := "world"
 
+
+
 var current_view := DEFAULT_VIEW
 var views: Dictionary = {}
 var resource_bar: HBoxContainer
@@ -36,6 +38,9 @@ const CORNER_TOP := 112.0
 var corner_tech_btn: Button
 var corner_log_btn: Button
 var end_btn: Button
+## v1.8.11：统计面板（资源栏中间的「统计」按钮打开；默认看资源）
+var stats_btn: Button
+var stats_panel: StatsPanel = null
 ## v1.8.8：二级浮窗注册表 id -> PagePanel（内部页面同时挂到 views[id]，保持旧调用点可用）
 var panels: Dictionary = {}
 ## 压暗层（浮窗打开时出现；mouse_filter = IGNORE，所以**地图仍然能拖能点**）
@@ -122,9 +127,18 @@ func _build() -> void:
 	abstract_box.add_theme_constant_override("separation", 3)
 	resource_bar.add_child(abstract_box)
 
-	var res_spacer := Control.new()
-	res_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	resource_bar.add_child(res_spacer)
+	# v1.8.11：资源栏**中间**是「统计」入口 —— 点开在它下面展开统计面板。
+	# 中间那块本来就是空的（左抽象 / 右具体），正好用来放"能统计但没家"的东西。
+	var res_mid := HBoxContainer.new()
+	res_mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	res_mid.alignment = BoxContainer.ALIGNMENT_CENTER
+	resource_bar.add_child(res_mid)
+	stats_btn = UIKit.small("统计", 12)
+	stats_btn.custom_minimum_size = Vector2(68, 26)
+	stats_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	stats_btn.tooltip_text = "统计：资源 / 单位 / 地块 / 领地"
+	stats_btn.pressed.connect(_toggle_stats_panel)
+	res_mid.add_child(stats_btn)
 
 	concrete_box = VBoxContainer.new()
 	concrete_box.add_theme_constant_override("separation", 3)
@@ -305,6 +319,17 @@ func _place_floating_ui() -> void:
 		x += b.custom_minimum_size.x + 8.0
 	if is_instance_valid(end_btn):
 		end_btn.position = Vector2(size.x - CORNER_MARGIN - 100.0, y)
+	if stats_panel != null and is_instance_valid(stats_panel):
+		# 展开在「统计」按钮的正下方（和"点资源弹收支窗"一个位置逻辑）
+		var gp := Vector2.ZERO
+		if is_instance_valid(stats_btn):
+			gp = stats_btn.global_position - global_position
+		var w := 360.0
+		var hh := minf(430.0, size.y - gp.y - 80.0)
+		stats_panel.size = Vector2(w, maxf(200.0, hh))
+		stats_panel.position = Vector2(
+			clampf(gp.x - 40.0, 8.0, maxf(8.0, size.x - w - 8.0)),
+			gp.y + 30.0)
 	if tech_panel != null and is_instance_valid(tech_panel):
 		var sz := Vector2(560, 480)
 		tech_panel.size = sz
@@ -330,6 +355,20 @@ func _toggle_page(id: String) -> void:
 		_switch_view(DEFAULT_VIEW)
 	else:
 		_switch_view(id)
+
+
+## v1.8.11：统计面板（资源栏中间）
+func _toggle_stats_panel() -> void:
+	if stats_panel == null:
+		stats_panel = StatsPanel.new()
+		stats_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		stats_panel.visible = false
+		stats_panel.closed.connect(_update_dim)
+		add_child(stats_panel)
+	stats_panel.visible = not stats_panel.visible
+	if stats_panel.visible:
+		_place_floating_ui()
+		stats_panel.refresh()
 
 
 func _toggle_tech_panel() -> void:
@@ -400,26 +439,9 @@ func _refresh() -> void:
 		c.queue_free()
 
 	# 抽象资源（左，两行）：生产力 / 科研点 / 行政点数 ｜ 秩序结晶 / 凝聚力 / 人力
-	_fill_group(abstract_box, [
-		["production", "生产力", Color(0.90, 0.72, 0.35)],
-		["research", "科研点", Color(0.55, 0.75, 0.98)],
-		["admin", "行政点数", Color(0.80, 0.85, 0.55)],
-		["order_crystal", "秩序结晶", Color(0.75, 0.60, 0.98)],
-		["cohesion", "凝聚力", Color(0.98, 0.60, 0.75)],
-		["pop", "人力", Color(0.85, 0.90, 1.0)],
-	], 3, false)
-
+	_fill_group(abstract_box, Consts.RES_ABSTRACT, 3, false)
 	# 具体资源（右，两行）：食物 / 货币 / 木材 / 煤 / 铜 ｜ 铁 / 原油 / 水晶碎屑
-	_fill_group(concrete_box, [
-		["food", "食物", Color(0.55, 0.85, 0.45)],
-		["currency", "货币", Color(0.95, 0.85, 0.45)],
-		["wood", "木材", Color(0.7, 0.72, 0.78)],
-		["coal", "煤", Color(0.7, 0.72, 0.78)],
-		["copper", "铜矿", Color(0.7, 0.72, 0.78)],
-		["iron", "铁矿", Color(0.7, 0.72, 0.78)],
-		["oil", "原油", Color(0.7, 0.72, 0.78)],
-		["crystal_shard", "水晶碎屑", Color(0.7, 0.72, 0.78)],
-	], 5, true)
+	_fill_group(concrete_box, Consts.RES_CONCRETE, 5, true)
 
 	cycle_label.text = "周期 %d" % int(GameState.state["cycle"])
 	var st := GameState.stability()
@@ -768,6 +790,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_SPACE: _end_cycle()
 		KEY_ESCAPE:
 			# v1.8.8：浮窗能关了，所以 Esc 先关浮窗
+			if stats_panel != null and is_instance_valid(stats_panel) and stats_panel.visible:
+				stats_panel.visible = false
 			if _any_page_panel_open():
 				_close_all_panels()
 				_refresh_nav()
