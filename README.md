@@ -226,6 +226,7 @@ $godot = "C:\Program Files\Godot_v4.4.1-stable_mono_win64\Godot_v4.7.2-stable_wi
 project.godot                     项目配置（autoload / 主场景 / 分辨率）
 scenes/main.tscn                  唯一场景：挂 Main 脚本
 docs/版本记录/                      版本历史与已删除内容的归档（按版本分文件）
+docs/bug清单.md                   视觉检查记录的待修清单（逐张看截图自检产物得出）
 .commandcode/skills/              开发期使用的第三方 Godot Agent 技能（来源与许可见「八、第三方与致谢」）
 art/                              美术素材（codeart2d 代码绘制，14 格）
   icons.resources.svg             图标源文件（14 格 32×32，颜色走 icons-palette.json 的调色板类）
