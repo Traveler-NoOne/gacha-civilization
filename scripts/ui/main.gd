@@ -30,21 +30,21 @@ func _ready() -> void:
 ## 未知的值回落到基准档（`UI.set_resolution_key` 里兜底），避免手改 settings.cfg 弄出奇怪尺寸。
 ## v1.8.20：应用分辨率（UI 词典档位 + 窗口尺寸）。
 ##
-## 两处坑：
-##  ① **先锁窗口、再改尺寸**。反过来的话，在 Windows 上把窗口设成"不可缩放"
-##     会把尺寸顶回旧值（实测症状：UI 放大了 1.5 倍，窗口却还是 1280）。
-##  ② 窗口样式刚变过之后，有的平台会重新套用一次旧尺寸 —— 所以延后一帧再补一次。
-##     （无头环境下这些调用都是空操作，所以测试不受影响。）
+## ⚠️ **顺序是关键：先改尺寸，最后再锁窗口。**
+##    反过来（先锁再改）在 Windows 上不生效 —— 窗口一旦被设成"不可缩放"，
+##    后续的 window_set_size 会被忽略，症状正是用户报的：
+##    **UI 按新分辨率放大了，窗口尺寸却纹丝不动**。
 func _apply_resolution() -> void:
 	UI.set_resolution_key(AppSettings.resolution())
+	DisplayServer.window_set_size(UI.current_size())
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, true)
-	DisplayServer.window_set_size(UI.current_size())
-	_reapply_window_size.call_deferred()
+	_report_window_size.call_deferred()
 
 
-func _reapply_window_size() -> void:
-	DisplayServer.window_set_size(UI.current_size())
+## 延后一帧打印实际窗口尺寸（诊断用 —— 这类"设置没生效"的问题，光看代码猜不出来）
+func _report_window_size() -> void:
 	print("窗口尺寸：%s（分辨率档 %s）" % [str(DisplayServer.window_get_size()), UI.current_key()])
+
 
 
 func _build_toast_layer() -> void:
