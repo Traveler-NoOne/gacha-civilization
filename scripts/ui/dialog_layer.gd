@@ -120,7 +120,7 @@ func fit_now() -> void:
 	if vh < 200.0:
 		vh = UI.current_size().y
 	_usable_h = vh   # 暴露给自检：弹窗"自己认定"的可用高度（上一步兜底之后的值）
-	var avail := maxf(200.0, vh - 36.0)
+	var avail := maxf(UI.px(200.0), vh - UI.px(36.0))
 
 	# 除内容槽以外的固定高度（标题栏等）
 	slot_c.custom_minimum_size = Vector2(0, 0)
@@ -132,7 +132,7 @@ func fit_now() -> void:
 	# 内容想要的高度
 	var want := _content_height(slot_c)
 
-	var body_room := minf(maxf(60.0, want), maxf(60.0, avail - chrome))
+	var body_room := minf(maxf(UI.px(60.0), want), maxf(UI.px(60.0), avail - chrome))
 	slot_c.custom_minimum_size = Vector2(0, body_room)
 	_panel.custom_minimum_size = Vector2(dialog_width, chrome + body_room)
 

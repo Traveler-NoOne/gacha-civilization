@@ -138,7 +138,7 @@ static func style_button(b: Button, accent: bool = false, danger: bool = false) 
 static func title(text: String, size: int = 20) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", UI.fs(size))
 	l.add_theme_color_override("font_color", GOLD)
 	return l
 
@@ -147,7 +147,7 @@ static func title(text: String, size: int = 20) -> Label:
 static func text_label(text: String, size: int = 13, color: Color = TEXT) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", UI.fs(size))
 	l.add_theme_color_override("font_color", color)
 	return l
 
@@ -161,8 +161,8 @@ static func dim(text: String, size: int = 12) -> Label:
 static func primary(text: String, size: int = 18) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(0, 40)
-	b.add_theme_font_size_override("font_size", size)
+	b.custom_minimum_size = Vector2(0, UI.px(40))
+	b.add_theme_font_size_override("font_size", UI.fs(size))
 	style_button(b, true)
 	return b
 
@@ -171,8 +171,8 @@ static func primary(text: String, size: int = 18) -> Button:
 static func normal(text: String, size: int = 14) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(0, 34)
-	b.add_theme_font_size_override("font_size", size)
+	b.custom_minimum_size = Vector2(0, UI.px(34))
+	b.add_theme_font_size_override("font_size", UI.fs(size))
 	style_button(b)
 	return b
 
@@ -180,8 +180,8 @@ static func normal(text: String, size: int = 14) -> Button:
 static func small(text: String, size: int = 12) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(0, 26)
-	b.add_theme_font_size_override("font_size", size)
+	b.custom_minimum_size = Vector2(0, UI.px(26))
+	b.add_theme_font_size_override("font_size", UI.fs(size))
 	style_button(b)
 	return b
 
@@ -189,8 +189,8 @@ static func small(text: String, size: int = 12) -> Button:
 static func tiny(text: String, size: int = 11, danger: bool = false) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(26, 22)
-	b.add_theme_font_size_override("font_size", size)
+	b.custom_minimum_size = Vector2(UI.px(26), UI.px(22))
+	b.add_theme_font_size_override("font_size", UI.fs(size))
 	style_button(b, false, danger)
 	return b
 
@@ -198,7 +198,7 @@ static func tiny(text: String, size: int = 11, danger: bool = false) -> Button:
 ## 缺图时退回普通按钮外观（看得见、能点），不会变成隐形按钮。
 static func image_button(name: String, tooltip_text: String = "", w: int = 48, h: int = 48) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(w,h)
+	b.custom_minimum_size = Vector2(UI.px(w), UI.px(h))
 	b.focus_mode = Control.FOCUS_NONE
 	b.tooltip_text = tooltip_text
 	var tex := get_icon(name, Art.UI)
@@ -226,7 +226,7 @@ static func apply_icon_active(b: Button, on: bool) -> void:
 ## 造一个指定高度的空白撑开块（h 为高度），用于手动加纵向间距。
 static func spacer(h: float) -> Control:
 	var c := Control.new()
-	c.custom_minimum_size = Vector2(0, h)
+	c.custom_minimum_size = Vector2(0, UI.px(h))
 	return c
 
 
@@ -251,14 +251,14 @@ static func panel(bg: Color = BG_PANEL, border: Color = LINE, radius: int = 6) -
 ## 造一个纵向布局容器（VBoxContainer），sep 为子项之间的间距。
 static func vbox(sep: int = 6) -> VBoxContainer:
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", sep)
+	v.add_theme_constant_override("separation", UI.fs(sep))
 	return v
 
 
 ## 造一个横向布局容器（HBoxContainer），sep 为子项之间的间距。
 static func hbox(sep: int = 6) -> HBoxContainer:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", sep)
+	h.add_theme_constant_override("separation", UI.fs(sep))
 	return h
 
 
@@ -266,8 +266,8 @@ static func hbox(sep: int = 6) -> HBoxContainer:
 static func grid(cols: int, hsep_px: int = 6, vsep_px: int = 6) -> GridContainer:
 	var g := GridContainer.new()
 	g.columns = cols
-	g.add_theme_constant_override("h_separation", hsep_px)
-	g.add_theme_constant_override("v_separation", vsep_px)
+	g.add_theme_constant_override("h_separation", UI.fs(hsep_px))
+	g.add_theme_constant_override("v_separation", UI.fs(vsep_px))
 	return g
 
 
@@ -275,7 +275,7 @@ static func grid(cols: int, hsep_px: int = 6, vsep_px: int = 6) -> GridContainer
 ## maxv 会被夹到至少 0.0001 防止除零；value 会被夹进 0 ~ maxv 之间；不显示百分比文字。
 static func bar(value: float, maxv: float, fill: Color, w: float = 120.0, h: float = 12.0) -> ProgressBar:
 	var p := ProgressBar.new()
-	p.custom_minimum_size = Vector2(w, h)
+	p.custom_minimum_size = Vector2(UI.px(w), UI.px(h))
 	p.max_value = maxf(0.0001, maxv)
 	p.value = clampf(value, 0.0, p.max_value)
 	p.show_percentage = false
@@ -293,7 +293,7 @@ static func bar(value: float, maxv: float, fill: Color, w: float = 120.0, h: flo
 ## 「标签 + 进度条 + 数值」一行，用于经验之类的进度显示
 static func progress_bar_row(value: int, cap: int, progress: float, fill: Color) -> Control:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
+	h.add_theme_constant_override("separation", UI.fs(6))
 	var l := text_label("经验", 11, TEXT_DIM)
 	h.add_child(l)
 	var b := bar(float(value), float(maxi(1, cap)), fill, 180.0, 12.0)
@@ -318,9 +318,9 @@ static func toggle_checkbox(label_text: String, on: bool = false) -> Button:
 	b.toggle_mode = true
 	b.button_pressed = on
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(0, 32)
+	b.custom_minimum_size = Vector2(0, UI.px(32))
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.add_theme_font_size_override("font_size", 14)
+	b.add_theme_font_size_override("font_size", UI.fs(14))
 	_apply_checkbox_look(b, on, label_text)
 	b.toggled.connect(func(pressed: bool) -> void:
 		_apply_checkbox_look(b, pressed, label_text))
@@ -349,7 +349,7 @@ static func _apply_checkbox_look(b: Button, on: bool, label_text: String) -> voi
 static func dialog(title_text: String, width: float = 480.0) -> DialogLayer:
 	var layer := DialogLayer.new()
 	layer.dialog_title = title_text
-	layer.dialog_width = width
+	layer.dialog_width = UI.px(width)
 	return layer
 
 
@@ -381,14 +381,14 @@ static func card_button(card: Dictionary, w: float = 104.0, h: float = 128.0) ->
 	var rarity := int(card.get("rarity", 1))
 	var col: Color = Consts.rarity_color(rarity)
 	apply_panel(holder, BG_SLOT, col, 6)
-	holder.custom_minimum_size = Vector2(w, h)
+	holder.custom_minimum_size = Vector2(UI.px(w), UI.px(h))
 	var v := vbox(2)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	holder.add_child(v)
 	var icon := GeoIcon.new()
 	icon.kind = str(card.get("kind", "circle"))
 	icon.tint = col
-	icon.custom_minimum_size = Vector2(w - 16, h - 56)
+	icon.custom_minimum_size = Vector2(UI.px(w - 16), UI.px(h - 56))
 	v.add_child(icon)
 	var name_l := text_label(str(card.get("name", "?")), 12, col)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -430,12 +430,12 @@ static func unit_art(u: Dictionary, slot: String, px: Vector2) -> Control:
 	if tex != null:
 		var tr := TextureRect.new()
 		tr.texture = tex
-		tr.custom_minimum_size = px
+		tr.custom_minimum_size = px * UI.current_scale()
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		return tr
 	var ic := GeoIcon.new()
-	ic.custom_minimum_size = px
+	ic.custom_minimum_size = px * UI.current_scale()
 	ic.setup(str(u.get("kind", "circle")), Consts.rarity_color(int(u.get("rarity", 1))))
 	return ic
