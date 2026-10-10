@@ -481,7 +481,7 @@ func _write_manifest() -> void:
 	var lines: Array[String] = []
 	lines.append("# 截图自检产物清单（给视觉检查用）")
 	lines.append("")
-	lines.append("> 由 `tests/screenshot.gd` 生成；共 %d 张。" % _taken.size())
+	lines.append("> 由 `tests/screenshot.gd` 生成；共 %d 张，**按拍摄顺序**排列。" % _taken.size())
 	lines.append("> **每张都是「单一状态」**：每个拍摄组前后都会把所有弹窗 / 浮窗关掉（见 `_clean()`），")
 	lines.append("> 所以图里出现的窗口一定是**这张图故意开的**，不是你漏关的。")
 	lines.append("> 末张 `22_back_to_map` 是「关干净」的证据。")
@@ -489,10 +489,11 @@ func _write_manifest() -> void:
 	lines.append("| 文件 | 内容 | 该看什么 |")
 	lines.append("| --- | --- | --- |")
 	for n in _taken:
-		var doc := str(SHOT_DOCS.get(n, "（未登记 —— 请在 SHOT_DOCS 里补一行）"))
-		var parts := doc.split("｜", false, 1)
-		var what := parts[0] if parts.size() > 0 else doc
-		var look := parts[1] if parts.size() > 1 else ""
+		# 文档写法统一是：「内容 · 补充 | 该看什么」——列分隔用 " | "（竖线两边各一个空格）
+		var doc := str(SHOT_DOCS.get(n, "（未登记 —— 请在 SHOT_DOCS 里补一行）")).replace("｜", " · ")
+		var sep := doc.find(" | ")
+		var what := doc if sep < 0 else doc.substr(0, sep)
+		var look := "" if sep < 0 else doc.substr(sep + 3)
 		lines.append("| `%s.png` | %s | %s |" % [n, what, look])
 	var f := FileAccess.open("%s/00_MANIFEST.md" % OUT_DIR, FileAccess.WRITE)
 	if f != null:
