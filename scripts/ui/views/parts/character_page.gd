@@ -10,7 +10,10 @@ const SUB_TABS := [
 	{"id": "skill", "name": "技能"},
 	{"id": "profession", "name": "职业"},
 	{"id": "rank", "name": "位阶"},
-	{"id": "team", "name": "编队"},
+	# v1.8.10：**「编队」入口暂时隐藏**（用户决定"暂时放弃编队功能"）。
+	# 只藏入口，不动代码：`team` 子页的构造与 `GameState.assign_team/remove_from_team/team_units`
+	# 全都留着，等以后"大世界单位操作"优化完，把上面这行取消注释接回来即可。
+	# {"id": "team", "name": "编队"},
 ]
 
 const TYPE_FILTERS := [

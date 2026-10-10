@@ -222,7 +222,8 @@ func _ready() -> void:
 	for f00 in 4:
 		await get_tree().process_frame
 	var cp: Variant = tv.get("pages")["character"]
-	for st in ["main", "skill", "profession", "rank", "team"]:
+	# v1.8.10：「编队」入口已隐藏（页面代码还在，但不在游戏里可达）
+	for st in ["main", "skill", "profession", "rank"]:
 		cp.set("sub_tab", st)
 		cp.call("refresh")
 		for f0 in 4:
