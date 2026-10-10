@@ -121,7 +121,9 @@ func fit_now() -> void:
 	# 除内容槽以外的固定高度（标题栏等）
 	slot_c.custom_minimum_size = Vector2(0, 0)
 	slot_c.size_flags_vertical = Control.SIZE_FILL
-	var chrome := maxf(0.0, _panel.get_combined_minimum_size().y)
+	var panel_min := _panel.get_combined_minimum_size().y
+	var slot_min := slot_c.get_combined_minimum_size().y
+	var chrome := maxf(0.0, panel_min - slot_min)
 
 	# 内容想要的高度
 	var want := _content_height(slot_c)

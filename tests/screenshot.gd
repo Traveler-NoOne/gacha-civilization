@@ -24,7 +24,10 @@ const SHOT_DOCS := {
 	"01_menu": "主页面（未展开）｜标题、四个按钮、「开始游戏」 | 文字有无重叠/截断，按钮是否居中",
 	"01b_loading": "加载界面（进度条走到中段）｜标题+立绘居中、左下 tips、右下进度条 | 进度条真的在走（不是 0%），tips 有内容",
 	"02_menu_expanded": "主页面（展开「开始游戏」）｜继续/新游戏/读取三个小按钮 | 展开框没有把下面的按钮挤走",
-	"02b_dialog_settings": "设置弹窗｜自动存档周期数等 | 控件对齐、数字可读",
+	"02b_dialog_settings": "设置·画面设置页（默认）｜左栏四个按钮 + 分辨率 / 画质档位 / 帧率限制 | 当前项是否高亮、右下角有没有 [取消][确认]、弹窗底下有没有多余空白",
+	"02b1_settings_assist": "设置·辅助设置页（原「存档设置」）｜自动存档周期数 + 说明 | 改名到位、说明文字完整",
+	"02b2_settings_audio": "设置·音效设置页｜总音量 / 背景音乐 / 战斗音效 | 三条滑块、当前音量是否真实",
+	"02b3_settings_keys": "设置·键位设置页（原「操控设置」）｜快捷键说明 | 改名到位、快捷键写的是 1/2/3 还是过期的 1-5",
 	"02c_dialog_feedback": "反馈弹窗｜版本号 / QQ群 / 邮箱 / 「作弊功能」勾选框 | 文字完整、勾选框可见",
 	"02d_dialog_cheat_confirm": "勾选「作弊功能」后的二次确认弹窗 | 确认/取消都在、没有超框",
 	"02e_dialog_cheat_checked": "确认后的勾选态 | 勾选态与弹窗关闭流程正常",
@@ -101,7 +104,17 @@ func _ready() -> void:
 	menu.call("_open_settings")
 	for f0 in 6:
 		await get_tree().process_frame
-	await _shoot("02b_dialog_settings")
+	# v1.8.12：设置菜单改成左栏四页 —— 四页各拍一张。
+	# 走"点击左栏按钮"而不是直接调函数：那个切页函数拿的是 _open_settings 的局部变量，
+	# 外部调不到；点按钮才是真实玩家的路径（也顺带验证"点了能切页"）。
+	for st in [["画面设置", "02b_dialog_settings"], ["辅助设置", "02b1_settings_assist"],
+			["音效设置", "02b2_settings_audio"], ["键位设置", "02b3_settings_keys"]]:
+		var sbtn: Variant = U.find_button(menu, str(st[0]))
+		if sbtn != null:
+			(sbtn as Button).pressed.emit()
+		for fs in 5:
+			await get_tree().process_frame
+		await _shoot(str(st[1]))
 	menu.call("close_dialog")
 	for f1 in 2:
 		await get_tree().process_frame

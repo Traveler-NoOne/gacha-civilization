@@ -18,6 +18,12 @@ const SETTING_TABS := [
 	{"id": "keys", "name": "键位设置"},
 ]
 
+const RESOLUTIONS := {
+	"1280 X 720": Vector2i(1280, 720),
+	"1600 X 900": Vector2i(1600, 900),
+	"1920 X 1080": Vector2i(1920, 1080),
+}
+
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_build()
@@ -225,13 +231,11 @@ func _open_settings() -> void:
 	# 初始化画面设置
 	# 初始化分辨率选项
 	var res_opt := OptionButton.new()
-	res_opt.add_item("1280 x 720")
-	res_opt.add_item("1600 x 900")
-	res_opt.add_item("1920 x 1080")
-	res_opt.selected = 0
-	res_opt.item_selected.connect(func(idx: int) -> void:
-		var sizes := [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080)]
-		DisplayServer.window_set_size(sizes[idx]))
+	for res_name in RESOLUTIONS.keys():
+		res_opt.add_item(str(res_name))
+	var _sizes: Array = RESOLUTIONS.values()
+	var _si := _sizes.find(DisplayServer.window_get_size())
+	res_opt.selected = _si if _si >= 0 else 0
 	page_video.add_child(_row("分辨率", res_opt))
 	
 	# 初始化画质设置
@@ -246,9 +250,9 @@ func _open_settings() -> void:
 	fps.add_item("不限")
 	fps.add_item("60")
 	fps.add_item("30")
-	fps.selected = 0
-	fps.item_selected.connect(func(idx: int) -> void:
-		Engine.max_fps = [0, 60, 30][idx])
+	var _fps_opts := [0,60,30]
+	var _fi := _fps_opts.find(Engine.max_fps)
+	fps.selected = _fi if _fi >= 0 else 0
 	page_video.add_child(_row("帧率限制", fps))
 
 	# v1.2：自动存档周期数
@@ -258,8 +262,6 @@ func _open_settings() -> void:
 	auto_spin.step = 1
 	auto_spin.value = GameState.autosave_interval()
 	auto_spin.tooltip_text = "默认每 1 个周期自动存档一次；可以改成每 N 个周期存档一次"
-	auto_spin.value_changed.connect(func(v: float) -> void:
-		GameState.set_autosave_interval(int(v)))
 	page_assist.add_child(_row("自动存档周期数", auto_spin))
 	var auto_hint := Label.new()
 	auto_hint.text = "默认情况下为每周期自动存档；这里可以设置自定义数量的周期进行一次自动存档（%d ~ %d）。" % [
@@ -270,16 +272,42 @@ func _open_settings() -> void:
 	page_assist.add_child(auto_hint)
 	
 	# 初始化音效设置
-	page_audio.add_child(_volume_row("总音量", "Master"))
-	page_audio.add_child(_volume_row("背景音乐", "Music"))
-	page_audio.add_child(_volume_row("战斗音效", "SFX"))
+	var vol_pending := {}
+	page_audio.add_child(_volume_row("总音量", "Master", vol_pending))
+	page_audio.add_child(_volume_row("背景音乐", "Music", vol_pending))
+	page_audio.add_child(_volume_row("战斗音效", "SFX", vol_pending))
 
 	# 初始化键位设置
 	var hint := Label.new()
-	hint.text = "世界地图：鼠标左键拖动平移、滚轮缩放、点击地块查看详情。\n快捷键：1-5 切换功能页，空格 = 结束周期，Esc = 关闭弹窗。"
+	hint.text = "世界地图：鼠标左键拖动平移、滚轮缩放、点击地块查看详情。\n快捷键：「1/2/3」切换功能页，空格 = 结束周期，Esc = 关闭弹窗。"
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", Color(0.72, 0.74, 0.8))
 	page_keys.add_child(hint)
+	
+	# 弹窗确定区
+	var footer := HBoxContainer.new()
+	footer.alignment = BoxContainer.ALIGNMENT_END
+	footer.add_theme_constant_override("separation", 8)
+	outer.add_child(footer)
+	
+	var btn_cancel := UIKit.normal("取消", 14)
+	btn_cancel.custom_minimum_size = Vector2(96, 34)
+	btn_cancel.pressed.connect(func() -> void:
+		close_dialog())
+	footer.add_child(btn_cancel)
+	
+	var btn_ok := UIKit.primary("确认", 14)
+	btn_ok.custom_minimum_size = Vector2(96, 34)
+	btn_ok.pressed.connect(func() -> void:
+		DisplayServer.window_set_size(_sizes[res_opt.selected])
+		Engine.max_fps = _fps_opts[fps.selected]
+		GameState.set_autosave_interval(int(auto_spin.value))
+		for b in vol_pending.keys():
+			var bi := AudioServer.get_bus_index(str(b))
+			if bi >= 0:
+				AudioServer.set_bus_volume_db(bi, linear_to_db(maxf(0.0001, float(vol_pending[b]) / 100.0)))
+		close_dialog())
+	footer.add_child(btn_ok)
 	
 	_switch_setting_page(pages, tabs, "video")
 	add_child(d)
@@ -314,16 +342,21 @@ func _row(label_text: String, node: Control) -> HBoxContainer:
 	return h
 
 
-func _volume_row(label_text: String, bus: String) -> HBoxContainer:
+func _volume_row(label_text: String, bus: String, pending: Dictionary) -> HBoxContainer:
 	var slider := HSlider.new()
 	slider.min_value = 0
 	slider.max_value = 100
-	slider.value = 80
 	slider.custom_minimum_size = Vector2(180, 0)
+	
+	var bus_idx := AudioServer.get_bus_index(bus)
+	var cur := 100.0
+	if bus_idx >= 0:
+		cur = clampf(db_to_linear(AudioServer.get_bus_volume_db(bus_idx)) * 100.0, 0.0, 100.0)
+	slider.value = cur
+	pending[bus] = cur
+	
 	slider.value_changed.connect(func(v: float) -> void:
-		var idx := AudioServer.get_bus_index(bus)
-		if idx >= 0:
-			AudioServer.set_bus_volume_db(idx, linear_to_db(maxf(0.0001, v / 100.0))))
+		pending[bus] = v)
 	return _row(label_text, slider)
 
 
