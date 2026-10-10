@@ -114,8 +114,12 @@ func fit_now() -> void:
 		return
 	var slot_c := slot as Control
 	var vh := get_viewport_rect().size.y
-	if vh <= 1.0:
-		vh = 720.0
+	# v1.8.20：窗口已经锁死在真实分辨率档位，所以"视口小得离谱"只可能出现在
+	# 无头/退化环境（实测 headless 下视口只有 64 高）。这时按设计基准高度兜底，
+	# 否则弹窗会被 get_viewport_rect() 夹扁，内容溢出、底部按钮点不到。
+	if vh < 200.0:
+		vh = UI.current_size().y
+	_usable_h = vh   # 暴露给自检：弹窗"自己认定"的可用高度（上一步兜底之后的值）
 	var avail := maxf(200.0, vh - 36.0)
 
 	# 除内容槽以外的固定高度（标题栏等）
@@ -151,6 +155,16 @@ func _content_height(c: Control) -> float:
 			h = maxf(h, inner)
 		best = maxf(best, h)
 	return best
+
+
+## v1.8.20：弹窗"自己认定"的可用高度（`fit_now()` 兜底之后的值）。
+## 自检拿它判断"按钮是否在弹窗认为可用的区域里" —— 不要去问真实视口：
+## headless 下视口只有 64，拿它当参照会得出错误结论（假失败）。
+var _usable_h := 0.0
+
+
+func usable_height() -> float:
+	return _usable_h
 
 
 func close() -> void:

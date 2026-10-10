@@ -12,7 +12,10 @@ const U := preload("res://tests/test_util.gd")
 
 var suite := U.reporter("作弊端到端（鼠标）")
 func _ready() -> void:
-	# headless 下没有真实窗口，这里只固定逻辑视口，不调 window_set_size
+	# v1.8.20 备忘（两条死路，别再试）：headless 的视口只有 64 高，而且
+	#   · DisplayServer.window_set_size(...) 在 headless 下**无效**
+	#   · get_window().size = ... 会把测试**直接挂死**（实测 TIMEOUT）
+	# 所以本测试不再试图"造一个正常视口"，而是用弹窗自己认定的可用高度（见下面 usable_height）。
 	await get_tree().process_frame
 
 	print("== 1. 准备游戏主页 ==")
@@ -68,7 +71,9 @@ func _ready() -> void:
 		_finish()
 		return
 	# 关键回归：整个弹窗必须在视口内（之前底部按钮被挤出屏幕，玩家点不到）
-	var vh := get_viewport().get_visible_rect().size.y
+	# v1.8.20：参照物改成"弹窗自己认定的可用高度"，不再问真实视口 ——
+	# headless 下视口只有 64，拿它当参照会假失败（弹窗其实按基准高度排得好好的）。
+	var vh := (dlg as DialogLayer).usable_height()
 	var dlc := dlg as Control
 	for ch in dlc.get_children():
 		if ch is CenterContainer and ch.get_child_count() > 0:
