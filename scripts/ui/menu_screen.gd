@@ -306,7 +306,11 @@ func _open_settings() -> void:
 	btn_ok.pressed.connect(func() -> void:
 		# v1.8.20：其余设置（帧率 / 音量 / 自动存档）都是"改一下立即生效"，
 		# 这里只剩分辨率要做决定 —— 它涉及 UI 重建，不能即时改：保存 + 问要不要现在重启。
+		print("[诊断] 设置确认：selected=%d 取到 key=%s 存档现值=%s 可选=%s" % [
+			res_opt.selected, str(_res_keys[res_opt.selected]), AppSettings.resolution(), str(_res_keys)])
 		AppSettings.set_resolution(str(_res_keys[res_opt.selected]))
+		print("[诊断] 调用后 AppSettings.resolution() = %s" % AppSettings.resolution())
+
 		close_dialog()
 		_ask_restart())
 	footer.add_child(btn_ok)

@@ -42,7 +42,9 @@ func _ready() -> void:
 ##    所以等窗口真正建好（两帧）再改，最后才锁成不可缩放
 ##   （锁要放在尺寸之后 —— 反过来在 Windows 上尺寸会被忽略）。
 func _apply_resolution() -> void:
+	print("[诊断] 启动读取分辨率：%s" % AppSettings.resolution())
 	UI.set_resolution_key(AppSettings.resolution())
+
 	_apply_window_size.call_deferred()
 
 

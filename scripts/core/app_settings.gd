@@ -62,11 +62,16 @@ func resolution() -> String:
 
 
 func set_resolution(key: String) -> void:
+	print("[诊断] set_resolution 进入：key=%s 现值=%s" % [key, _resolution])
 	if _resolution == key:
+		print("[诊断] 与现值相同 → 直接返回（不保存）")
 		return
 	_resolution = key
 	save_settings()
 	changed.emit()
+	print("[诊断] 已保存，内存值=%s 文件=%s 存在=%s" % [
+		_resolution, ProjectSettings.globalize_path(SETTINGS_PATH), FileAccess.file_exists(SETTINGS_PATH)])
+
 
 
 signal changed
