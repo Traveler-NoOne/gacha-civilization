@@ -233,7 +233,7 @@ func _open_settings() -> void:
 	res_opt.selected = _ri if _ri >= 0 else _res_keys.find(UI.BASE_KEY)
 	page_video.add_child(_row("分辨率", res_opt))
 	var res_hint := Label.new()
-	res_hint.text = "改完保存，下次启动生效。"
+	res_hint.text = "改完保存，重启后才生效。"
 	res_hint.add_theme_font_size_override("font_size", 11)
 	res_hint.add_theme_color_override("font_color", Color(0.62, 0.64, 0.72))
 	page_video.add_child(res_hint)
@@ -250,9 +250,12 @@ func _open_settings() -> void:
 	fps.add_item("不限")
 	fps.add_item("60")
 	fps.add_item("30")
-	var _fps_opts := [0,60,30]
+	var _fps_opts := [0, 60, 30]
 	var _fi := _fps_opts.find(Engine.max_fps)
 	fps.selected = _fi if _fi >= 0 else 0
+	# v1.8.20：帧率不涉及 UI 重建 → 改一下立即生效
+	fps.item_selected.connect(func(idx: int) -> void:
+		Engine.max_fps = _fps_opts[idx])
 	page_video.add_child(_row("帧率限制", fps))
 
 	# v1.2：自动存档周期数
@@ -262,6 +265,9 @@ func _open_settings() -> void:
 	auto_spin.step = 1
 	auto_spin.value = GameState.autosave_interval()
 	auto_spin.tooltip_text = "默认每 1 个周期自动存档一次；可以改成每 N 个周期存档一次"
+	# v1.8.20：不涉及 UI 重建 → 改一下立即生效
+	auto_spin.value_changed.connect(func(v: float) -> void:
+		GameState.set_autosave_interval(int(v)))
 	page_assist.add_child(_row("自动存档周期数", auto_spin))
 	var auto_hint := Label.new()
 	auto_hint.text = "默认情况下为每周期自动存档；这里可以设置自定义数量的周期进行一次自动存档（%d ~ %d）。" % [
@@ -272,10 +278,9 @@ func _open_settings() -> void:
 	page_assist.add_child(auto_hint)
 	
 	# 初始化音效设置
-	var vol_pending := {}
-	page_audio.add_child(_volume_row("总音量", "Master", vol_pending))
-	page_audio.add_child(_volume_row("背景音乐", "Music", vol_pending))
-	page_audio.add_child(_volume_row("战斗音效", "SFX", vol_pending))
+	page_audio.add_child(_volume_row("总音量", "Master"))
+	page_audio.add_child(_volume_row("背景音乐", "Music"))
+	page_audio.add_child(_volume_row("战斗音效", "SFX"))
 
 	# 初始化键位设置
 	var hint := Label.new()
@@ -299,20 +304,31 @@ func _open_settings() -> void:
 	var btn_ok := UIKit.primary("确认", 14)
 	btn_ok.custom_minimum_size = Vector2(96, 34)
 	btn_ok.pressed.connect(func() -> void:
-		# v1.8.20：分辨率只保存，下次启动由 main.gd 应用（不能即时改：整个 UI 要按新档重排）
+		# v1.8.20：其余设置（帧率 / 音量 / 自动存档）都是"改一下立即生效"，
+		# 这里只剩分辨率要做决定 —— 它涉及 UI 重建，不能即时改：保存 + 问要不要现在重启。
 		AppSettings.set_resolution(str(_res_keys[res_opt.selected]))
-		GameState.toast.emit("分辨率已保存，下次启动生效")
-		Engine.max_fps = _fps_opts[fps.selected]
-		GameState.set_autosave_interval(int(auto_spin.value))
-		for b in vol_pending.keys():
-			var bi := AudioServer.get_bus_index(str(b))
-			if bi >= 0:
-				AudioServer.set_bus_volume_db(bi, linear_to_db(maxf(0.0001, float(vol_pending[b]) / 100.0)))
-		close_dialog())
+		close_dialog()
+		_ask_restart())
 	footer.add_child(btn_ok)
 	
 	_switch_setting_page(pages, tabs, "video")
 	add_child(d)
+
+
+## v1.8.20：分辨率涉及 UI 重建，不能即时改 —— 保存好后问用户要不要现在重启。
+## 重启 → 立刻用新分辨率；不重启 → 本次仍用当前分辨率，下次启动自动生效。
+func _ask_restart() -> void:
+	var d := UIKit.confirm("需要重启", "分辨率改动要重启游戏才生效。\n现在就重启吗？\n（点「取消」＝这次仍用当前分辨率，下次启动自动生效）", _restart_game)
+	add_child(d)
+
+
+## 重启游戏：导出版直接拉起新进程；编辑器里只能手动重开（免得又把编辑器拉一个起来）
+func _restart_game() -> void:
+	if OS.has_feature("editor"):
+		GameState.toast.emit("在编辑器里请手动重新运行")
+		return
+	OS.create_process(OS.get_executable_path(), PackedStringArray())
+	get_tree().quit()
 
 
 func _switch_setting_page(pages: Dictionary, tabs: VBoxContainer, tid: String) -> void:
@@ -344,21 +360,23 @@ func _row(label_text: String, node: Control) -> HBoxContainer:
 	return h
 
 
-func _volume_row(label_text: String, bus: String, pending: Dictionary) -> HBoxContainer:
+func _volume_row(label_text: String, bus: String) -> HBoxContainer:
 	var slider := HSlider.new()
 	slider.min_value = 0
 	slider.max_value = 100
 	slider.custom_minimum_size = Vector2(180, 0)
-	
+
+	# v1.8.12：显示当前真实音量（不是写死的 80）
 	var bus_idx := AudioServer.get_bus_index(bus)
 	var cur := 100.0
 	if bus_idx >= 0:
 		cur = clampf(db_to_linear(AudioServer.get_bus_volume_db(bus_idx)) * 100.0, 0.0, 100.0)
 	slider.value = cur
-	pending[bus] = cur
 	
 	slider.value_changed.connect(func(v: float) -> void:
-		pending[bus] = v)
+		var i := AudioServer.get_bus_index(bus)
+		if i >= 0:
+			AudioServer.set_bus_volume_db(i, linear_to_db(maxf(0.0001, v / 100.0))))
 	return _row(label_text, slider)
 
 

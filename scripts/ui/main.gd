@@ -31,6 +31,9 @@ func _ready() -> void:
 func _apply_resolution() -> void:
 	UI.set_resolution_key(AppSettings.resolution())
 	DisplayServer.window_set_size(UI.current_size())
+	# v1.8.20：窗口锁死（不许拖边）。放在运行期而不是 project.godot：
+	# 写在项目设置里会让无头测试的窗口被压到最小尺寸，连累依赖视口尺寸的测试。
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, true)
 
 
 func _build_toast_layer() -> void:

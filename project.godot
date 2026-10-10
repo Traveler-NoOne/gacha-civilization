@@ -30,6 +30,11 @@ window/size/window_width_override=1280
 window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+# ⚠️ 1.8.20 备忘（都别踩）：
+#   · 窗口锁定（不许拖边）**不写在这里**，改由 main.gd 运行期设 —— 写 resizable=false
+#     会把无头测试的窗口压到最小尺寸（实测视口高只剩 64），连累依赖视口尺寸的测试。
+#   · stretch/mode 仍是 canvas_items。关掉它会让无头视口从"恒等 1280×720"变成真实窗口尺寸（64），
+#     同样连累 diag_cheat_mouse；→ 留到 1.8.20-B（换地基）时，连同"让无头测试拿到可用视口"一起处理。
 
 [editor_plugins]
 
