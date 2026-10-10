@@ -28,22 +28,33 @@ func _ready() -> void:
 
 ## v1.8.20：启动时应用玩家保存的分辨率。
 ## 未知的值回落到基准档（`UI.set_resolution_key` 里兜底），避免手改 settings.cfg 弄出奇怪尺寸。
-## v1.8.20：应用分辨率（UI 词典档位 + 窗口尺寸）。
+## v1.8.20：应用分辨率。
 ##
-## ⚠️ **顺序是关键：先改尺寸，最后再锁窗口。**
-##    反过来（先锁再改）在 Windows 上不生效 —— 窗口一旦被设成"不可缩放"，
-##    后续的 window_set_size 会被忽略，症状正是用户报的：
-##    **UI 按新分辨率放大了，窗口尺寸却纹丝不动**。
+## 拆成两半，因为两件事的时机不一样：
+##
+## ① **档位立刻设**（`UI.set_resolution_key`）——
+##    UI 是构建时按 `UI.px()/fs()` 算尺寸的，晚一帧就会按错倍率搭界面。
+##
+## ② **窗口尺寸必须延后**——
+##    Godot 在启动时按 `project.godot` 的 `viewport_width/height` 定窗口尺寸；
+##    在 `_ready()` 里立刻改会被它覆盖掉。用户实测到的现象正是这个：
+##    **项目设置里改大小永远有效，游戏里怎么改、怎么重启都没用。**
+##    所以等窗口真正建好（两帧）再改，最后才锁成不可缩放
+##   （锁要放在尺寸之后 —— 反过来在 Windows 上尺寸会被忽略）。
 func _apply_resolution() -> void:
 	UI.set_resolution_key(AppSettings.resolution())
+	_apply_window_size.call_deferred()
+
+
+func _apply_window_size() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
 	DisplayServer.window_set_size(UI.current_size())
+	await get_tree().process_frame
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, true)
-	_report_window_size.call_deferred()
+	print("窗口尺寸：%s（期望 %s，分辨率档 %s）" % [
+		str(DisplayServer.window_get_size()), str(UI.current_size()), UI.current_key()])
 
-
-## 延后一帧打印实际窗口尺寸（诊断用 —— 这类"设置没生效"的问题，光看代码猜不出来）
-func _report_window_size() -> void:
-	print("窗口尺寸：%s（分辨率档 %s）" % [str(DisplayServer.window_get_size()), UI.current_key()])
 
 
 
