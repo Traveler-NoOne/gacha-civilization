@@ -26,8 +26,8 @@ UI="*res://scripts/core/ui_scale.gd"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
-window/size/window_width_override=1280
-window/size/window_height_override=720
+# v1.8.20：删掉这两行 —— 它们会在启动时**强制**窗口尺寸，把「分辨率设置」顶回去
+#（实测症状：UI 按新分辨率放大了，窗口却还是 1280）。窗口尺寸改由 main._apply_resolution() 决定。
 window/stretch/aspect="expand"
 "#v1.8.20-Bï¼å³æèªå¨æä¼¸ââUIä»æ­¤æ**çå®åç´ **æçï¼å°ºå¯¸èµ°UIè¯å¸ï¼UI.px()/fs()ï¼ãwindow/stretch/mode"="disabled"
 "#â ï¸1.8.20å¤å¿ï¼é½å«è¸©ï¼ï¼#Â·çªå£éå®ï¼ä¸è®¸æè¾¹ï¼**ä¸åå¨è¿é**ï¼æ¹ç±main.gdè¿è¡æè®¾ââåresizable"=false

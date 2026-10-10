@@ -28,12 +28,23 @@ func _ready() -> void:
 
 ## v1.8.20：启动时应用玩家保存的分辨率。
 ## 未知的值回落到基准档（`UI.set_resolution_key` 里兜底），避免手改 settings.cfg 弄出奇怪尺寸。
+## v1.8.20：应用分辨率（UI 词典档位 + 窗口尺寸）。
+##
+## 两处坑：
+##  ① **先锁窗口、再改尺寸**。反过来的话，在 Windows 上把窗口设成"不可缩放"
+##     会把尺寸顶回旧值（实测症状：UI 放大了 1.5 倍，窗口却还是 1280）。
+##  ② 窗口样式刚变过之后，有的平台会重新套用一次旧尺寸 —— 所以延后一帧再补一次。
+##     （无头环境下这些调用都是空操作，所以测试不受影响。）
 func _apply_resolution() -> void:
 	UI.set_resolution_key(AppSettings.resolution())
-	DisplayServer.window_set_size(UI.current_size())
-	# v1.8.20：窗口锁死（不许拖边）。放在运行期而不是 project.godot：
-	# 写在项目设置里会让无头测试的窗口被压到最小尺寸，连累依赖视口尺寸的测试。
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, true)
+	DisplayServer.window_set_size(UI.current_size())
+	_reapply_window_size.call_deferred()
+
+
+func _reapply_window_size() -> void:
+	DisplayServer.window_set_size(UI.current_size())
+	print("窗口尺寸：%s（分辨率档 %s）" % [str(DisplayServer.window_get_size()), UI.current_key()])
 
 
 func _build_toast_layer() -> void:
