@@ -18,11 +18,6 @@ const SETTING_TABS := [
 	{"id": "keys", "name": "键位设置"},
 ]
 
-const RESOLUTIONS := {
-	"1280 X 720": Vector2i(1280, 720),
-	"1600 X 900": Vector2i(1600, 900),
-	"1920 X 1080": Vector2i(1920, 1080),
-}
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -229,14 +224,19 @@ func _open_settings() -> void:
 		tabs.add_child(b)
 		
 	# 初始化画面设置
-	# 初始化分辨率选项
+	# v1.8.20：分辨率选项来自 UI 尺寸词典（唯一来源），改完**保存**、下次启动生效
 	var res_opt := OptionButton.new()
-	for res_name in RESOLUTIONS.keys():
-		res_opt.add_item(str(res_name))
-	var _sizes: Array = RESOLUTIONS.values()
-	var _si := _sizes.find(DisplayServer.window_get_size())
-	res_opt.selected = _si if _si >= 0 else 0
+	var _res_keys: Array = UI.resolutions()
+	for res_key in _res_keys:
+		res_opt.add_item(UI.label_of(str(res_key)))
+	var _ri := _res_keys.find(AppSettings.resolution())
+	res_opt.selected = _ri if _ri >= 0 else _res_keys.find(UI.BASE_KEY)
 	page_video.add_child(_row("分辨率", res_opt))
+	var res_hint := Label.new()
+	res_hint.text = "改完保存，下次启动生效。"
+	res_hint.add_theme_font_size_override("font_size", 11)
+	res_hint.add_theme_color_override("font_color", Color(0.62, 0.64, 0.72))
+	page_video.add_child(res_hint)
 	
 	# 初始化画质设置
 	var quality := OptionButton.new()
@@ -299,7 +299,9 @@ func _open_settings() -> void:
 	var btn_ok := UIKit.primary("确认", 14)
 	btn_ok.custom_minimum_size = Vector2(96, 34)
 	btn_ok.pressed.connect(func() -> void:
-		DisplayServer.window_set_size(_sizes[res_opt.selected])
+		# v1.8.20：分辨率只保存，下次启动由 main.gd 应用（不能即时改：整个 UI 要按新档重排）
+		AppSettings.set_resolution(str(_res_keys[res_opt.selected]))
+		GameState.toast.emit("分辨率已保存，下次启动生效")
 		Engine.max_fps = _fps_opts[fps.selected]
 		GameState.set_autosave_interval(int(auto_spin.value))
 		for b in vol_pending.keys():

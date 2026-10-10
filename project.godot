@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 
 AppSettings="*res://scripts/core/app_settings.gd"
 GameState="*res://scripts/core/game_state.gd"
+UI="*res://scripts/core/ui_scale.gd"
 
 [display]
 

@@ -14,6 +14,8 @@ var _current: Control
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# v1.8.20：先把分辨率应用好（UI 尺寸词典 + 窗口尺寸），再搭界面
+	_apply_resolution()
 	_build_toast_layer()
 	GameState.toast.connect(_on_toast)
 	show_menu()
@@ -22,6 +24,13 @@ func _ready() -> void:
 ## v1.6：全 UI 统一黑体 —— 由**项目级主题** `scripts/ui/ui_theme.tres` 提供
 ## （挂在 project.godot 的 `gui/theme/custom`，所以游戏和测试都会吃到）。
 ## 用 SystemFont 指定黑体族，不打包字体文件。
+
+
+## v1.8.20：启动时应用玩家保存的分辨率。
+## 未知的值回落到基准档（`UI.set_resolution_key` 里兜底），避免手改 settings.cfg 弄出奇怪尺寸。
+func _apply_resolution() -> void:
+	UI.set_resolution_key(AppSettings.resolution())
+	DisplayServer.window_set_size(UI.current_size())
 
 
 func _build_toast_layer() -> void:
