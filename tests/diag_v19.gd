@@ -7,7 +7,12 @@ extends Node
 ##   ③ `finished` 真的会发出来（不能被卡住；卡住的话主流程就永远进不了游戏）
 
 var failed := 0
+## ⚠️ 这些必须是**成员变量**：GDScript 的 lambda **按值捕获局部变量**，
+## 写成 `var done := false` + `connect(func(): done = true)` 是改不到外面的（第一次写这测试就踩了）。
 var _done := false
+var _done2 := false
+var _work_ran := false
+var _ran_before_done := false
 
 
 func _ready() -> void:
@@ -44,7 +49,7 @@ func _ready() -> void:
 	else:
 		var v0: float = (bar as ProgressBar).value
 		var t0 := Time.get_ticks_msec()
-		scr.finished.connect(func() -> void: _done = true)
+		scr.finished.connect(func(_ok: bool) -> void: _done = true)
 		scr.call("begin")
 		for i in 3:
 			await get_tree().process_frame
@@ -66,6 +71,29 @@ func _ready() -> void:
 		print("  走满后进度条：%.1f（应为 100）" % vend)
 		if vend < 99.9:
 			failed += 1
+
+	# 顺序检查：工作必须是"界面画出来之后、finished 之前"执行
+	# （将来地图内容变多时，慢加载就会花在这张界面上，而不是卡在菜单上）
+	var scr2: Control = load("res://scripts/ui/loading_screen.gd").new()
+	add_child(scr2)
+	for i in 2:
+		await get_tree().process_frame
+	var t1 := Time.get_ticks_msec()
+	scr2.finished.connect(func(_ok: bool) -> void:
+		_ran_before_done = _work_ran
+		_done2 = true)
+	scr2.call("begin", func() -> bool:
+		_work_ran = true
+		return true)
+	# ⚠️ 超时要用**循环外存好的起点**比较；写成 get_ticks_msec() - get_ticks_msec() 是自己减自己，恒约等于 0 → 死循环
+	while not _done2 and Time.get_ticks_msec() - t1 < 6000:
+		await get_tree().process_frame
+	print("  工作是先跑、再走进度条：%s（应为 true）" % str(_ran_before_done))
+	if not _ran_before_done:
+		failed += 1
+	print("  work 返回 true 时 finished(ok)=true：%s" % str(_done2))
+	if not _done2:
+		failed += 1
 
 	print("\n== v1.8.9 自检结束，失败 %d 项 ==" % failed)
 	get_tree().quit(0 if failed == 0 else 1)

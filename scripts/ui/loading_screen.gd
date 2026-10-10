@@ -3,13 +3,20 @@ extends Control
 ##
 ## 布局：标题与立绘居中，**左下角 tips**（随机一条），**右下角进度条**。
 ##
-## ⚠️ 进度条是**仪式感，不是性能需要** —— 这一点很重要，写在这里免得以后有人误会：
-## 本作（2D、数据量小）的加载近乎瞬间，照实做的话加载界面会**闪一下就没**，等于没做。
-## 所以这里固定 MIN_SHOW 秒把进度条走满，只是让这段时间"看起来在做事"。
-## 如果哪天真的有慢加载（大地图 / 大量资源），应该把工作搬进 `begin()` 里配真实进度，
-## **而不是把这个数字调大硬撑**。
+## ⚠️ 进度条是**仪式感，不是性能需要** —— 这点写在这里免得以后有人误会，但**顺序很重要**：
+##
+##     进来 → 把界面画出来 → **然后**才干活 → 进度条走满 → finished
+##
+## 为什么必须是这个顺序：本作现在加载近乎瞬间，但**内容还没端上来**。
+## 等玩家跑了几十个周期、地图上单位/建筑/据点堆满，加载会真的变慢 ——
+## 如果那时才做加载界面就晚了，而且如果现在是"先干活再显示界面"，慢加载会全部花在**上一屏（菜单）**上，
+## 玩家看到的是**卡住的菜单**，等于白做。
+##
+## 所以工作通过 `begin(work)` 传进来，在界面**已经画出来之后**才执行。
+## 将来真慢了，要做的只是把进度条接上真实分块进度，**这套结构不用动**。
 
-signal finished
+## 参数 ok：work 返回 false 时说明"这次进不去"（例如继续游戏没有存档），调用方据此回主菜单。
+signal finished(ok: bool)
 
 ## 保底显示时长（秒）。调试手感就调这一个数。
 const MIN_SHOW := 1.25
@@ -79,8 +86,20 @@ func _ready() -> void:
 	add_child(_bar)
 
 
-## 走满进度条 → 发 finished。调用方收到后自己切场景。
-func begin() -> void:
+## 走完流程 → finished(ok)。调用方收到后自己切场景。
+## `work` 里放真正的准备工作（生成世界 / 读档）；它会在**界面已经画出来之后**才执行。
+func begin(work: Callable = Callable()) -> void:
+	# 先让这一帧画出去（否则"加载界面"本身没机会显示，白做）
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var ok := true
+	if work.is_valid():
+		var r: Variant = work.call()
+		if typeof(r) == TYPE_BOOL:
+			ok = bool(r)
+
+	# 进度条按保底时长走满（仪式感）
 	var tw := create_tween()
 	tw.tween_property(_bar, "value", 100.0, MIN_SHOW)
-	tw.tween_callback(func() -> void: finished.emit())
+	tw.tween_callback(func() -> void: finished.emit(ok))

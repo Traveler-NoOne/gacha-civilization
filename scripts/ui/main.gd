@@ -81,22 +81,23 @@ func show_menu() -> void:
 	scr.start_game_requested.connect(_on_start_game)
 
 
+## v1.8.9：加载界面的**顺序**是刻意的 —— 先出界面，再干活。
+## 现在加载近乎瞬间所以看不出区别；等地图内容多了，慢的部分就会花在这张界面上（而不是卡在菜单上）。
 func _on_start_game(mode: String) -> void:
-	match mode:
-		"continue":
-			if not GameState.continue_game():
-				return
-		"load":
-			pass   # 由菜单自己处理读档，读成功后直接过来
-		_:
-			GameState.new_game()
-	# v1.8.9：真正的准备在上面就做完了（本作加载近乎瞬间），
-	# 这里的加载界面是**过场仪式** —— 固定停留一下再进场，免得一闪而过。
-	show_loading(show_game)
+	show_loading(func() -> bool:
+		match mode:
+			"continue":
+				return GameState.continue_game()
+			"load":
+				return true   # 由菜单自己处理读档，读成功后直接过来
+			_:
+				GameState.new_game()
+				return true
+	)
 
 
-## v1.8.9：过场加载界面。进度条走完后回调 done。
-func show_loading(done: Callable) -> void:
+## v1.8.9：过场加载界面。ok=false 表示"这次进不去"（例如没有存档可继续）→ 回主菜单。
+func show_loading(work: Callable) -> void:
 	_clear_current()
 	var scr: Control = load(LOADING_SCENE).new()
 	scr.name = "LoadingScreen"
@@ -104,8 +105,12 @@ func show_loading(done: Callable) -> void:
 	add_child(scr)
 	move_child(scr, 0)
 	_current = scr
-	scr.finished.connect(done)
-	scr.begin()
+	scr.finished.connect(func(ok: bool) -> void:
+		if ok:
+			show_game()
+		else:
+			show_menu())
+	scr.begin(work)
 
 
 func show_game() -> void:
