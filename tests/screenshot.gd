@@ -67,6 +67,10 @@ const SHOT_DOCS := {
 
 
 func _ready() -> void:
+	# v1.8.20：把随机源定种 —— 否则抽卡结果、随机事件每次跑都不一样，
+	# 像素对比会把这些**内容差异**当成"我改坏了"，白折腾。（详见 1.8.20.md 的验收说明）
+	seed(20240607)
+	GameState._rng.seed = 20240607
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	_clear_out_dir()
 	_arm_watchdog()
