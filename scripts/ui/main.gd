@@ -42,8 +42,8 @@ func _ready() -> void:
 ##    所以等窗口真正建好（两帧）再改，最后才锁成不可缩放
 ##   （锁要放在尺寸之后 —— 反过来在 Windows 上尺寸会被忽略）。
 func _apply_resolution() -> void:
-	print("[诊断] 启动读取分辨率：%s" % AppSettings.resolution())
 	UI.set_resolution_key(AppSettings.resolution())
+
 
 	_apply_window_size.call_deferred()
 
@@ -54,8 +54,13 @@ func _apply_window_size() -> void:
 	DisplayServer.window_set_size(UI.current_size())
 	await get_tree().process_frame
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, true)
-	print("窗口尺寸：%s（期望 %s，分辨率档 %s）" % [
-		str(DisplayServer.window_get_size()), str(UI.current_size()), UI.current_key()])
+	var got := DisplayServer.window_get_size()
+	print("分辨率档 %s：窗口 %s（期望 %s）" % [UI.current_key(), str(got), str(UI.current_size())])
+	# 编辑器「内嵌游戏窗口」模式下，Godot 会拒绝改窗口尺寸（控制台会提示 Embedded window can't be resized）
+	# —— 那不是代码问题。关掉编辑器设置里的 Game Embed，或直接跑导出版即可。
+	if got != UI.current_size():
+		print("  （若你是在编辑器里跑：请关掉「编辑器设置 → 运行 → 游戏内嵌」，否则窗口尺寸改不了）")
+
 
 
 
