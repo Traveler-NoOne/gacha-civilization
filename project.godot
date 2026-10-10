@@ -26,10 +26,17 @@ UI="*res://scripts/core/ui_scale.gd"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/stretch/mode="disabled"
 window/stretch/aspect="expand"
-"#v1.8.20ï¼å æè¿ä¸¤è¡ââå®ä»¬ä¼å¨å¯å¨æ¶å¼ºå¶çªå£å°ºå¯¸ï¼æãåè¾¨çè®¾ç½®ãé¡¶åå»#ï¼å®æµçç¶ï¼UIææ°åè¾¨çæ¾å¤§äºï¼çªå£å´è¿æ¯1280ï¼ãçªå£å°ºå¯¸æ¹ç±main._apply_resolution()å³å®ã#v1.8.20-Bï¼å³æèªå¨æä¼¸ââUIä»æ­¤æçå®åç´ æçï¼å°ºå¯¸èµ°UIè¯å¸ï¼UI.px()/fs()ï¼ãwindow/stretch/mode"="disabled"
-"#â ï¸1.8.20å¤å¿ï¼é½å«è¸©ï¼ï¼#Â·çªå£éå®ï¼ä¸è®¸æè¾¹ï¼**ä¸åå¨è¿é**ï¼æ¹ç±main.gdè¿è¡æè®¾ââåresizable"=false
-"视口小得离谱åäºååºï¼vh<200æ¶æè®¾è®¡åºåé«åº¦ç®ã[editor_plugins]enabled"=PackedStringArray()
+# ⚠️ 1.8.20 备忘（都别踩）：
+#   · 窗口锁定（不许拖边）**不写在这里**，改由 main.gd 运行期设 —— 写 resizable=false
+#     会把无头测试的窗口压到最小尺寸（实测视口高只剩 64），连累依赖视口尺寸的测试。
+#   · stretch/mode 仍是 canvas_items。关掉它会让无头视口从"恒等 1280×720"变成真实窗口尺寸（64），
+#     同样连累 diag_cheat_mouse；→ 留到 1.8.20-B（换地基）时，连同"让无头测试拿到可用视口"一起处理。
+
+[editor_plugins]
+
+enabled=PackedStringArray()
 
 [gui]
 
