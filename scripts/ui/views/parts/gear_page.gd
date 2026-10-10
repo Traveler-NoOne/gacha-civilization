@@ -18,7 +18,7 @@ func _ready() -> void:
 func _build() -> void:
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 
 	var head := UIKit.hbox(8)
@@ -31,7 +31,7 @@ func _build() -> void:
 	for pair in [["all", "全部"], ["weapon", "武装"], ["relic", "战备"]]:
 		var fid: String = pair[0]
 		var b := UIKit.small(str(pair[1]), 13)
-		b.custom_minimum_size = Vector2(96, 30)
+		b.custom_minimum_size = Vector2(UI.px(96), UI.px(30))
 		b.pressed.connect(func() -> void:
 			filter = fid
 			refresh())
@@ -42,20 +42,20 @@ func _build() -> void:
 	root.add_child(body)
 
 	var left := UIKit.panel()
-	left.custom_minimum_size = Vector2(260, 0)
+	left.custom_minimum_size = Vector2(UI.px(260), UI.px(0))
 	body.add_child(left)
 	var lv := VBoxContainer.new()
 	left.add_child(lv)
 	lv.add_child(UIKit.title("持有列表", 14))
 	list_box = VBoxContainer.new()
-	list_box.add_theme_constant_override("separation", 3)
+	list_box.add_theme_constant_override("separation", UI.fs(3))
 	lv.add_child(UIKit.scroll(list_box))
 
 	var right := UIKit.panel()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(right)
 	detail_box = VBoxContainer.new()
-	detail_box.add_theme_constant_override("separation", 6)
+	detail_box.add_theme_constant_override("separation", UI.fs(6))
 	right.add_child(UIKit.scroll(detail_box))
 
 
@@ -106,7 +106,7 @@ func _refresh_list() -> void:
 		row.add_child(h)
 		var ic := GeoIcon.new()
 		ic.setup(str(e["kind"]), col)
-		ic.custom_minimum_size = Vector2(28, 28)
+		ic.custom_minimum_size = Vector2(UI.px(28), UI.px(28))
 		h.add_child(ic)
 		var v := VBoxContainer.new()
 		h.add_child(v)
@@ -143,7 +143,7 @@ func _refresh_detail() -> void:
 	detail_box.add_child(head)
 	var ic := GeoIcon.new()
 	ic.setup(str(found["kind"]), col)
-	ic.custom_minimum_size = Vector2(72, 72)
+	ic.custom_minimum_size = Vector2(UI.px(72), UI.px(72))
 	head.add_child(ic)
 	var v := VBoxContainer.new()
 	head.add_child(v)

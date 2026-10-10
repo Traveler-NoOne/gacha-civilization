@@ -43,7 +43,7 @@ func _ready() -> void:
 func _build() -> void:
 	var root := HBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 
 	# ---- 地图 ----
@@ -54,7 +54,7 @@ func _build() -> void:
 	map_panel.add_child(mv)
 
 	var toolbar := HBoxContainer.new()
-	toolbar.add_theme_constant_override("separation", 6)
+	toolbar.add_theme_constant_override("separation", UI.fs(6))
 	mv.add_child(toolbar)
 	toolbar.add_child(UIKit.title("大世界", 16))
 	var b_center := UIKit.small("回到首都", 12)
@@ -86,7 +86,7 @@ func _build() -> void:
 
 	map = HexMapView.new()
 	# Control 默认 custom_minimum_size 是 (200,200)：必须显式压低，否则会把父容器撑爆
-	map.custom_minimum_size = Vector2(120, 120)
+	map.custom_minimum_size = Vector2(UI.px(120), UI.px(120))
 	map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	map.tile_clicked.connect(_on_tile_clicked)
@@ -212,7 +212,7 @@ func _ensure_stronghold_panel() -> void:
 	# 别用「锚右上 + 负偏移」那一套：锚点若在 add_child **之前**设，那时还没有父节点可参照，
 	# 负偏移会被当成绝对坐标，窗口直接跑到屏幕外（实测 global_position = -356，白忙一场）。
 	stronghold_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	stronghold_panel.size = Vector2(340, 520)
+	stronghold_panel.size = Vector2(UI.px(340), UI.px(520))
 	add_child(stronghold_panel)
 	stronghold_panel.visible = false
 
@@ -233,7 +233,7 @@ func _show_tile_actions(key: String, gpos: Vector2) -> void:
 	for c in action_menu.get_children():
 		c.queue_free()
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
+	row.add_theme_constant_override("separation", UI.fs(6))
 	action_menu.add_child(row)
 	row.add_child(UIKit.dim(key, 10))
 	for a in TILE_ACTIONS:
@@ -288,7 +288,7 @@ func _ensure_build_panel() -> void:
 		return
 	build_panel = BuildPanel.new()
 	build_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	build_panel.size = Vector2(560, 420)
+	build_panel.size = Vector2(UI.px(560), UI.px(420))
 	add_child(build_panel)
 	build_panel.visible = false
 
@@ -307,14 +307,14 @@ func _ensure_tile_info_popup() -> void:
 		return
 	tile_info_popup = PanelContainer.new()
 	tile_info_popup.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	tile_info_popup.custom_minimum_size = Vector2(210, 0)
+	tile_info_popup.custom_minimum_size = Vector2(UI.px(210), UI.px(0))
 	tile_info_popup.visible = false
 	# 小窗里有按钮（占领），所以必须能接收点击；点窗外仍然照常落到地图上
 	tile_info_popup.mouse_filter = Control.MOUSE_FILTER_STOP
 	UIKit.apply_panel(tile_info_popup, Color(0.07, 0.07, 0.11, 1.0), UIKit.LINE, 6)
 	add_child(tile_info_popup)
 	tile_info_box = VBoxContainer.new()
-	tile_info_box.add_theme_constant_override("separation", 3)
+	tile_info_box.add_theme_constant_override("separation", UI.fs(3))
 	tile_info_popup.add_child(tile_info_box)
 	# 容器的"最小尺寸"要到下一帧才会按新内容重算 —— 所以光在当前帧设一次不够，
 	# 会留下一个过时的尺寸（实测 354px，而内容只需要 66px）。等它算好时自动校一次。
@@ -501,7 +501,7 @@ func _refresh_unit_strip() -> void:
 	for u in units:
 		# v1.6.1：立绘窗口 —— 每个单位一个「立绘 + 名字」
 		var cell := HBoxContainer.new()
-		cell.add_theme_constant_override("separation", 3)
+		cell.add_theme_constant_override("separation", UI.fs(3))
 		cell.add_child(UIKit.unit_art(u, "chip", Vector2(28, 28)))
 		var b := UIKit.small(str(u["name"]), 11)
 		b.pressed.connect(func() -> void:
@@ -526,7 +526,7 @@ func _refresh_unit_panel() -> void:
 		unit_panel_box.add_child(UIKit.text_label(
 			"目标：%s" % ("（未选）" if pending_tile == "" else pending_tile), 11, UIKit.GOLD))
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
+		row.add_theme_constant_override("separation", UI.fs(6))
 		var okb := UIKit.primary("确认招募", 12)
 		okb.pressed.connect(_confirm_recruit)
 		row.add_child(okb)
@@ -553,12 +553,12 @@ func _refresh_unit_panel() -> void:
 	var garrisoned := bool(u.get("garrisoned", false))
 	# v1.6.1：左边必须有单位立绘（现在还是几何占位，但也要显示）
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 6)
+	head.add_theme_constant_override("separation", UI.fs(6))
 	unit_panel_box.add_child(head)
 	var pic := UIKit.unit_art(u, "icon", Vector2(60, 60))
 	head.add_child(pic)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 3)
+	col.add_theme_constant_override("separation", UI.fs(3))
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(col)
 	col.add_child(UIKit.title(str(u["name"]), 13))
@@ -569,7 +569,7 @@ func _refresh_unit_panel() -> void:
 		float(eff.get("atk", 0.0)), int(u.get("hp", 0)), UnitDB.max_hp(u),
 		int(u.get("move_left", 0)), GameState.max_move(u)], 11, UIKit.TEXT))
 	var row2 := HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 6)
+	row2.add_theme_constant_override("separation", UI.fs(6))
 	var no_act := int(u.get("move_left", 0)) <= 0 or garrisoned
 	var ba := UIKit.primary("攻击", 12)
 	ba.disabled = no_act

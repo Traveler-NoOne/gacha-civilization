@@ -31,15 +31,15 @@ var content_box: VBoxContainer
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(360, 0)
+	custom_minimum_size = Vector2(UI.px(360), UI.px(0))
 	UIKit.apply_panel(self, Color(0.08, 0.08, 0.12, 0.98), UIKit.GOLD, 6)
 
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 6)
+	col.add_theme_constant_override("separation", UI.fs(6))
 	add_child(col)
 
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 8)
+	head.add_theme_constant_override("separation", UI.fs(8))
 	col.add_child(head)
 	head.add_child(UIKit.title("统计", 14))
 	var sp := Control.new()
@@ -51,18 +51,18 @@ func _init() -> void:
 	head.add_child(close)
 
 	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 8)
+	body.add_theme_constant_override("separation", UI.fs(8))
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(body)
 
 	# 左：类型切换（竖排一列）
 	type_bar = VBoxContainer.new()
-	type_bar.add_theme_constant_override("separation", 4)
+	type_bar.add_theme_constant_override("separation", UI.fs(4))
 	body.add_child(type_bar)
 	for t in TYPES:
 		var tid := str(t["id"])
 		var b := UIKit.small(str(t["name"]), 12)
-		b.custom_minimum_size = Vector2(64, 28)
+		b.custom_minimum_size = Vector2(UI.px(64), UI.px(28))
 		b.pressed.connect(func() -> void:
 			tab = tid
 			refresh())
@@ -70,7 +70,7 @@ func _init() -> void:
 
 	# 右：内容
 	content_box = VBoxContainer.new()
-	content_box.add_theme_constant_override("separation", 3)
+	content_box.add_theme_constant_override("separation", UI.fs(3))
 	content_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var sc := UIKit.scroll(content_box)
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -108,7 +108,7 @@ func refresh() -> void:
 ## 一行「名称 …… 值」
 func _row(label_text: String, value_text: String, col := UIKit.TEXT) -> Control:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
+	h.add_theme_constant_override("separation", UI.fs(8))
 	var l := UIKit.text_label(label_text, 11, UIKit.TEXT_DIM)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(l)
@@ -148,9 +148,9 @@ func _fill_resources() -> void:
 			for e2 in (GameState.resource_breakdown(key)["upkeep"] as Array):
 				net += float(e2["amount"])
 			var h := HBoxContainer.new()
-			h.add_theme_constant_override("separation", 6)
+			h.add_theme_constant_override("separation", UI.fs(6))
 			var l := UIKit.text_label(label_text, 11, UIKit.TEXT_DIM)
-			l.custom_minimum_size = Vector2(74, 0)
+			l.custom_minimum_size = Vector2(UI.px(74), UI.px(0))
 			h.add_child(l)
 			h.add_child(UIKit.text_label(("%s / %s" % [UIKit.fmt_num(GameState.res(key)), UIKit.fmt_num(cap)]) if cap >= 0.0 else UIKit.fmt_num(GameState.res(key)), 12, UIKit.TEXT))
 			var sp := Control.new()

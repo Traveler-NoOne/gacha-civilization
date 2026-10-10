@@ -76,24 +76,24 @@ func _ready() -> void:
 func _build() -> void:
 	var root := HBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 
 	# 左：一级分类 + 分组化二级分类
 	var left := UIKit.panel()
-	left.custom_minimum_size = Vector2(210, 0)
+	left.custom_minimum_size = Vector2(UI.px(210), UI.px(0))
 	root.add_child(left)
 	var lv := VBoxContainer.new()
-	lv.add_theme_constant_override("separation", 4)
+	lv.add_theme_constant_override("separation", UI.fs(4))
 	left.add_child(lv)
 	lv.add_child(UIKit.title("一级分类", 14))
 	cat_bar = VBoxContainer.new()
-	cat_bar.add_theme_constant_override("separation", 3)
+	cat_bar.add_theme_constant_override("separation", UI.fs(3))
 	lv.add_child(cat_bar)
 	lv.add_child(UIKit.spacer(6))
 
 	sub_area = VBoxContainer.new()
-	sub_area.add_theme_constant_override("separation", 4)
+	sub_area.add_theme_constant_override("separation", UI.fs(4))
 	lv.add_child(UIKit.scroll(sub_area))
 
 	# 右：内容
@@ -101,12 +101,12 @@ func _build() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.add_child(right)
 	var rv := VBoxContainer.new()
-	rv.add_theme_constant_override("separation", 6)
+	rv.add_theme_constant_override("separation", UI.fs(6))
 	right.add_child(rv)
 	content_title = UIKit.title("图鉴内容", 16)
 	rv.add_child(content_title)
 	content_box = VBoxContainer.new()
-	content_box.add_theme_constant_override("separation", 6)
+	content_box.add_theme_constant_override("separation", UI.fs(6))
 	rv.add_child(UIKit.scroll(content_box))
 
 	_build_cats()
@@ -160,12 +160,12 @@ func refresh() -> void:
 		var gl := UIKit.text_label(str(g["title"]), 12, UIKit.GOLD)
 		sub_area.add_child(gl)
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 3)
+		row.add_theme_constant_override("separation", UI.fs(3))
 		sub_area.add_child(row)
 		for opt in g["options"]:
 			var oval: String = opt[0]
 			var b := UIKit.tiny(str(opt[1]), 11)
-			b.custom_minimum_size = Vector2(0, 24)
+			b.custom_minimum_size = Vector2(UI.px(0), UI.px(24))
 			UIKit.style_button(b, oval == _pick(gkey))
 			b.pressed.connect(func() -> void:
 				picks[gkey] = oval
@@ -333,7 +333,7 @@ func _profession_content() -> void:
 		tbl.add_child(UIKit.text_label("%.1f ~ %.1f" % [float(rd["mul_min"]), float(rd["mul_max"])], 12, UIKit.TEXT))
 		tbl.add_child(UIKit.text_label("%d" % int(rd["exp_cap"]), 12, UIKit.TEXT))
 		var sd := UIKit.dim(str(rd["desc"]), 10)
-		sd.custom_minimum_size = Vector2(300, 0)
+		sd.custom_minimum_size = Vector2(UI.px(300), UI.px(0))
 		sd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		tbl.add_child(sd)
 
@@ -342,14 +342,14 @@ func _profession_card(p: String) -> Control:
 	var col := UnitDB.profession_color(p)
 	var row := UIKit.panel(UIKit.BG_PANEL_2, col, 6)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 10)
+	h.add_theme_constant_override("separation", UI.fs(10))
 	row.add_child(h)
 	var ic := GeoIcon.new()
-	ic.custom_minimum_size = Vector2(62, 62)
+	ic.custom_minimum_size = Vector2(UI.px(62), UI.px(62))
 	ic.setup(UnitDB.profession_icon(p), col)
 	h.add_child(ic)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
+	v.add_theme_constant_override("separation", UI.fs(2))
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(v)
 	v.add_child(UIKit.text_label(UnitDB.profession_name(p), 16, col))

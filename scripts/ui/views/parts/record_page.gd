@@ -15,12 +15,12 @@ func _ready() -> void:
 func _build() -> void:
 	var root := HBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 
 	# 左：操作按钮
 	var left := UIKit.panel()
-	left.custom_minimum_size = Vector2(300, 0)
+	left.custom_minimum_size = Vector2(UI.px(300), UI.px(0))
 	root.add_child(left)
 	var lv := VBoxContainer.new()
 	left.add_child(lv)
@@ -61,7 +61,7 @@ func _build() -> void:
 	right.add_child(rv)
 	rv.add_child(UIKit.title("存档槽", 18))
 	slot_box = VBoxContainer.new()
-	slot_box.add_theme_constant_override("separation", 4)
+	slot_box.add_theme_constant_override("separation", UI.fs(4))
 	rv.add_child(UIKit.scroll(slot_box))
 
 	refresh()

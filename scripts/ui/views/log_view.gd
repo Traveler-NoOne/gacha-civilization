@@ -23,7 +23,7 @@ func _ready() -> void:
 func _build() -> void:
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 
 	var head := UIKit.hbox(10)
@@ -32,12 +32,12 @@ func _build() -> void:
 	head.add_child(UIKit.dim("任务追踪、存档管理、内容图鉴、名词手册"))
 
 	sub_bar = HBoxContainer.new()
-	sub_bar.add_theme_constant_override("separation", 6)
+	sub_bar.add_theme_constant_override("separation", UI.fs(6))
 	root.add_child(sub_bar)
 	for t in SUB_TABS:
 		var tid: String = t["id"]
 		var b := UIKit.normal(str(t["name"]), 14)
-		b.custom_minimum_size = Vector2(120, 34)
+		b.custom_minimum_size = Vector2(UI.px(120), UI.px(34))
 		b.pressed.connect(func() -> void: _switch(tid))
 		sub_bar.add_child(b)
 

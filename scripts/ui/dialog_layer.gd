@@ -40,14 +40,14 @@ func _ready() -> void:
 	_panel.clip_contents = true
 
 	_body = VBoxContainer.new()
-	_body.add_theme_constant_override("separation", 10)
+	_body.add_theme_constant_override("separation", UI.fs(10))
 	_panel.add_child(_body)
 
 	# 标题栏
 	var head := HBoxContainer.new()
 	var t := Label.new()
 	t.text = dialog_title
-	t.add_theme_font_size_override("font_size", 18)
+	t.add_theme_font_size_override("font_size", UI.fs(18))
 	t.add_theme_color_override("font_color", UIKit.GOLD)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
@@ -59,7 +59,7 @@ func _ready() -> void:
 
 	var rule := ColorRect.new()
 	rule.color = UIKit.LINE_SOFT
-	rule.custom_minimum_size = Vector2(0, 1)
+	rule.custom_minimum_size = Vector2(UI.px(0), UI.px(1))
 	_body.add_child(rule)
 
 	var content_slot := MarginContainer.new()
@@ -123,7 +123,7 @@ func fit_now() -> void:
 	var avail := maxf(UI.px(200.0), vh - UI.px(36.0))
 
 	# 除内容槽以外的固定高度（标题栏等）
-	slot_c.custom_minimum_size = Vector2(0, 0)
+	slot_c.custom_minimum_size = Vector2(UI.px(0), UI.px(0))
 	slot_c.size_flags_vertical = Control.SIZE_FILL
 	var panel_min := _panel.get_combined_minimum_size().y
 	var slot_min := slot_c.get_combined_minimum_size().y

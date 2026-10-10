@@ -11,7 +11,7 @@ var spin: float = 0.0
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(48, 48)
+	custom_minimum_size = Vector2(UI.px(48), UI.px(48))
 
 
 func setup(k: String, c: Color, f: bool = true) -> GeoIcon:

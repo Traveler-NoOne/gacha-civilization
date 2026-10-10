@@ -14,11 +14,11 @@ var page: Control
 func _init() -> void:
 	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 4)
+	col.add_theme_constant_override("separation", UI.fs(4))
 	add_child(col)
 
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 8)
+	head.add_theme_constant_override("separation", UI.fs(8))
 	col.add_child(head)
 	head.add_child(UIKit.dim("日志", 12))
 	var sp := Control.new()

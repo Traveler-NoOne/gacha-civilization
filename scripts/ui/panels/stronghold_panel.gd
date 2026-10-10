@@ -31,22 +31,22 @@ var build_box: VBoxContainer
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(340, 0)
+	custom_minimum_size = Vector2(UI.px(340), UI.px(0))
 	# ⚠️ 底色必须**完全不透明**。用 0.97 的话，底下旧右侧面板的文字会透上来，
 	# 看起来像"内容很暗/有鬼影"（实测踩过）。
 	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 0)
+	col.add_theme_constant_override("separation", UI.fs(0))
 	add_child(col)
 
 	# ---- 按钮行：在窗口边框之外的上方 ----
 	tab_bar = HBoxContainer.new()
-	tab_bar.add_theme_constant_override("separation", 4)
+	tab_bar.add_theme_constant_override("separation", UI.fs(4))
 	col.add_child(tab_bar)
 	for t in TABS:
 		var tid: String = t["id"]
 		var b := UIKit.small(str(t["name"]), 12)
-		b.custom_minimum_size = Vector2(72, 26)
+		b.custom_minimum_size = Vector2(UI.px(72), UI.px(26))
 		b.pressed.connect(func() -> void:
 			tab = tid
 			refresh())
@@ -61,7 +61,7 @@ func _init() -> void:
 
 	# ---- 上半段：随按钮切换 ----
 	content_box = VBoxContainer.new()
-	content_box.add_theme_constant_override("separation", 4)
+	content_box.add_theme_constant_override("separation", UI.fs(4))
 	# 上半段放进滚动容器并吃掉剩余高度 —— 下半段两个队列才能稳定贴在窗口底部
 	var upper_scroll := UIKit.scroll(content_box)
 	upper_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -69,11 +69,11 @@ func _init() -> void:
 
 	# ---- 下半段：两个队列，各自跑条 ----
 	decree_box = VBoxContainer.new()
-	decree_box.add_theme_constant_override("separation", 3)
+	decree_box.add_theme_constant_override("separation", UI.fs(3))
 	col.add_child(_queue_section("政事队列（行政点数）", decree_box))
 
 	build_box = VBoxContainer.new()
-	build_box.add_theme_constant_override("separation", 3)
+	build_box.add_theme_constant_override("separation", UI.fs(3))
 	col.add_child(_queue_section("规划队列（生产力）", build_box))
 
 
@@ -81,7 +81,7 @@ func _queue_section(title: String, box: VBoxContainer) -> Control:
 	var p := PanelContainer.new()
 	UIKit.apply_panel(p, UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 5)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 3)
+	v.add_theme_constant_override("separation", UI.fs(3))
 	p.add_child(v)
 	v.add_child(UIKit.text_label(title, 12, UIKit.GOLD))
 	v.add_child(box)
@@ -169,14 +169,14 @@ func _refresh_decrees(sh: Dictionary) -> void:
 		var why := GameState.decree_blocked_reason(id)
 		UIKit.apply_panel(row, UIKit.BG_PANEL_2, UIKit.LINE if why == "" else UIKit.LINE_SOFT, 4)
 		var v := VBoxContainer.new()
-		v.add_theme_constant_override("separation", 2)
+		v.add_theme_constant_override("separation", UI.fs(2))
 		row.add_child(v)
 		v.add_child(UIKit.text_label("%s（行政点数 %.0f）" % [str(d["name"]), float(d["cost"])], 12, UIKit.TEXT))
 		var dd := UIKit.dim(str(d.get("desc", "")), 10)
 		dd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(dd)
 		var h := HBoxContainer.new()
-		h.add_theme_constant_override("separation", 6)
+		h.add_theme_constant_override("separation", UI.fs(6))
 		v.add_child(h)
 		var b := UIKit.small("排入队列", 11)
 		if why != "":
@@ -236,7 +236,7 @@ func _refresh_build_queue(sh: Dictionary) -> void:
 
 func _kv(k: String, v: String, col: Color) -> Control:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
+	h.add_theme_constant_override("separation", UI.fs(6))
 	h.add_child(UIKit.dim(k, 11))
 	var l := UIKit.text_label(v, 12, col)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -269,7 +269,7 @@ static func build_labor_rows(parent: VBoxContainer, on_changed: Callable) -> voi
 				continue
 			any = true
 			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 4)
+			row.add_theme_constant_override("separation", UI.fs(4))
 			parent.add_child(row)
 			var l := UIKit.text_label("%s Lv.%d（%s）" % [def.display_name, level, key], 11, UIKit.TEXT)
 			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL

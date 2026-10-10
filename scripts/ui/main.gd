@@ -44,7 +44,7 @@ func _build_toast_layer() -> void:
 	add_child(_toast_layer)
 	var anchor := VBoxContainer.new()
 	anchor.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	anchor.position = Vector2(0, 16)
+	anchor.position = Vector2(UI.px(0), UI.px(16))
 	anchor.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	anchor.alignment = BoxContainer.ALIGNMENT_CENTER
 	anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -58,7 +58,7 @@ func _build_toast_layer() -> void:
 func _on_toast(text: String) -> void:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 18)
+	lbl.add_theme_font_size_override("font_size", UI.fs(18))
 	lbl.add_theme_color_override("font_color", Color(1, 0.95, 0.7))
 	var sb := UIKit.panel_style(Color(0.08, 0.07, 0.11, 0.92), Color(0.85, 0.7, 0.3, 0.9), 6)
 	sb.content_margin_left = 14

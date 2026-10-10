@@ -21,14 +21,14 @@ var build_btn: Button
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(560, 420)
+	custom_minimum_size = Vector2(UI.px(560), UI.px(420))
 	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 6)
+	col.add_theme_constant_override("separation", UI.fs(6))
 	add_child(col)
 
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 8)
+	head.add_theme_constant_override("separation", UI.fs(8))
 	col.add_child(head)
 	title = UIKit.title("修建建筑", 15)
 	head.add_child(title)
@@ -42,11 +42,11 @@ func _init() -> void:
 	head.add_child(close)
 
 	list_box = VBoxContainer.new()
-	list_box.add_theme_constant_override("separation", 4)
+	list_box.add_theme_constant_override("separation", UI.fs(4))
 	col.add_child(UIKit.scroll(list_box))
 
 	var bottom := HBoxContainer.new()
-	bottom.add_theme_constant_override("separation", 8)
+	bottom.add_theme_constant_override("separation", UI.fs(8))
 	col.add_child(bottom)
 	var cancel_btn := UIKit.normal("取消", 13)
 	cancel_btn.pressed.connect(func() -> void: visible = false)
@@ -104,12 +104,12 @@ func _row(def: BuildingDef, t: Dictionary) -> Control:
 				and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 			select_row(str(def.id)))
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
+	v.add_theme_constant_override("separation", UI.fs(2))
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(v)
 
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 8)
+	head.add_theme_constant_override("separation", UI.fs(8))
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(head)
 	head.add_child(UIKit.text_label(str(def.display_name), 13, UIKit.GOLD if sel else UIKit.TEXT))

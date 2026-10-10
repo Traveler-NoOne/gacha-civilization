@@ -39,7 +39,7 @@ func _ready() -> void:
 func _build() -> void:
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 
 	var head := UIKit.hbox(10)
@@ -54,42 +54,42 @@ func _build() -> void:
 
 	# 二级按钮
 	pool_bar = HBoxContainer.new()
-	pool_bar.add_theme_constant_override("separation", 6)
+	pool_bar.add_theme_constant_override("separation", UI.fs(6))
 	root.add_child(pool_bar)
 	for p in POOLS:
 		var pe: int = int(p["enum"])
 		var b := UIKit.normal(str(p["name"]), 15)
-		b.custom_minimum_size = Vector2(140, 36)
+		b.custom_minimum_size = Vector2(UI.px(140), UI.px(36))
 		b.pressed.connect(func() -> void:
 			pool = pe
 			refresh())
 		pool_bar.add_child(b)
 
 	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 6)
+	body.add_theme_constant_override("separation", UI.fs(6))
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(body)
 
 	# ---- 左：卡池说明 ----
 	var left := UIKit.panel()
-	left.custom_minimum_size = Vector2(430, 0)
+	left.custom_minimum_size = Vector2(UI.px(430), UI.px(0))
 	body.add_child(left)
 	var lv := VBoxContainer.new()
-	lv.add_theme_constant_override("separation", 6)
+	lv.add_theme_constant_override("separation", UI.fs(6))
 	left.add_child(lv)
 	lv.add_child(UIKit.title("卡池规则", 16))
 	var rule_scroll := ScrollContainer.new()
 	rule_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	rule_scroll.custom_minimum_size = Vector2(400, 240)
+	rule_scroll.custom_minimum_size = Vector2(UI.px(400), UI.px(240))
 	rule_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lv.add_child(rule_scroll)
 	rule_box = RichTextLabel.new()
 	rule_box.bbcode_enabled = true
 	rule_box.fit_content = true
 	rule_box.scroll_active = false
-	rule_box.custom_minimum_size = Vector2(0, 0)
+	rule_box.custom_minimum_size = Vector2(UI.px(0), UI.px(0))
 	rule_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rule_box.add_theme_font_size_override("normal_font_size", 12)
+	rule_box.add_theme_font_size_override("normal_font_size", UI.fs(12))
 	rule_scroll.add_child(rule_box)
 
 	cost_label = UIKit.text_label("消耗：--", 14, UIKit.GOLD)
@@ -118,19 +118,19 @@ func _build() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(right)
 	var rv := VBoxContainer.new()
-	rv.add_theme_constant_override("separation", 6)
+	rv.add_theme_constant_override("separation", UI.fs(6))
 	right.add_child(rv)
 	result_title = UIKit.title("本次召唤结果", 16)
 	rv.add_child(result_title)
 	result_box = HBoxContainer.new()
-	result_box.add_theme_constant_override("separation", 6)
+	result_box.add_theme_constant_override("separation", UI.fs(6))
 	result_box.alignment = BoxContainer.ALIGNMENT_BEGIN
 	rv.add_child(result_box)
 
 	rv.add_child(UIKit.spacer(8))
 	rv.add_child(UIKit.title("统计", 16))
 	stats_box = VBoxContainer.new()
-	stats_box.add_theme_constant_override("separation", 3)
+	stats_box.add_theme_constant_override("separation", UI.fs(3))
 	var stats_scroll := UIKit.scroll(stats_box)
 	stats_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	rv.add_child(stats_scroll)
@@ -202,17 +202,17 @@ func _refresh_draw_buttons() -> void:
 	var verb := str(POOLS[pool]["verb"])
 	if str(POOLS[pool]["id"]) == "development":
 		var only := UIKit.primary(verb, 16)
-		only.custom_minimum_size = Vector2(150, 40)
+		only.custom_minimum_size = Vector2(UI.px(150), UI.px(40))
 		only.tooltip_text = "把一整片世界泡包裹进来（必定引来终极威胁）"
 		only.pressed.connect(func() -> void: _do_draw(1))
 		draw_row.add_child(only)
 		return
 	var b1 := UIKit.primary("%s 1 次" % verb, 16)
-	b1.custom_minimum_size = Vector2(150, 40)
+	b1.custom_minimum_size = Vector2(UI.px(150), UI.px(40))
 	b1.pressed.connect(func() -> void: _do_draw(1))
 	draw_row.add_child(b1)
 	var b10 := UIKit.primary("%s 10 次" % verb, 16)
-	b10.custom_minimum_size = Vector2(150, 40)
+	b10.custom_minimum_size = Vector2(UI.px(150), UI.px(40))
 	b10.pressed.connect(func() -> void: _do_draw(10))
 	draw_row.add_child(b10)
 

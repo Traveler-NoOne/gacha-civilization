@@ -23,15 +23,15 @@ func _ready() -> void:
 func _build() -> void:
 	var root := HBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 
 	# ---- 左：分组 + 条目列表 ----
 	var left := UIKit.panel()
-	left.custom_minimum_size = Vector2(280, 0)
+	left.custom_minimum_size = Vector2(UI.px(280), UI.px(0))
 	root.add_child(left)
 	var lv := VBoxContainer.new()
-	lv.add_theme_constant_override("separation", 4)
+	lv.add_theme_constant_override("separation", UI.fs(4))
 	left.add_child(lv)
 	lv.add_child(UIKit.title("手册 · 目录", 16))
 
@@ -43,14 +43,14 @@ func _build() -> void:
 	lv.add_child(search_edit)
 
 	group_bar = VBoxContainer.new()
-	group_bar.add_theme_constant_override("separation", 3)
+	group_bar.add_theme_constant_override("separation", UI.fs(3))
 	lv.add_child(group_bar)
 
 	count_label = UIKit.dim("")
 	lv.add_child(count_label)
 
 	term_list = VBoxContainer.new()
-	term_list.add_theme_constant_override("separation", 2)
+	term_list.add_theme_constant_override("separation", UI.fs(2))
 	lv.add_child(UIKit.scroll(term_list))
 
 	# ---- 右：条目正文 ----
@@ -58,7 +58,7 @@ func _build() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.add_child(right)
 	detail_box = VBoxContainer.new()
-	detail_box.add_theme_constant_override("separation", 6)
+	detail_box.add_theme_constant_override("separation", UI.fs(6))
 	right.add_child(UIKit.scroll(detail_box))
 
 
@@ -148,7 +148,7 @@ func _preview(t: Dictionary) -> Control:
 	var v := UIKit.vbox(2)
 	p.add_child(v)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
+	h.add_theme_constant_override("separation", UI.fs(6))
 	v.add_child(h)
 	h.add_child(UIKit.text_label(str(t["name"]), 13, UIKit.GOLD))
 	h.add_child(UIKit.dim(str(t["group"]), 10))
@@ -168,7 +168,7 @@ func _render_term(name: String) -> void:
 		detail_box.add_child(UIKit.dim("找不到该条目。"))
 		return
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 8)
+	head.add_theme_constant_override("separation", UI.fs(8))
 	detail_box.add_child(head)
 	head.add_child(UIKit.title(str(term["name"]), 20))
 	head.add_child(UIKit.dim("分类：%s" % str(term["group"]), 12))
@@ -189,7 +189,7 @@ func _render_term(name: String) -> void:
 		detail_box.add_child(UIKit.spacer(4))
 		detail_box.add_child(UIKit.title("同分类条目", 14))
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 4)
+		row.add_theme_constant_override("separation", UI.fs(4))
 		detail_box.add_child(row)
 		for s in siblings:
 			var b := UIKit.tiny(s, 11)

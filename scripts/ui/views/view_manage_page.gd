@@ -45,21 +45,21 @@ func _ready() -> void:
 func _build() -> void:
 	var root := HBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 	
 	# 新增：左列，把「顶部 stats 行」和「地块详情」装在一起
 	var left_col := VBoxContainer.new()
 	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left_col.add_theme_constant_override("separation", 6)
+	left_col.add_theme_constant_override("separation", UI.fs(6))
 	root.add_child(left_col)
 
 	# ---------- 顶部：每周期收支 + 制度提示 ----------
 	# v1.2 减负：删掉了「持有资源总览」（顶部资源栏已经显示）
 	#            也删掉了「部落概况」里的幸福值 / 文化率 / 稳定度（顶部同样已显示）
 	var stats := HBoxContainer.new()
-	stats.add_theme_constant_override("separation", 6)
+	stats.add_theme_constant_override("separation", UI.fs(6))
 	left_col.add_child(stats)
 
 	var flow := _panel("每周期收支（估算）", 460.0)
@@ -71,9 +71,9 @@ func _build() -> void:
 	rules_text.bbcode_enabled = true
 	rules_text.fit_content = true
 	rules_text.scroll_active = false
-	rules_text.custom_minimum_size = Vector2(300, 0)
+	rules_text.custom_minimum_size = Vector2(UI.px(300), UI.px(0))
 	rules_text.text = "[color=#c9cbd6]幸福值 = 基础 50 + 建筑加成 − 民怨。文化率由教育/文化建筑提升，作为凝聚力结算的倍率。\n稳定度低于 [color=#eb6166]10%[/color] 或 无主地块少于 [color=#eb6166]10[/color] 个时无法进行世界泡操作。\n幸福程度给予凝聚力的数值，文化率给予倍率。\n幸福值 / 文化率 / 稳定度的实时数值请看顶部资源栏。[/color]"
-	rules_text.add_theme_font_size_override("normal_font_size", 12)
+	rules_text.add_theme_font_size_override("normal_font_size", UI.fs(12))
 	rules["body"].add_child(rules_text)
 	rules["panel"].size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats.add_child(rules["panel"])
@@ -90,10 +90,10 @@ func _build() -> void:
 
 	# 据点标题：下拉切换要管理的据点（本作仅首都，为多据点预留）
 	stronghold_title = Button.new()
-	stronghold_title.custom_minimum_size = Vector2(0, 34)
+	stronghold_title.custom_minimum_size = Vector2(UI.px(0), UI.px(34))
 	stronghold_title.focus_mode = Control.FOCUS_NONE
 	stronghold_title.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	stronghold_title.add_theme_font_size_override("font_size", 15)
+	stronghold_title.add_theme_font_size_override("font_size", UI.fs(15))
 	UIKit.style_button(stronghold_title, true)
 	stronghold_title.pressed.connect(_open_stronghold_picker)
 	mv.add_child(stronghold_title)
@@ -102,29 +102,29 @@ func _build() -> void:
 	# 用 Label 逐行显示（RichTextLabel 在固定高度下会出现行重叠）
 	var tile_scroll := ScrollContainer.new()
 	tile_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	tile_scroll.custom_minimum_size = Vector2(0, 150)
+	tile_scroll.custom_minimum_size = Vector2(UI.px(0), UI.px(150))
 	tile_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mv.add_child(tile_scroll)
 	tile_info = VBoxContainer.new()
-	tile_info.add_theme_constant_override("separation", 1)
+	tile_info.add_theme_constant_override("separation", UI.fs(1))
 	tile_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tile_scroll.add_child(tile_info)
 
 	mv.add_child(UIKit.spacer(4))
 	var bottom_row := HBoxContainer.new()
-	bottom_row.add_theme_constant_override("separation", 6)
+	bottom_row.add_theme_constant_override("separation", UI.fs(6))
 	bottom_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	mv.add_child(bottom_row)
 
 	# 左：人力管理（v1.4，只列已建建筑）
 	var labor_col := VBoxContainer.new()
 	labor_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	labor_col.add_theme_constant_override("separation", 3)
+	labor_col.add_theme_constant_override("separation", UI.fs(3))
 	bottom_row.add_child(labor_col)
 	labor_col.add_child(UIKit.title("人力管理", 14))
 	labor_col.add_child(UIKit.dim("只列出已修建的建筑；点 −/＋ 投入人力。"))
 	labor_list = VBoxContainer.new()
-	labor_list.add_theme_constant_override("separation", 3)
+	labor_list.add_theme_constant_override("separation", UI.fs(3))
 	var labor_scroll := UIKit.scroll(labor_list)
 	labor_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	labor_col.add_child(labor_scroll)
@@ -132,23 +132,23 @@ func _build() -> void:
 	# 右：规划队列
 	var queue_col := VBoxContainer.new()
 	queue_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	queue_col.add_theme_constant_override("separation", 3)
+	queue_col.add_theme_constant_override("separation", UI.fs(3))
 	bottom_row.add_child(queue_col)
 	queue_col.add_child(UIKit.title("规划队列", 14))
 	queue_col.add_child(UIKit.dim("生产力不足的建造会排在这里。"))
 	queue_list = VBoxContainer.new()
-	queue_list.add_theme_constant_override("separation", 4)
+	queue_list.add_theme_constant_override("separation", UI.fs(4))
 	var queue_scroll := UIKit.scroll(queue_list)
 	queue_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	queue_col.add_child(queue_scroll)
 
 	# 右：扩张 / 军事 / 科技
 	var right := UIKit.panel()
-	right.custom_minimum_size = Vector2(330, 0)
+	right.custom_minimum_size = Vector2(UI.px(330), UI.px(0))
 	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(right)
 	var rv := VBoxContainer.new()
-	rv.add_theme_constant_override("separation", 5)
+	rv.add_theme_constant_override("separation", UI.fs(5))
 	right.add_child(rv)
 
 	# v1.3：原来的「指挥」区改名为「中控区」，
@@ -157,19 +157,19 @@ func _build() -> void:
 	rv.add_child(UIKit.title("中控区", 16))
 
 	ctrl_bar = HBoxContainer.new()
-	ctrl_bar.add_theme_constant_override("separation", 5)
+	ctrl_bar.add_theme_constant_override("separation", UI.fs(5))
 	rv.add_child(ctrl_bar)
 	for t in CTRL_TABS:
 		var tid: String = t["id"]
 		var b := UIKit.small(str(t["name"]), 13)
-		b.custom_minimum_size = Vector2(0, 32)
+		b.custom_minimum_size = Vector2(UI.px(0), UI.px(32))
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(func() -> void: switch_ctrl_tab(tid))
 		ctrl_bar.add_child(b)
 
 	var ctrl_rule := ColorRect.new()
 	ctrl_rule.color = UIKit.LINE_SOFT
-	ctrl_rule.custom_minimum_size = Vector2(0, 1)
+	ctrl_rule.custom_minimum_size = Vector2(UI.px(0), UI.px(1))
 	rv.add_child(ctrl_rule)
 
 	# 中控区内容宿主：一次只显示一个页签
@@ -179,13 +179,13 @@ func _build() -> void:
 
 	# ---------- 页签 1：军队 ----------
 	ctrl_pages["army"] = VBoxContainer.new()
-	(ctrl_pages["army"] as VBoxContainer).add_theme_constant_override("separation", 5)
+	(ctrl_pages["army"] as VBoxContainer).add_theme_constant_override("separation", UI.fs(5))
 	ctrl_host.add_child(ctrl_pages["army"])
 	var av := ctrl_pages["army"] as VBoxContainer
 
 	var unit_info := VBoxContainer.new()
 	unit_info.name = "UnitInfo"
-	unit_info.add_theme_constant_override("separation", 2)
+	unit_info.add_theme_constant_override("separation", UI.fs(2))
 	av.add_child(unit_info)
 	unit_box = unit_info
 
@@ -241,22 +241,22 @@ func _refresh_ctrl_bar() -> void:
 func _panel(title: String, min_w: float) -> Dictionary:
 	var p := UIKit.panel()
 	if min_w > 0.0:
-		p.custom_minimum_size = Vector2(min_w, 0)
+		p.custom_minimum_size = Vector2(UI.px(min_w), UI.px(0))
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 3)
+	v.add_theme_constant_override("separation", UI.fs(3))
 	p.add_child(v)
 	v.add_child(UIKit.title(title, 14))
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 2)
+	body.add_theme_constant_override("separation", UI.fs(2))
 	v.add_child(body)
 	return {"panel": p, "body": body}
 
 
 func _kv(d: Dictionary, label_text: String) -> Label:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
+	h.add_theme_constant_override("separation", UI.fs(6))
 	var l := UIKit.text_label(label_text, 13, UIKit.TEXT_DIM)
-	l.custom_minimum_size = Vector2(96, 0)
+	l.custom_minimum_size = Vector2(UI.px(96), UI.px(0))
 	h.add_child(l)
 	var v := UIKit.text_label("--", 14, UIKit.TEXT)
 	h.add_child(v)
@@ -278,7 +278,7 @@ func refresh() -> void:
 		parts.append("%s %+.1f" % [Consts.res_name(k), float(inc[k])])
 	yield_label.text = "  ".join(parts) if not parts.is_empty() else "暂无产出（先建建筑并指派人力）"
 	yield_label.add_theme_color_override("font_color", UIKit.TEXT_DIM)
-	yield_label.add_theme_font_size_override("font_size", 12)
+	yield_label.add_theme_font_size_override("font_size", UI.fs(12))
 
 	_ensure_stronghold()
 	_refresh_stronghold_title()
@@ -342,7 +342,7 @@ func _open_stronghold_picker() -> void:
 				refresh())
 			v.add_child(b)
 	var sc := UIKit.scroll(v)
-	sc.custom_minimum_size = Vector2(0, 300)
+	sc.custom_minimum_size = Vector2(UI.px(0), UI.px(300))
 	var d := UIKit.dialog("选择据点", 520.0)
 	d.set_content(sc)
 	gs.open_dialog(d)
@@ -387,9 +387,9 @@ func _refresh_stronghold_detail() -> void:
 
 func _detail_row(key: String, value: String, col: Color) -> Control:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
+	h.add_theme_constant_override("separation", UI.fs(6))
 	var k := UIKit.text_label(key, 12, UIKit.TEXT_DIM)
-	k.custom_minimum_size = Vector2(72, 0)
+	k.custom_minimum_size = Vector2(UI.px(72), UI.px(0))
 	h.add_child(k)
 	var v := UIKit.text_label(value, 12, col)
 	v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -419,7 +419,7 @@ func _refresh_labor() -> void:
 				continue	
 			any = true
 			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 4)
+			row.add_theme_constant_override("separation", UI.fs(4))
 			labor_list.add_child(row)
 			var l := UIKit.text_label("%s Lv.%d（%s）" % [def.display_name, level, key], 11, UIKit.TEXT)
 			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -468,11 +468,11 @@ func _queue_row(item: Dictionary, index: int, total: int) -> void:
 	UIKit.apply_panel(row, UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 5)
 	queue_list.add_child(row)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
+	h.add_theme_constant_override("separation", UI.fs(6))
 	row.add_child(h)
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_theme_constant_override("separation", 1)
+	v.add_theme_constant_override("separation", UI.fs(1))
 	h.add_child(v)
 	v.add_child(UIKit.text_label("%d. %s%s　[%s]" % [
 		index + 1, kind, nm, str(item.get("tile", ""))], 12, UIKit.TEXT))
@@ -481,7 +481,7 @@ func _queue_row(item: Dictionary, index: int, total: int) -> void:
 	v.add_child(UIKit.bar(paid, maxf(0.0001, need), UIKit.GOLD, 150.0, 10.0))
 	v.add_child(UIKit.dim("生产力 %.1f / %.1f" % [paid, need], 10))
 	var ops := VBoxContainer.new()
-	ops.add_theme_constant_override("separation", 2)
+	ops.add_theme_constant_override("separation", UI.fs(2))
 	h.add_child(ops)
 	var up := UIKit.tiny("↑", 11)
 	up.disabled = index <= 0
@@ -557,10 +557,10 @@ func _open_recruit() -> void:
 		UIKit.apply_panel(row, UIKit.BG_PANEL_2, UnitDB.profession_color(p), 5)
 		v.add_child(row)
 		var h := HBoxContainer.new()
-		h.add_theme_constant_override("separation", 6)
+		h.add_theme_constant_override("separation", UI.fs(6))
 		row.add_child(h)
 		var ic := GeoIcon.new()
-		ic.custom_minimum_size = Vector2(30, 30)
+		ic.custom_minimum_size = Vector2(UI.px(30), UI.px(30))
 		ic.setup(UnitDB.profession_icon(p), UnitDB.profession_color(p))
 		h.add_child(ic)
 		var tv := VBoxContainer.new()
@@ -583,7 +583,7 @@ func _open_recruit() -> void:
 			refresh())
 		h.add_child(b)
 	var sc := UIKit.scroll(v)
-	sc.custom_minimum_size = Vector2(0, 380)
+	sc.custom_minimum_size = Vector2(UI.px(0), UI.px(380))
 	var d := UIKit.dialog("招募募集兵", 560.0)
 	d.set_content(sc)
 	gs.open_dialog(d)
@@ -613,7 +613,7 @@ func _open_teams() -> void:
 				UnitDB.profession_name(str(m.get("profession", ""))),
 				str(m.get("tile", "")) if str(m.get("tile", "")) != "" else "营地"], 11))
 	var sc := UIKit.scroll(v)
-	sc.custom_minimum_size = Vector2(0, 320)
+	sc.custom_minimum_size = Vector2(UI.px(0), UI.px(320))
 	var d := UIKit.dialog("队伍编成", 520.0)
 	d.set_content(sc)
 	gs.open_dialog(d)

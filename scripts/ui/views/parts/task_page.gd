@@ -17,16 +17,16 @@ func _ready() -> void:
 func _build() -> void:
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 
 	tab_bar = HBoxContainer.new()
-	tab_bar.add_theme_constant_override("separation", 6)
+	tab_bar.add_theme_constant_override("separation", UI.fs(6))
 	root.add_child(tab_bar)
 	for pair in [["current", "当前"], ["archive", "档案"]]:
 		var mid: String = pair[0]
 		var b := UIKit.small(str(pair[1]), 14)
-		b.custom_minimum_size = Vector2(110, 32)
+		b.custom_minimum_size = Vector2(UI.px(110), UI.px(32))
 		b.pressed.connect(func() -> void:
 			mode = mid
 			selected = ""
@@ -34,7 +34,7 @@ func _build() -> void:
 		tab_bar.add_child(b)
 
 	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 6)
+	body.add_theme_constant_override("separation", UI.fs(6))
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(body)
 
@@ -42,12 +42,12 @@ func _build() -> void:
 	# v1.2：六个按钮的宽度减去三分之一（124 -> 83，按钮 112 -> 75）
 	# v1.3：是tip不换行导致的宽度过宽，增加自动换行功能后正常，83反而太小，修改回120。
 	var icon_panel := UIKit.panel()
-	icon_panel.custom_minimum_size = Vector2(120, 0)
+	icon_panel.custom_minimum_size = Vector2(UI.px(120), UI.px(0))
 	icon_panel.size_flags_horizontal = Control.SIZE_FILL
 	body.add_child(icon_panel)
 	icon_bar = VBoxContainer.new()
-	icon_bar.custom_minimum_size = Vector2(110, 0)
-	icon_bar.add_theme_constant_override("separation", 4)
+	icon_bar.custom_minimum_size = Vector2(UI.px(110), UI.px(0))
+	icon_bar.add_theme_constant_override("separation", UI.fs(4))
 	icon_panel.add_child(icon_bar)
 	_add_text_button("新建任务组", _new_group)
 	_add_text_button("新建任务", _new_task)
@@ -57,13 +57,13 @@ func _build() -> void:
 	_add_text_button("归档选中任务", _archive_task)
 	var tip := UIKit.dim("选中：点任务行里的「选中」按钮。", 10)
 	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tip.custom_minimum_size = Vector2(110, 0) 
+	tip.custom_minimum_size = Vector2(UI.px(110), UI.px(0)) 
 	icon_bar.add_child(tip)
 	icon_bar.add_child(UIKit.spacer(4))
 	
 	var tip2 := UIKit.dim("已完成的任务会在「选中」左边多出一个「归档」按钮，点击后完成并转入档案页。", 10)
 	tip2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # ← 新增
-	tip2.custom_minimum_size = Vector2(110, 0)             # ← 新增：窄宽度强制折行
+	tip2.custom_minimum_size = Vector2(UI.px(110), UI.px(0))             # ← 新增：窄宽度强制折行
 	icon_bar.add_child(tip2)
 
 	var list_panel := UIKit.panel()
@@ -76,7 +76,7 @@ func _build() -> void:
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lv.add_child(hint)
 	list_box = VBoxContainer.new()
-	list_box.add_theme_constant_override("separation", 4)
+	list_box.add_theme_constant_override("separation", UI.fs(4))
 	lv.add_child(UIKit.scroll(list_box))
 
 	refresh()
@@ -84,7 +84,7 @@ func _build() -> void:
 
 func _add_text_button(text: String, cb: Callable) -> void:
 	var b := UIKit.normal(text, 12)
-	b.custom_minimum_size = Vector2(110, 30)
+	b.custom_minimum_size = Vector2(UI.px(110), UI.px(30))
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	b.tooltip_text = text
 	b.pressed.connect(cb)
@@ -175,7 +175,7 @@ func _task_row(t: Dictionary, indented: bool) -> Control:
 	UIKit.apply_panel(row, UIKit.BG_PANEL_2, col, 5)
 	if indented:
 		var mc := MarginContainer.new()
-		mc.add_theme_constant_override("margin_left", 18)
+		mc.add_theme_constant_override("margin_left", UI.px(18))
 		mc.add_child(row)
 		_fill_task_row(row, t)
 		return mc
@@ -300,7 +300,7 @@ func _done_row(t: Dictionary) -> Control:
 	var v := UIKit.vbox(1)
 	row.add_child(v)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
+	h.add_theme_constant_override("separation", UI.fs(6))
 	v.add_child(h)
 	h.add_child(UIKit.text_label(str(t["name"]), 13, UIKit.OK))
 	if bool(t.get("archived", false)):
@@ -414,7 +414,7 @@ func _new_task() -> void:
 	v.add_child(ok)
 
 	var sc := UIKit.scroll(v)
-	sc.custom_minimum_size = Vector2(0, 420)
+	sc.custom_minimum_size = Vector2(UI.px(0), UI.px(420))
 	var d := UIKit.dialog("新建任务", 460.0)
 	d.set_content(sc)
 	gs.open_dialog(d)

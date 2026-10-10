@@ -15,7 +15,7 @@ func _ready() -> void:
 func _build() -> void:
 	var root := HBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", UI.fs(6))
 	add_child(root)
 
 	var left := UIKit.panel()
@@ -30,10 +30,10 @@ func _build() -> void:
 	lv.add_child(UIKit.scroll(grid))
 
 	var right := UIKit.panel()
-	right.custom_minimum_size = Vector2(300, 0)
+	right.custom_minimum_size = Vector2(UI.px(300), UI.px(0))
 	root.add_child(right)
 	detail = VBoxContainer.new()
-	detail.add_theme_constant_override("separation", 5)
+	detail.add_theme_constant_override("separation", UI.fs(5))
 	right.add_child(UIKit.scroll(detail))
 
 
@@ -80,13 +80,13 @@ func _card_for(id: String, count: int) -> Control:
 		nm = str(def.get("name", id))
 	var p := PanelContainer.new()
 	UIKit.apply_panel(p, UIKit.BG_SLOT, col, 6)
-	p.custom_minimum_size = Vector2(96, 108)
+	p.custom_minimum_size = Vector2(UI.px(96), UI.px(108))
 	var v := UIKit.vbox(2)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	p.add_child(v)
 	var ic := GeoIcon.new()
 	ic.setup(kind, col)
-	ic.custom_minimum_size = Vector2(72, 56)
+	ic.custom_minimum_size = Vector2(UI.px(72), UI.px(56))
 	v.add_child(ic)
 	var l := UIKit.text_label(nm, 11, col)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

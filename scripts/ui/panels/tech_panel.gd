@@ -9,14 +9,14 @@ var list_box: VBoxContainer
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(560, 480)
+	custom_minimum_size = Vector2(UI.px(560), UI.px(480))
 	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 6)
+	col.add_theme_constant_override("separation", UI.fs(6))
 	add_child(col)
 
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 8)
+	head.add_theme_constant_override("separation", UI.fs(8))
 	col.add_child(head)
 	head.add_child(UIKit.title("科技树", 15))
 	head.add_child(UIKit.dim("消耗科研点；解锁后常驻，并开放对应建筑", 11))
@@ -29,7 +29,7 @@ func _init() -> void:
 	head.add_child(close)
 
 	list_box = VBoxContainer.new()
-	list_box.add_theme_constant_override("separation", 5)
+	list_box.add_theme_constant_override("separation", UI.fs(5))
 	col.add_child(UIKit.scroll(list_box))
 
 

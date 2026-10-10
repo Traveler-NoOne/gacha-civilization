@@ -46,7 +46,7 @@ func _ready() -> void:
 	col.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	col.grow_vertical = Control.GROW_DIRECTION_BOTH
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_theme_constant_override("separation", 10)
+	col.add_theme_constant_override("separation", UI.fs(10))
 	add_child(col)
 	col.add_child(UIKit.title("抽卡文明", 44))
 	col.add_child(UIKit.dim("%s　·　正在载入世界泡……" % Consts.DEMO_VERSION_FULL, 14))
@@ -56,7 +56,7 @@ func _ready() -> void:
 	if ResourceLoader.exists(pp):
 		var tr := TextureRect.new()
 		tr.texture = load(pp)
-		tr.custom_minimum_size = Vector2(190, 170)
+		tr.custom_minimum_size = Vector2(UI.px(190), UI.px(170))
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		col.add_child(tr)
@@ -64,9 +64,9 @@ func _ready() -> void:
 	# 左下角：tips
 	var tips_h := HBoxContainer.new()
 	tips_h.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	tips_h.position = Vector2(28.0, -48.0)
+	tips_h.position = Vector2(UI.px(28.0), UI.px(-48.0))
 	tips_h.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	tips_h.add_theme_constant_override("separation", 6)
+	tips_h.add_theme_constant_override("separation", UI.fs(6))
 	add_child(tips_h)
 	tips_h.add_child(UIKit.dim("提示：", 13))
 	_tip = UIKit.text_label(TIPS[randi() % TIPS.size()], 13, UIKit.TEXT)
@@ -75,8 +75,8 @@ func _ready() -> void:
 	# 右下角：进度条
 	_bar = ProgressBar.new()
 	_bar.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_bar.position = Vector2(-312.0, -50.0)
-	_bar.custom_minimum_size = Vector2(284, 16)
+	_bar.position = Vector2(UI.px(-312.0), UI.px(-50.0))
+	_bar.custom_minimum_size = Vector2(UI.px(284), UI.px(16))
 	_bar.min_value = 0.0
 	_bar.max_value = 100.0
 	_bar.value = 0.0
