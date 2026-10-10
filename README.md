@@ -263,7 +263,7 @@ scripts/
 	hex_map_view.gd               六边形地图渲染与交互（含驻军标记）
 	view_host.gd                  单视图容器
 	views/
-	  view_manage_page.gd         1 管理（+ 据点详情 / 规划队列 / 中控区三页签 / 军队 / 征兵 / 战斗）
+	view_manage_page.gd         管理页【v1.8.7 起已无入口，文件保留：据点管理窗口共用它的行构造】
 	  treasure_view.gd            2 至宝（+ parts/character_page, gear_page, item_page）
 	  gacha_view.gd               3 世界泡（召唤 / 打捞 / 发展）
 	  log_view.gd                 4 日志（+ parts/task_page, record_page, codex_page, manual_page）
