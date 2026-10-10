@@ -65,6 +65,7 @@ const SHOT_DOCS := {
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
+	_clear_out_dir()
 	_arm_watchdog()
 	DisplayServer.window_set_size(Vector2i(1280, 720))
 	await get_tree().process_frame
@@ -415,6 +416,24 @@ func _ready() -> void:
 
 	print("截图完成，共 %d 张，输出目录 %s" % [shot, OUT_DIR])
 	get_tree().quit(0)
+
+
+## 开跑前清空输出目录：**残留的旧图会让视觉检查误判**
+## （对着上一版已经修好的图报 bug，是最难查的一类假问题）。
+func _clear_out_dir() -> void:
+	var d := DirAccess.open(OUT_DIR)
+	if d == null:
+		return
+	var n := 0
+	d.list_dir_begin()
+	var f := d.get_next()
+	while f != "":
+		if f.ends_with(".png") or f.ends_with(".md"):
+			d.remove(f)
+			n += 1
+		f = d.get_next()
+	d.list_dir_end()
+	print("  [clean] 输出目录已清空（删了 %d 个旧文件）" % n)
 
 
 ## **关干净**：对话框 / 页级浮窗 / 工具浮窗（科技树·日志·统计）/ 世界页上的各种小窗，一个不留。
