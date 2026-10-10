@@ -74,21 +74,21 @@ func _build() -> void:
 
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 0)
+	root.add_theme_constant_override("separation", UI.fs(0))
 	add_child(root)
 
 	# --- 顶部资源栏 ---
 	var top := PanelContainer.new()
 	UIKit.apply_panel(top, Color(0.08, 0.08, 0.12), UIKit.LINE_SOFT, 0)
-	top.custom_minimum_size = Vector2(0, 98)
+	top.custom_minimum_size = Vector2(UI.px(0), UI.px(98))
 	root.add_child(top)
 
 	var top_v := VBoxContainer.new()
-	top_v.add_theme_constant_override("separation", 2)
+	top_v.add_theme_constant_override("separation", UI.fs(2))
 	top.add_child(top_v)
 
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 14)
+	head.add_theme_constant_override("separation", UI.fs(14))
 	top_v.add_child(head)
 
 	cycle_label = UIKit.text_label("周期 1", 16, UIKit.GOLD)
@@ -119,12 +119,12 @@ func _build() -> void:
 	head.add_child(btn_save)
 
 	resource_bar = HBoxContainer.new()
-	resource_bar.add_theme_constant_override("separation", 12)
+	resource_bar.add_theme_constant_override("separation", UI.fs(12))
 	top_v.add_child(resource_bar)
 
 	# v1.4：抽象资源（左，两行）｜具体资源（右，两行）
 	abstract_box = VBoxContainer.new()
-	abstract_box.add_theme_constant_override("separation", 3)
+	abstract_box.add_theme_constant_override("separation", UI.fs(3))
 	resource_bar.add_child(abstract_box)
 
 	# v1.8.11：资源栏**中间**是「统计」入口 —— 点开在它下面展开统计面板。
@@ -134,23 +134,23 @@ func _build() -> void:
 	res_mid.alignment = BoxContainer.ALIGNMENT_CENTER
 	resource_bar.add_child(res_mid)
 	stats_btn = UIKit.small("统计", 12)
-	stats_btn.custom_minimum_size = Vector2(68, 26)
+	stats_btn.custom_minimum_size = Vector2(UI.px(68), UI.px(26))
 	stats_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	stats_btn.tooltip_text = "统计：资源 / 单位 / 地块 / 领地"
 	stats_btn.pressed.connect(_toggle_stats_panel)
 	res_mid.add_child(stats_btn)
 
 	concrete_box = VBoxContainer.new()
-	concrete_box.add_theme_constant_override("separation", 3)
+	concrete_box.add_theme_constant_override("separation", UI.fs(3))
 	resource_bar.add_child(concrete_box)
 
 	# --- 中间内容区 ---
 	content_host = MarginContainer.new()
 	content_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_host.add_theme_constant_override("margin_left", 10)
-	content_host.add_theme_constant_override("margin_right", 10)
-	content_host.add_theme_constant_override("margin_top", 8)
-	content_host.add_theme_constant_override("margin_bottom", 4)
+	content_host.add_theme_constant_override("margin_left", UI.px(10))
+	content_host.add_theme_constant_override("margin_right", UI.px(10))
+	content_host.add_theme_constant_override("margin_top", UI.px(8))
+	content_host.add_theme_constant_override("margin_bottom", UI.px(4))
 	root.add_child(content_host)
 	content_host.set_script(preload("res://scripts/ui/view_host.gd"))
 
@@ -264,7 +264,7 @@ func _setup_world() -> void:
 func _build_floating_ui() -> void:
 	# 左上角：科技树
 	corner_tech_btn = UIKit.normal("科技树", 13)
-	corner_tech_btn.custom_minimum_size = Vector2(84, 34)
+	corner_tech_btn.custom_minimum_size = Vector2(UI.px(84), UI.px(34))
 	corner_tech_btn.tooltip_text = "科技树"
 	corner_tech_btn.pressed.connect(_toggle_tech_panel)
 	add_child(corner_tech_btn)
@@ -281,14 +281,14 @@ func _build_floating_ui() -> void:
 		if vid == "world":
 			continue
 		var b := UIKit.normal(str(v["name"]), 14)
-		b.custom_minimum_size = Vector2(96, 40)
+		b.custom_minimum_size = Vector2(UI.px(96), UI.px(40))
 		b.pressed.connect(func() -> void: _toggle_page(vid))
 		add_child(b)
 		nav_buttons[vid] = b
 
 	# 右下角：结束周期（原来在底栏左侧）
 	end_btn = UIKit.primary("结束周期", 15)
-	end_btn.custom_minimum_size = Vector2(100, 40)
+	end_btn.custom_minimum_size = Vector2(UI.px(100), UI.px(40))
 	end_btn.pressed.connect(_end_cycle)
 	add_child(end_btn)
 
@@ -467,7 +467,7 @@ func _fill_group(box: VBoxContainer, items: Array, per_row: int, right_align: bo
 	for i in items.size():
 		if i % per_row == 0:
 			row = HBoxContainer.new()
-			row.add_theme_constant_override("separation", 10)
+			row.add_theme_constant_override("separation", UI.fs(10))
 			if right_align:
 				row.alignment = BoxContainer.ALIGNMENT_END
 			box.add_child(row)
@@ -486,7 +486,7 @@ func _add_chip(row: HBoxContainer, key: String, label_text: String, color: Color
 	var chip := PanelContainer.new()
 	UIKit.apply_panel(chip, Color(0.12, 0.12, 0.17), Color(color.r, color.g, color.b, 0.45), 4)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 4)
+	h.add_theme_constant_override("separation", UI.fs(4))
 	chip.add_child(h)
 	# v1.4.2：资源图标（art/icons/<key>.png）；缺图时自动只显示文字
 	var icon_key := "population" if key == "pop" else key
@@ -494,7 +494,7 @@ func _add_chip(row: HBoxContainer, key: String, label_text: String, color: Color
 	if icon != null:
 		var tr := TextureRect.new()
 		tr.texture = icon
-		tr.custom_minimum_size = Vector2(15, 15)
+		tr.custom_minimum_size = Vector2(UI.px(15), UI.px(15))
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		h.add_child(tr)
@@ -536,7 +536,7 @@ func _show_res_info(key: String, rect: Rect2) -> void:
 	layer.add_child(bg)
 
 	var panel := UIKit.panel(UIKit.BG_PANEL_2, UIKit.LINE, 6)
-	panel.custom_minimum_size = Vector2(250, 0)
+	panel.custom_minimum_size = Vector2(UI.px(250), UI.px(0))
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	layer.add_child(panel)
 	var v := UIKit.vbox(2)
@@ -559,7 +559,7 @@ func _show_res_info(key: String, rect: Rect2) -> void:
 		if not inc.is_empty() and not upk.is_empty():
 			var sep := ColorRect.new()
 			sep.color = UIKit.LINE_SOFT
-			sep.custom_minimum_size = Vector2(0, 1)
+			sep.custom_minimum_size = Vector2(UI.px(0), UI.px(1))
 			v.add_child(sep)
 		for e in upk:
 			net += float(e["amount"])
@@ -579,7 +579,7 @@ func _show_res_info(key: String, rect: Rect2) -> void:
 
 func _break_row(label_text: String, amount: float) -> Control:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
+	h.add_theme_constant_override("separation", UI.fs(8))
 	var l := UIKit.text_label(label_text, 11, UIKit.TEXT_DIM)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(l)
@@ -677,7 +677,7 @@ func _open_cheat_menu() -> void:
 		sb.max_value = 999999
 		sb.step = 1
 		sb.value = 0
-		sb.custom_minimum_size = Vector2(110, 0)
+		sb.custom_minimum_size = Vector2(UI.px(110), UI.px(0))
 		grid.add_child(sb)
 		spins[key] = sb
 
@@ -717,12 +717,12 @@ func _open_cheat_menu() -> void:
 	var enemies := GameState.enemy_tiles()
 	v.add_child(UIKit.dim("当前大世界敌对单位：%d 个" % enemies.size()))
 	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 3)
+	list.add_theme_constant_override("separation", UI.fs(3))
 	for t in enemies:
 		var key := GameState.tile_key(t)
 		var label := GameState.enemy_label(t)
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
+		row.add_theme_constant_override("separation", UI.fs(6))
 		list.add_child(row)
 		var l := UIKit.text_label("%s　[%s]　战力 %.0f" % [label, key, float(t.get("force", 0.0))],
 			12, UIKit.BAD)

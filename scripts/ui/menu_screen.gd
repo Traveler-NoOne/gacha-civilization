@@ -40,21 +40,21 @@ func _build() -> void:
 	center.set_anchors_preset(Control.PRESET_CENTER)
 	center.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	center.grow_vertical = Control.GROW_DIRECTION_BOTH
-	center.custom_minimum_size = Vector2(360, 0)
-	center.add_theme_constant_override("separation", 10)
+	center.custom_minimum_size = Vector2(UI.px(360), UI.px(0))
+	center.add_theme_constant_override("separation", UI.fs(10))
 	add_child(center)
 
 	var title := Label.new()
 	title.text = "抽 卡 文 明"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 54)
+	title.add_theme_font_size_override("font_size", UI.fs(54))
 	title.add_theme_color_override("font_color", Color(0.96, 0.86, 0.55))
 	center.add_child(title)
 
 	var sub := Label.new()
 	sub.text = "Turn-based Roguelite Gacha Civilization · 可玩 Demo"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_font_size_override("font_size", 13)
+	sub.add_theme_font_size_override("font_size", UI.fs(13))
 	sub.add_theme_color_override("font_color", Color(0.55, 0.58, 0.68))
 	center.add_child(sub)
 
@@ -65,7 +65,7 @@ func _build() -> void:
 	center.add_child(btn_start)
 
 	_expand_box = VBoxContainer.new()
-	_expand_box.add_theme_constant_override("separation", 6)
+	_expand_box.add_theme_constant_override("separation", UI.fs(6))
 	_expand_box.visible = false
 	center.add_child(_expand_box)
 
@@ -96,7 +96,7 @@ func _build() -> void:
 	var feedback := UIKit.small("反馈")
 	feedback.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	feedback.position = Vector2(-110, -56)
-	feedback.custom_minimum_size = Vector2(92, 34)
+	feedback.custom_minimum_size = Vector2(UI.px(92), UI.px(34))
 	feedback.pressed.connect(_open_feedback)
 	add_child(feedback)
 
@@ -106,7 +106,7 @@ func _build() -> void:
 	disclaimer.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	disclaimer.position = Vector2(16, -34)
 	disclaimer.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	disclaimer.add_theme_font_size_override("font_size", 11)
+	disclaimer.add_theme_font_size_override("font_size", UI.fs(11))
 	disclaimer.add_theme_color_override("font_color", UIKit.TEXT_FAINT)
 	add_child(disclaimer)
 
@@ -115,7 +115,7 @@ func _build() -> void:
 
 func _spacer(h: int) -> Control:
 	var c := Control.new()
-	c.custom_minimum_size = Vector2(0, h)
+	c.custom_minimum_size = Vector2(UI.px(0), UI.px(h))
 	return c
 
 
@@ -145,7 +145,7 @@ func _open_load_dialog() -> void:
 	var d := UIKit.dialog("读取游戏")
 	_dialog = d
 	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 4)
+	list.add_theme_constant_override("separation", UI.fs(4))
 	d.set_content(list)
 	var found := false
 	for i in Consts.SAVE_SLOTS:
@@ -176,24 +176,24 @@ func _open_settings() -> void:
 	
 	# 创建设置菜单一级容器竖式
 	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 10)
+	outer.add_theme_constant_override("separation", UI.fs(10))
 	d.set_content(outer)
 	
 	# 创建设置菜单二级容器横式
 	var mid := HBoxContainer.new()
-	mid.add_theme_constant_override("separation", 14)
+	mid.add_theme_constant_override("separation", UI.fs(14))
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(mid)
 	
 	# 创建设置菜单按钮列表
 	var tabs := VBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 6)
-	tabs.custom_minimum_size = Vector2(100, 0)
+	tabs.add_theme_constant_override("separation", UI.fs(6))
+	tabs.custom_minimum_size = Vector2(UI.px(100), UI.px(0))
 	mid.add_child(tabs)
 	
 	# 创建设置菜单的内容页父容器
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 8)
+	body.add_theme_constant_override("separation", UI.fs(8))
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mid.add_child(body)
 	
@@ -212,14 +212,14 @@ func _open_settings() -> void:
 	for t in SETTING_TABS:
 		# 初始化页面
 		var pg: VBoxContainer = pages[str(t["id"])]
-		pg.add_theme_constant_override("separation", 8)
+		pg.add_theme_constant_override("separation", UI.fs(8))
 		pg.visible = false
 		body.add_child(pg)
 		
 		# 初始化按钮
 		var b := UIKit.normal(str(t["name"]), 13)
 		b.set_meta("setting_id", str(t["id"]))
-		b.custom_minimum_size = Vector2(100, 34)
+		b.custom_minimum_size = Vector2(UI.px(100), UI.px(34))
 		b.pressed.connect(_switch_setting_page.bind(pages, tabs, str(t["id"])))
 		tabs.add_child(b)
 		
@@ -234,7 +234,7 @@ func _open_settings() -> void:
 	page_video.add_child(_row("分辨率", res_opt))
 	var res_hint := Label.new()
 	res_hint.text = "改完保存，重启后才生效。"
-	res_hint.add_theme_font_size_override("font_size", 11)
+	res_hint.add_theme_font_size_override("font_size", UI.fs(11))
 	res_hint.add_theme_color_override("font_color", Color(0.62, 0.64, 0.72))
 	page_video.add_child(res_hint)
 	
@@ -272,7 +272,7 @@ func _open_settings() -> void:
 	var auto_hint := Label.new()
 	auto_hint.text = "默认情况下为每周期自动存档；这里可以设置自定义数量的周期进行一次自动存档（%d ~ %d）。" % [
 		Consts.AUTOSAVE_INTERVAL_MIN, Consts.AUTOSAVE_INTERVAL_MAX]
-	auto_hint.add_theme_font_size_override("font_size", 11)
+	auto_hint.add_theme_font_size_override("font_size", UI.fs(11))
 	auto_hint.add_theme_color_override("font_color", Color(0.62, 0.64, 0.72))
 	auto_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	page_assist.add_child(auto_hint)
@@ -285,24 +285,24 @@ func _open_settings() -> void:
 	# 初始化键位设置
 	var hint := Label.new()
 	hint.text = "世界地图：鼠标左键拖动平移、滚轮缩放、点击地块查看详情。\n快捷键：「1/2/3」切换功能页，空格 = 结束周期，Esc = 关闭弹窗。"
-	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_font_size_override("font_size", UI.fs(12))
 	hint.add_theme_color_override("font_color", Color(0.72, 0.74, 0.8))
 	page_keys.add_child(hint)
 	
 	# 弹窗确定区
 	var footer := HBoxContainer.new()
 	footer.alignment = BoxContainer.ALIGNMENT_END
-	footer.add_theme_constant_override("separation", 8)
+	footer.add_theme_constant_override("separation", UI.fs(8))
 	outer.add_child(footer)
 	
 	var btn_cancel := UIKit.normal("取消", 14)
-	btn_cancel.custom_minimum_size = Vector2(96, 34)
+	btn_cancel.custom_minimum_size = Vector2(UI.px(96), UI.px(34))
 	btn_cancel.pressed.connect(func() -> void:
 		close_dialog())
 	footer.add_child(btn_cancel)
 	
 	var btn_ok := UIKit.primary("确认", 14)
-	btn_ok.custom_minimum_size = Vector2(96, 34)
+	btn_ok.custom_minimum_size = Vector2(UI.px(96), UI.px(34))
 	btn_ok.pressed.connect(func() -> void:
 		# v1.8.20：其余设置（帧率 / 音量 / 自动存档）都是"改一下立即生效"，
 		# 这里只剩分辨率要做决定 —— 它涉及 UI 重建，不能即时改：保存 + 问要不要现在重启。
@@ -350,10 +350,10 @@ func _switch_setting_page(pages: Dictionary, tabs: VBoxContainer, tid: String) -
 
 func _row(label_text: String, node: Control) -> HBoxContainer:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 10)
+	h.add_theme_constant_override("separation", UI.fs(10))
 	var l := Label.new()
 	l.text = label_text
-	l.custom_minimum_size = Vector2(90, 0)
+	l.custom_minimum_size = Vector2(UI.px(90), UI.px(0))
 	h.add_child(l)
 	node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(node)
@@ -364,7 +364,7 @@ func _volume_row(label_text: String, bus: String) -> HBoxContainer:
 	var slider := HSlider.new()
 	slider.min_value = 0
 	slider.max_value = 100
-	slider.custom_minimum_size = Vector2(180, 0)
+	slider.custom_minimum_size = Vector2(UI.px(180), UI.px(0))
 
 	# v1.8.12：显示当前真实音量（不是写死的 80）
 	var bus_idx := AudioServer.get_bus_index(bus)
@@ -385,12 +385,12 @@ func _open_feedback() -> void:
 	var d := UIKit.dialog("反馈")
 	_dialog = d
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
+	v.add_theme_constant_override("separation", UI.fs(6))
 
 	# v1.2：显示当前 demo 版本
 	var ver := Label.new()
 	ver.text = "当前版本：%s" % Consts.DEMO_VERSION_FULL
-	ver.add_theme_font_size_override("font_size", 13)
+	ver.add_theme_font_size_override("font_size", UI.fs(13))
 	ver.add_theme_color_override("font_color", UIKit.GOLD)
 	v.add_child(ver)
 	v.add_child(UIKit.spacer(2.0))
@@ -407,14 +407,14 @@ func _open_feedback() -> void:
 	for t in lines:
 		var l := Label.new()
 		l.text = t
-		l.add_theme_font_size_override("font_size", 13)
+		l.add_theme_font_size_override("font_size", UI.fs(13))
 		v.add_child(l)
 
 	# v1.2：作弊功能勾选框
 	v.add_child(UIKit.spacer(6.0))
 	var rule := ColorRect.new()
 	rule.color = UIKit.LINE_SOFT
-	rule.custom_minimum_size = Vector2(0, 1)
+	rule.custom_minimum_size = Vector2(UI.px(0), UI.px(1))
 	v.add_child(rule)
 	v.add_child(UIKit.spacer(4.0))
 
