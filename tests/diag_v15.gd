@@ -211,26 +211,78 @@ func _ready() -> void:
 		print("  点中棋子图标 -> sel_uid=[%s]（期望 [%s]）" % [str(w.get("sel_uid")), some_uid])
 		if str(w.get("sel_uid")) != some_uid:
 			suite.fail("点中棋子图标没有选中该单位")
-	# ② 点我方领地（没点到图标）→ 不该选中单位（据点管理窗口由世界页负责打开，本段只验"不选单位"）
-	w.call("_on_tile_clicked", cap, "", Vector2(100, 100))
-	print("  点我方领地 -> sel_uid=[%s]（期望空）" % str(w.get("sel_uid")))
-	if str(w.get("sel_uid")) != "":
-		suite.fail("点我方领地时不该选中单位")
-	# ③ 点非我方地块 → 弹出简约地块信息小窗
+	var v14_map: Node = w.get("map")
+	# ② 点首都星（给格心）→ 打开"这一格"的据点面板（认格子）
+	var star_pt: Vector2 = v14_map.get_global_transform() * (v14_map.call("tile_center", cap) as Vector2)
+
+	w.call("_on_tile_clicked", cap, "", star_pt)
+	var sp: Variant = w.get("stronghold_panel")
+	var sp_open := sp != null and (sp as Control).visible
+	print("  点首都星 -> 据点面板可见？%s；面板记的格子=[%s]（期望 [%s]）" % [
+		sp_open, str((sp as Node).get("key")), cap])
+	if not sp_open or str((sp as Node).get("key")) != cap:
+		suite.fail("点首都星没有按格子打开据点面板")
+	if sp != null:
+		(sp as Control).visible = false
+	# ③ 点我方其它格（不在星上）→ 只更新选中：不弹面板、不弹小窗
+	var other_own := ""
+	for k in GameState.state["tiles"].keys():
+		if str(k) != cap and str(GameState.tile_at(str(k)).get("owner", "")) == "player" \
+				and str(GameState.tile_at(str(k)).get("stronghold", "")) == "":
+			other_own = str(k)
+			break
+	if other_own == "":
+		print("  （找不到'我方但不在据点里'的格子，跳过第 ③ 项）")
+	else:
+		w.call("_on_tile_clicked", other_own, "", Vector2(100, 100))
+		var sp2: Variant = w.get("stronghold_panel")
+		var sp2_open := sp2 != null and (sp2 as Control).visible
+		var p2: Variant = w.get("tile_info_popup")
+		var p2_vis := p2 != null and (p2 as Control).visible
+		print("  点我方其它格 [%s] -> 面板可见？%s（期望否）；小窗可见？%s（期望否）；sel_uid=[%s]（期望空）" % [
+			other_own, sp2_open, p2_vis, str(w.get("sel_uid"))])
+		if sp2_open or p2_vis or str(w.get("sel_uid")) != "":
+			suite.fail("点我方其它格应当只更新选中")
+	# ④ 点空白 / 敌方格 → 取消选择，什么都不打开
 	var other := ""
 	for k in GameState.state["tiles"].keys():
 		if str(k) != cap and str(GameState.tile_at(str(k)).get("owner", "")) != "player":
 			other = str(k)
 			break
 	if other == "":
-		print("  （找不到非我方地块，跳过第 ③ 项）")
+		print("  （找不到非我方地块，跳过第 ④ 项）")
 	else:
 		w.call("_on_tile_clicked", other, "", Vector2(200, 200))
 		var popup: Variant = w.get("tile_info_popup")
 		var vis := popup != null and (popup as Control).visible
-		print("  点非我方地块 [%s] -> 简约信息小窗可见？%s" % [other, vis])
-		if not vis:
-			suite.fail("点非我方地块没有弹出简约信息小窗")
+		print("  点非我方地块 [%s] -> 小窗可见？%s（期望否）；selected=[%s]（期望空）" % [
+			other, vis, str(w.get("selected"))])
+		if vis:
+			suite.fail("新模型下点击不该弹小窗（小窗改由悬停负责）")
+		if str(w.get("selected")) != "":
+			suite.fail("点空白 / 敌方格应当取消选择")
+	# ⑤ 悬停满 1 秒 → 才显示小窗；1 秒内换格要作废
+	w.call("_on_hover_changed", other, Vector2(300, 300))
+	var popup_a: Variant = w.get("tile_info_popup")
+	var vis_a := popup_a != null and (popup_a as Control).visible
+	print("  悬停后立刻查：小窗可见？%s（期望否，因为要满 1 秒）" % vis_a)
+	if vis_a:
+		suite.fail("悬停还没满 1 秒就显示了小窗")
+	await get_tree().create_timer(1.3).timeout
+	var popup_b: Variant = w.get("tile_info_popup")
+	var vis_b := popup_b != null and (popup_b as Control).visible
+	print("  悬停满 1 秒 [%s] -> 小窗可见？%s（期望是）" % [other, vis_b])
+	if not vis_b:
+		suite.fail("悬停满 1 秒没有显示小窗")
+	w.call("_hide_tile_info")
+	w.call("_on_hover_changed", cap)
+	w.call("_on_hover_changed", "")
+	var popup_c: Variant = w.get("tile_info_popup")
+	var vis_c := popup_c != null and (popup_c as Control).visible
+	print("  移出地图（悬停传空）-> 小窗可见？%s（期望否）" % vis_c)
+	if vis_c:
+		suite.fail("移出地图后小窗没有收起")
+
 	w.queue_free()
 	holder.queue_free()
 

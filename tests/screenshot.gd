@@ -38,10 +38,13 @@ const SHOT_DOCS := {
 	"06c_stats_res": "统计面板·资源页（默认）｜抽象/具体资源 + 每周期净收支 | 数字与资源栏是否一致、亏损是否为红字",
 	"06d_stats_units": "统计面板·单位页｜总数 / 客人公民 / 人力 / 按职业 / 编队 | 分组清晰、数字合理",
 	"07_view_world": "大世界（纯地图，无浮窗）｜五个角落按钮 | 地图铺满、四个角按钮都在位、底栏确实没了",
-	"08a_tile_info": "简约地块信息小窗（点非我方地块）｜势力/名称/地形/土地/建筑 | 小窗在鼠标处、内容正确、没有残留据点窗口",
-	"08a2_tile_info_low": "简约地块信息小窗·在下半屏点已点亮地块｜应翻到鼠标上方或被夹进屏幕 | 小窗整个可见、没有被屏幕底边切掉",
+	"08a_tile_info": "简约地块信息小窗（**悬停 1 秒**非我方地块）｜势力/名称/地形/土地/建筑 | 小窗在鼠标处、内容正确、没有残留据点窗口",
+
+	"08a2_tile_info_low": "简约地块信息小窗·**悬停 1 秒**下半屏的已点亮地块｜应翻到鼠标上方或被夹进屏幕 | 小窗整个可见、没有被屏幕底边切掉",
+
 	"08c2_action_menu_low": "**右键功能菜单·在下半屏弹出**（带建筑按钮）｜位置应贴在鼠标点附近、不偏不裁 | ①整个菜单在屏幕内 ②没有被屏幕底边切掉 ③与鼠标点的距离合理（不是偏到别处）",
-	"08b_stronghold_info": "据点管理窗口·信息页（点我方领地）｜掌控力/已用土地/据点明细 | 上方三个按钮在窗口边框外、下半段两条队列",
+	"08b_stronghold_info": "据点管理窗口·信息页（**左键点首都星**）｜掌控力/已用土地/据点明细 | 上方三个按钮在窗口边框外、下半段两条队列",
+
 
 
 	"08c_stronghold_decree": "据点管理窗口·政事页｜政事列表+政事队列 | 条目与按钮、队列跑条",
@@ -268,10 +271,15 @@ func _ready() -> void:
 			v185_other = str(k)
 			break
 	if v185_other != "":
-		(wp as Node).call("_on_tile_clicked", v185_other, "", Vector2(520, 330))
-		for f in 4:
-			await get_tree().process_frame
+		# v1.8.20.4：小窗改由「悬停 1 秒」驱动（点击不再弹小窗）。
+		# 先 warp 鼠标：真窗口下鼠标若在窗外，会触发一次"移出地图"的悬停把小窗收掉（实测踩过）。
+		Input.warp_mouse(Vector2(520, 330))
+		await get_tree().process_frame
+		(wp as Node).call("_on_hover_changed", v185_other, Vector2(520, 330))
+		await get_tree().create_timer(1.4).timeout
 		await _shoot("08a_tile_info")
+
+
 	# v1.8.20.2：下半屏点「已点亮的地块」—— 内容比迷雾格长，小窗应翻到鼠标上方或被正确夹进屏幕
 	#（曾经这里是坏的：小窗从旧位置向下长出屏幕）
 	var v185b_lit := ""
@@ -281,18 +289,25 @@ func _ready() -> void:
 			v185b_lit = str(k2)
 			break
 	if v185b_lit != "":
-		(wp as Node).call("_on_tile_clicked", v185b_lit, "", Vector2(520, 640))
-		for f in 4:
-			await get_tree().process_frame
+		Input.warp_mouse(Vector2(520, 640))
+		await get_tree().process_frame
+		(wp as Node).call("_on_hover_changed", v185b_lit, Vector2(520, 640))
+		await get_tree().create_timer(1.4).timeout
 		await _shoot("08a2_tile_info_low")
+
+
 	# 简约信息小窗和据点管理窗口是**两个不同的东西**，中间必须关一次
 	await _clean("简约信息小窗拍完")
 
-	# ② 据点管理窗口（三个页签各一张）
-	(wp as Node).call("_on_tile_clicked", v185_cap, "", Vector2(400, 300))
+	# ② 据点管理窗口（三个页签各一张）—— v1.8.20.4：要命中「首都星」才开面板（认格子）
+	var v185_map: Node = (wp as Node).get("map")
+	var v185_star: Vector2 = v185_map.get_global_transform() * (v185_map.call("tile_center", v185_cap) as Vector2)
+
+	(wp as Node).call("_on_tile_clicked", v185_cap, "", v185_star)
 	for f in 4:
 		await get_tree().process_frame
 	await _shoot("08b_stronghold_info")
+
 	var v185_sp: Variant = (wp as Node).get("stronghold_panel")
 	if v185_sp != null:
 		for v185_tab in [["decree", "08c_stronghold_decree"], ["labor", "08d_stronghold_labor"]]:

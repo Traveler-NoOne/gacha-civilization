@@ -26,6 +26,9 @@ const TILE_ACTIONS := [
 var action_menu: PanelContainer = null
 var build_panel: BuildPanel = null
 var sel_uid := ""
+## 悬停 1 秒后要显示的那一格；每次悬停变化就自增序号，用来作废过期的那次
+var _hover_seq := 0
+
 var pick_mode := ""      # "" / "recruit" / "move" / "attack"
 var pick_unit := ""
 var pending_tile := ""   # 招募选地：已选中的目标地块
@@ -93,6 +96,8 @@ func _build() -> void:
 	map.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	map.tile_clicked.connect(_on_tile_clicked)
 	map.tile_right_clicked.connect(_on_tile_right_clicked)
+	map.hover_changed.connect(_on_hover_changed)
+
 	mv.add_child(map)
 
 	call_deferred("_init_map")
@@ -120,25 +125,51 @@ func _on_tile_clicked(key: String, uid: String, gpos: Vector2) -> void:
 		return
 	# 左键点任何地方都先收起右键菜单
 	_hide_action_menu()
-	# ② 点中了棋子图标 → 直接选中它
+	# v1.8.20.4：小窗改由「悬停」负责，点击一律先把它收起来
+	_hide_tile_info()
+	# ② 点中了棋子图标 → 直接选中它（图标优先于首都星）
 	if uid != "":
 		selected = key
 		sel_uid = uid
-		_hide_tile_info()
 		_refresh_after_select()
 		return
-	# 没点到棋子：先把"选中单位"清掉，再按地块归属分派
-	selected = key
-	sel_uid = ""
-	# ③ 我方领地 → 打开右侧「据点管理窗口」
+	# ③ 点中了首都星 → 打开「这一格」对应的据点面板（认格子）
+	if map != null and map.capital_star_hit(key, gpos):
+
+		selected = key
+		sel_uid = ""
+		_refresh_after_select()
+		_open_stronghold_panel(key)
+		return
+	# ④ 我方其它格子 → 只更新选中，不弹面板、不弹信息
 	if str(GameState.tile_at(key).get("owner", "")) == "player":
-		_hide_tile_info()
+		selected = key
+		sel_uid = ""
 		_refresh_after_select()
-		_open_stronghold_panel()
 		return
-	# ④ 其它地块 → 简约地块信息小窗
+	# ⑤ 空白 / 敌方格 → 取消选择，什么都不打开
+	selected = ""
+	sel_uid = ""
 	_refresh_after_select()
-	_show_tile_info(key, gpos)
+
+
+## v1.8.20.4：悬停 1 秒后才显示简约地块信息（不依赖点击）。
+## at 传了位置就用它（测试用）；不传就用鼠标当前位置。
+func _on_hover_changed(key: String, at: Vector2 = Vector2(-1.0, -1.0)) -> void:
+	_hover_seq += 1
+	var my_seq := _hover_seq
+	if key == "":
+		_hide_tile_info()
+		return
+	var pos := at
+	if pos.x < 0.0:
+		pos = get_viewport().get_mouse_position()
+	await get_tree().create_timer(1.0).timeout
+	# 这 1 秒里又换了格子（或进入了选地模式）→ 这次作废
+	if my_seq != _hover_seq or pick_mode != "" or not is_visible_in_tree():
+		return
+	_show_tile_info(key, pos)
+
 
 
 ## 选中状态变化后要刷新的一串地方（原来在点击处理里抄了两遍，收成一处）
@@ -190,11 +221,14 @@ func _refresh_marks() -> void:
 
 ## v1.8.4：打开据点管理窗口。
 ## 关闭方式：窗口右上角的 ✕（**故意不"点别处就自动关"** —— 管理窗口不该因为你点了一下地图就消失）。
-func _open_stronghold_panel() -> void:
+## v1.8.20.4：认格子 —— 打开被点那一格对应的据点面板
+func _open_stronghold_panel(key: String) -> void:
 	_ensure_stronghold_panel()
+	stronghold_panel.key = key
 	stronghold_panel.visible = true
 	_place_stronghold_panel()
 	stronghold_panel.refresh()
+
 
 
 ## 贴着世界页右侧摆（上下留边距）。窗口尺寸固定，所以只要按页宽算一次。

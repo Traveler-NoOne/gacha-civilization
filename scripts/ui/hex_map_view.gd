@@ -12,6 +12,10 @@ signal tile_clicked(key: String, uid: String, gpos: Vector2)
 
 ## v1.8.5：右键点地块（用于弹"球形图标操作菜单"）
 signal tile_right_clicked(key: String, gpos: Vector2)
+## v1.8.20.4：鼠标悬停到的格子变了就发一次（移出地图 / 开始拖动平移时发 ""）
+## 简约地块信息小窗改由它驱动 —— 悬停 1 秒后才显示，点击不再负责弹小窗。
+signal hover_changed(key: String)
+
 
 const SIZE_BASE := 34.0
 const SIZE_MIN := 20.0
@@ -221,7 +225,8 @@ func unit_icon_positions(key: String) -> Array:
 	var n := units.size()
 	if n == 0:
 		return out
-	var center := axial_to_screen(WorldGen.coord_of(key))
+	var center := tile_center(key)
+
 	var span: float = hex_size * 0.36
 	var uy := center + Vector2(0, -hex_size * 0.50)
 	var icon_start := uy + Vector2(hex_size * 0.10, 0.0)
@@ -401,15 +406,40 @@ func _gui_input(event: InputEvent) -> void:
 		if _dragging:
 			origin = _origin_start + (mm.position - _drag_start)
 			queue_redraw()
+			# 平移途中不显示悬停信息（并通知外面收起）
+			if hover_key != "":
+				hover_key = ""
+				hover_changed.emit("")
 			accept_event()
 		else:
 			var k2 := screen_to_key(mm.position)
 			if k2 != hover_key:
 				hover_key = k2
 				queue_redraw()
+				hover_changed.emit(k2)
+
+
+
+## 某一格的中心（地图本地坐标）。绘制与命中都用它，避免出现两份口径。
+func tile_center(key: String) -> Vector2:
+	return axial_to_screen(WorldGen.coord_of(key))
+
+
+## 点中的是不是这一格的首都星？**收全局坐标**（转换放在这里，调用方不用操心）。
+## 半径与绘制共用 _draw_tile_stronghold() 里的 hex_size * 0.42 —— 看到多大，就能点多中。
+func capital_star_hit(key: String, global_pos: Vector2) -> bool:
+	var t := GameState.tile_at(key)
+	if not bool(t.get("discovered", false)):
+		return false
+	if not bool(t.get("is_capital", false)) and key != str(GameState.state.get("capital", "")):
+		return false
+	var local := get_global_transform().affine_inverse() * global_pos
+	return local.distance_to(tile_center(key)) <= hex_size * 0.42
+
 
 
 ## 这一格上，点到了哪个单位的图标？（没点中返回 ""）
+
 ## 命中口径**与绘制共用** unit_icon_positions() —— 位置一致，不会"看得到却点不到"。
 ## 多个图标都落进范围内时取**最近**的那个。
 func unit_uid_at(key: String, pos: Vector2) -> String:

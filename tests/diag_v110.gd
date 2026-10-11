@@ -74,11 +74,16 @@ func _ready() -> void:
 	var bp: Variant = wp.get("build_panel")
 	suite.ok(bp != null and (bp as Control).visible, "🔨 能打开修建浮窗")
 
-	# ⑥ 点击语义：点我方领地 → 据点管理窗口
-	wp.call("_on_tile_clicked", cap, "", Vector2(400, 300))
+	# ⑥ 点击语义：点首都星 → 据点管理窗口（v1.8.20.4：改成命中首都星才开）
+
+	var v110_map: Node = wp.get("map")
+	var v110_star: Vector2 = v110_map.get_global_transform() * (v110_map.call("tile_center", cap) as Vector2)
+	wp.call("_on_tile_clicked", cap, "", v110_star)
+
 	await suite.frames(4)
 	var sp: Variant = wp.get("stronghold_panel")
-	suite.ok(sp != null and (sp as Control).visible, "点我方领地能打开据点管理窗口")
+	suite.ok(sp != null and (sp as Control).visible, "点首都星能打开据点管理窗口")
+
 
 	# ⑦ 资源栏中间的「统计」入口 —— 四种统计类型都要能出内容（不能有死页）
 	gs.call("_toggle_stats_panel")

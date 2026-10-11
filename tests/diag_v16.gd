@@ -63,8 +63,11 @@ func _ready() -> void:
 	for i in 4:
 		await get_tree().process_frame
 	var cap_k := str(GameState.state["capital"])
-	# 打开据点管理窗口（点我方领地）
-	world.call("_on_tile_clicked", cap_k, "", Vector2.ZERO)
+	# 打开据点管理窗口（v1.8.20.4：改点首都星命中）
+	var v16_map: Node = world.get("map")
+	var v16_star: Vector2 = v16_map.get_global_transform() * (v16_map.call("tile_center", cap_k) as Vector2)
+	world.call("_on_tile_clicked", cap_k, "", v16_star)
+
 	for i in 4:
 		await get_tree().process_frame
 	var sp: Variant = world.get("stronghold_panel")
@@ -99,7 +102,8 @@ func _ready() -> void:
 			print("  入队 %s：%s（queued=%s）" % [q_id, str(qr["ok"]), str(qr.get("queued", false))])
 		# 重新打开窗口（走**缓存**路径）—— 修复前这里两块都是空的
 		(sp as Control).visible = false
-		world.call("_on_tile_clicked", cap_k, "", Vector2.ZERO)
+		world.call("_on_tile_clicked", cap_k, "", v16_star)
+
 		for i in 3:
 			await get_tree().process_frame
 		sp.set("tab", "labor")

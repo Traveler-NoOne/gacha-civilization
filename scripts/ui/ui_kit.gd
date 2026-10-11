@@ -209,8 +209,6 @@ static func image_button(name: String, tooltip_text: String = "", w: int = 48, h
 	return b
 
 
-
-
 ## 造一个指定高度的空白撑开块（h 为高度），用于手动加纵向间距。
 static func spacer(h: float) -> Control:
 	var c := Control.new()
@@ -364,11 +362,17 @@ static func place_popup_now(p: Control) -> void:
 	var offset: Vector2 = p.get_meta("popup_offset")
 	var sz := p.size
 	var vp := p.get_viewport_rect().size
+	
+	# 水平：优先放右侧；右边放不下 → 翻到点的左侧
+	var x := anchor.x + offset.x
+	if x + sz.x > vp.x:
+		x = anchor.x - sz.x - offset.x
+		
 	var y := anchor.y + offset.y
 	if y + sz.y > vp.y:                      # 下方放不下 → 翻到点的上方
 		y = anchor.y - sz.y - offset.y
 	p.global_position = Vector2(
-		clampf(anchor.x + offset.x, 0.0, maxf(0.0, vp.x - sz.x)),
+		clampf(x, 0.0, maxf(0.0, vp.x - sz.x)),
 		clampf(y, 0.0, maxf(0.0, vp.y - sz.y)))
 
 

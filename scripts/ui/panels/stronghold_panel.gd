@@ -24,6 +24,9 @@ const TABS := [
 ]
 
 var tab := "info"
+## v1.8.20.4：面板认的是"被点的那一格"，由调用方设进来
+var key := ""
+
 var tab_bar: HBoxContainer
 var content_box: VBoxContainer
 var decree_box: VBoxContainer
@@ -99,8 +102,12 @@ func refresh() -> void:
 	for c in build_box.get_children():
 		c.queue_free()
 	_refresh_tabs()
-	var sh := GameState.current_stronghold()
+	# v1.8.20.4：按"被点的那一格"找据点（认格子）；没给格子时退回旧的"默认据点"
+	var sh := GameState.stronghold_by_id(GameState.stronghold_of(GameState.tile_at(key)))
 	if sh.is_empty():
+		sh = GameState.current_stronghold()
+	if sh.is_empty():
+
 		content_box.add_child(UIKit.dim("（没有据点）"))
 		return
 	match tab:

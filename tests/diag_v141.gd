@@ -71,7 +71,11 @@ func _ready() -> void:
 	var cks := WorldGen.claimable_keys(GameState.state)
 	var txt := ""
 	if not cks.is_empty():
-		world.call("_on_tile_clicked", cks[0], "", Vector2.ZERO)
+			# v1.8.20.4：小窗改由悬停驱动（点击不再弹小窗）
+		world.call("_on_hover_changed", cks[0], Vector2.ZERO)
+		await get_tree().create_timer(1.3).timeout
+
+
 		for i in 3:
 			await get_tree().process_frame
 		# v1.8.5：旧右侧规划面板已删除，「占领」按钮搬进了「简约地块信息小窗」
