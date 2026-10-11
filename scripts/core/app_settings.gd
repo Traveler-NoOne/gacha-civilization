@@ -18,6 +18,7 @@ var _autosave_interval: int = Consts.AUTOSAVE_INTERVAL_DEFAULT
 ##    所以默认值就是字面量，合法性由 main.gd 应用时用 UI.has_key() 兜底。
 var _resolution := "1280x720"
 
+var _fullscreen := false
 
 func _ready() -> void:
 	load_settings()
@@ -69,6 +70,16 @@ func set_resolution(key: String) -> void:
 	changed.emit()
 
 
+func fullscreen() -> bool:
+	return _fullscreen
+
+
+func set_fullscreen(on: bool) -> void:
+	if _fullscreen == on:
+		return
+	_fullscreen = on
+	save_settings()
+	changed.emit()
 
 
 signal changed
@@ -82,6 +93,7 @@ func save_settings() -> void:
 	cfg.set_value("cheat", "enabled", _cheat_enabled)
 	cfg.set_value("save", "autosave_interval", _autosave_interval)
 	cfg.set_value("display", "resolution", _resolution)
+	cfg.set_value("display", "fullscreen", _fullscreen)
 	var err := cfg.save(SETTINGS_PATH)
 	if err != OK:
 		push_warning("全局设置保存失败（错误 %d）：%s" % [err, SETTINGS_PATH])
@@ -94,3 +106,4 @@ func load_settings() -> void:
 	_cheat_enabled = bool(cfg.get_value("cheat", "enabled", false))
 	_autosave_interval = int(cfg.get_value("save", "autosave_interval", Consts.AUTOSAVE_INTERVAL_DEFAULT))
 	_resolution = str(cfg.get_value("display", "resolution", "1280x720"))
+	_fullscreen = bool(cfg.get_value("display", "fullscreen", false))

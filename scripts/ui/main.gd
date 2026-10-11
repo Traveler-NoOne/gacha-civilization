@@ -51,9 +51,12 @@ func _apply_resolution() -> void:
 func _apply_window_size() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
-	DisplayServer.window_set_size(UI.current_size())
-	await get_tree().process_frame
-	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, true)
+	if AppSettings.fullscreen():
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	else:
+		DisplayServer.window_set_size(UI.current_size())
+		await get_tree().process_frame
+		DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, true)
 	var got := DisplayServer.window_get_size()
 	print("分辨率档 %s：窗口 %s（期望 %s）" % [UI.current_key(), str(got), str(UI.current_size())])
 	# 编辑器「内嵌游戏窗口」模式下，Godot 会拒绝改窗口尺寸（控制台会提示 Embedded window can't be resized）

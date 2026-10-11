@@ -257,7 +257,19 @@ func _open_settings() -> void:
 	fps.item_selected.connect(func(idx: int) -> void:
 		Engine.max_fps = _fps_opts[idx])
 	page_video.add_child(_row("帧率限制", fps))
-
+	# 初始化全屏设置
+	var fs_box := UIKit.toggle_checkbox("全屏", AppSettings.fullscreen())
+	fs_box.toggled.connect(func(on: bool) -> void:
+		AppSettings.set_fullscreen(on)
+		if on:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		else:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_size(UI.current_size())
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, true))
+	page_video.add_child(fs_box)
+	
+	
 	# v1.2：自动存档周期数
 	var auto_spin := SpinBox.new()
 	auto_spin.min_value = Consts.AUTOSAVE_INTERVAL_MIN
