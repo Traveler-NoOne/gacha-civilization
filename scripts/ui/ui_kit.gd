@@ -135,12 +135,10 @@ static func style_button(b: Button, accent: bool = false, danger: bool = false) 
 # 控件工厂
 # ---------------------------------------------------------------------------
 ## 造一个金色标题文字（Label），size 为字号。
+## 等价于 text_label(text, size, GOLD) —— 只差一个默认字号（标题 20 / 正文 13）。
 static func title(text: String, size: int = 20) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", UI.fs(size))
-	l.add_theme_color_override("font_color", GOLD)
-	return l
+	return text_label(text, size, GOLD)
+
 
 
 ## 造一个普通文字（Label），可指定字号与颜色。
@@ -157,42 +155,38 @@ static func dim(text: String, size: int = 12) -> Label:
 	return text_label(text, size, TEXT_DIM)
 
 
-## 造一个金色主要按钮（高 40，默认字号 18），用于界面里最显眼的操作。
-static func primary(text: String, size: int = 18) -> Button:
+## 四种按钮的**唯一实现**：造一个套好统一外观的按钮。
+## w / h 是最小尺寸（用 1280 基准的数字，内部走 UI.px）；accent / danger 见 style_button。
+## 下面四个对外工厂只是它的不同参数写法 —— 以后再加一种（比如"中号"）也只要一行。
+static func _button(text: String, size: int, w: float, h: float,
+		accent: bool = false, danger: bool = false) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(0, UI.px(40))
+	b.custom_minimum_size = Vector2(UI.px(w), UI.px(h))
 	b.add_theme_font_size_override("font_size", UI.fs(size))
-	style_button(b, true)
+	style_button(b, accent, danger)
 	return b
+
+
+## 造一个金色主要按钮（高 40，默认字号 18），用于界面里最显眼的操作。
+static func primary(text: String, size: int = 18) -> Button:
+	return _button(text, size, 0.0, 40.0, true)
 
 
 ## 造一个普通按钮（高 34，默认字号 14），最常用的按钮类型。
 static func normal(text: String, size: int = 14) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size = Vector2(0, UI.px(34))
-	b.add_theme_font_size_override("font_size", UI.fs(size))
-	style_button(b)
-	return b
+	return _button(text, size, 0.0, 34.0)
+
 
 ## 造一个小按钮（高 26，默认字号 12），用于次级操作。
 static func small(text: String, size: int = 12) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size = Vector2(0, UI.px(26))
-	b.add_theme_font_size_override("font_size", UI.fs(size))
-	style_button(b)
-	return b
+	return _button(text, size, 0.0, 26.0)
+
 
 ## 造一个迷你按钮（26×22，默认字号 11），用于列表行内的小操作；danger=true 为红色危险按钮。
 static func tiny(text: String, size: int = 11, danger: bool = false) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size = Vector2(UI.px(26), UI.px(22))
-	b.add_theme_font_size_override("font_size", UI.fs(size))
-	style_button(b, false, danger)
-	return b
+	return _button(text, size, 26.0, 22.0, false, danger)
+
 
 ## 通用「图片按钮」：贴一张 art/ui/<name>.png，抹掉默认方框，可设尺寸与悬停提示。
 ## 缺图时退回普通按钮外观（看得见、能点），不会变成隐形按钮。
@@ -214,14 +208,8 @@ static func image_button(name: String, tooltip_text: String = "", w: int = 48, h
 		print("缺失图片:", name)
 	return b
 
-## 设置「图片按钮」的选中态：只做中性的明暗变化（灰阶），不带任何色调。
-## 选中 = 原图全亮；未选中 = 整体调暗；悬停 / 按下给轻微的亮度反馈。
-## 注：图标色是相乘的，只能在原图基础上「调暗」，做不到比原图更亮
-##     所以「选中变亮」实际是把「未选中调暗」反衬出来的。
-static func apply_icon_active(b: Button, on: bool) -> void:
-	b.add_theme_color_override("icon_normal_color", Color(1, 1, 1) if on else Color(0.78, 0.78, 0.78))  # 选中全亮 / 未选中微暗
-	b.add_theme_color_override("icon_hover_color", Color(1, 1, 1))        # 悬停：提亮到全亮
-	b.add_theme_color_override("icon_pressed_color", Color(0.90, 0.90, 0.90))  # 按下：比全亮略沉一点
+
+
 
 ## 造一个指定高度的空白撑开块（h 为高度），用于手动加纵向间距。
 static func spacer(h: float) -> Control:
