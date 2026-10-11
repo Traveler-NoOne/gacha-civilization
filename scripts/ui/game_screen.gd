@@ -303,13 +303,14 @@ func _build_floating_ui() -> void:
 ## ⚠️ 悬浮层一律用 **TOP_LEFT 锚点 + 按屏幕尺寸算绝对位置**，并在 resized 时重摆。
 ##（"锚右上 + 负偏移"那套很容易摆错：锚点若在 add_child 之前设，还没有父节点可参照。）
 func _place_floating_ui() -> void:
-	var bh := 40.0
+	var bh := UI.px(40)
+	var margin := UI.px(CORNER_MARGIN)
 	if is_instance_valid(corner_tech_btn):
 		corner_tech_btn.position = Vector2(CORNER_MARGIN, CORNER_TOP)
 	if is_instance_valid(corner_log_btn):
 		corner_log_btn.position = Vector2(size.x - CORNER_MARGIN - bh, CORNER_TOP - 6.0)
 	# 左下角一排（至宝、世界泡），按 VIEWS 顺序相邻排开
-	var x := CORNER_MARGIN
+	var x := margin
 	var y := size.y - CORNER_MARGIN - bh
 	for vid in nav_buttons:
 		var b: Button = nav_buttons[vid]
