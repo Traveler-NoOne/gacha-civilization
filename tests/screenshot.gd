@@ -40,7 +40,9 @@ const SHOT_DOCS := {
 	"07_view_world": "大世界（纯地图，无浮窗）｜五个角落按钮 | 地图铺满、四个角按钮都在位、底栏确实没了",
 	"08a_tile_info": "简约地块信息小窗（点非我方地块）｜势力/名称/地形/土地/建筑 | 小窗在鼠标处、内容正确、没有残留据点窗口",
 	"08a2_tile_info_low": "简约地块信息小窗·在下半屏点已点亮地块｜应翻到鼠标上方或被夹进屏幕 | 小窗整个可见、没有被屏幕底边切掉",
+	"08c2_action_menu_low": "**右键功能菜单·在下半屏弹出**（带建筑按钮）｜位置应贴在鼠标点附近、不偏不裁 | ①整个菜单在屏幕内 ②没有被屏幕底边切掉 ③与鼠标点的距离合理（不是偏到别处）",
 	"08b_stronghold_info": "据点管理窗口·信息页（点我方领地）｜掌控力/已用土地/据点明细 | 上方三个按钮在窗口边框外、下半段两条队列",
+
 
 	"08c_stronghold_decree": "据点管理窗口·政事页｜政事列表+政事队列 | 条目与按钮、队列跑条",
 	"08d_stronghold_labor": "据点管理窗口·人力页｜按建筑列人力 | 行内容与「无需人力」过滤",
@@ -306,7 +308,13 @@ func _ready() -> void:
 	for f in 4:
 		await get_tree().process_frame
 	await _shoot("08e_tile_menu")
+	# v1.8.20.3：下半屏的右键功能菜单 —— 位置对不对只能靠这张图判（曾经这里偏过）
+	(wp as Node).call("_on_tile_right_clicked", v185_cap, Vector2(520, 660))
+	for f3 in 4:
+		await get_tree().process_frame
+	await _shoot("08c2_action_menu_low")
 	(wp as Node).call("_hide_action_menu")
+
 	(wp as Node).call("_run_tile_action", "build", v185_cap)
 	for f in 5:
 		await get_tree().process_frame
@@ -516,7 +524,16 @@ func _shoot(name: String) -> void:
 	# 多等几帧：视觉检查要的是**稳定态**，不能拍到布局还没算完 / 动画刚起步的那一帧
 	for i in 4:
 		await get_tree().process_frame
+	# 再等到所有补间动画跑完：弹窗淡入(0.15s)、资源数字滚动都跨好几帧，只等固定帧数等于拍到中途 ——
+	# 一旦别处增减了镜头、帧预算变了，这些画面就会"看起来变了"，其实只是动画相位不同
+	#（v1.8.20.3 就吃过这个假报警：多插一张图，三张老图跟着"变"）。
+	# spins 上限是兜底：万一有循环动画，别把测试挂死。
+	var spins := 0
+	while not get_tree().get_processed_tweens().is_empty() and spins < 30:
+		spins += 1
+		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
+
 	var img := get_viewport().get_texture().get_image()
 	var path := "%s/%s.png" % [OUT_DIR, name]
 	var err := img.save_png(path)

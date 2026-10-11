@@ -331,8 +331,51 @@ static func _apply_checkbox_look(b: Button, on: bool, label_text: String) -> voi
 
 
 # ---------------------------------------------------------------------------
+# 贴点弹窗的定位（左键简约小窗 / 右键功能菜单 / 以后任何"点哪弹哪"都走这里）
+# ---------------------------------------------------------------------------
+## 把「贴着某个点弹出来的浮窗」摆到正确位置。
+##
+## 专治两个坑 —— 左键简约小窗、右键功能菜单各踩过一次，别再各写一套：
+##   1) **坐标**：gpos 是鼠标 / 地块的**全局**坐标，所以必须用 global_position 赋值。
+##      写成 position（相对父节点）时，父节点原点只要不是 0 就会整体偏掉。
+##   2) **尺寸**：容器的最小尺寸要**下一帧**才会按新内容算准。所以这里把这个点记在 p 身上，
+##      等 minimum_size_changed 触发时再摆一次；否则弹窗会从旧位置向下长出屏幕。
+##
+## 摆放规则：优先放在点的右下方 offset 处；下方放不下就翻到点的上方；最后夹进视口。
+## 尺寸会收缩到刚好包住内容（p 自己的 custom_minimum_size 仍是最小值）。
+##
+## 用法：p 装好内容后调一次 UIKit.place_popup_at(p, gpos)（内容再变会自动重摆）。
+## 本函数**不管显示/隐藏** —— 那是调用方的事。
+static func place_popup_at(p: Control, gpos: Vector2, offset: Vector2 = Vector2(10.0, 10.0)) -> void:
+	p.set_meta("popup_anchor", gpos)
+	p.set_meta("popup_offset", offset)
+	if not p.has_meta("popup_wired"):
+		p.set_meta("popup_wired", true)
+		p.minimum_size_changed.connect(func() -> void: UIKit.place_popup_now(p))
+	UIKit.place_popup_now(p)
+
+
+## 按记下来的点 + **当前**尺寸真的摆一次（place_popup_at 内部用；也可手动调）。
+static func place_popup_now(p: Control) -> void:
+	if not is_instance_valid(p) or not p.has_meta("popup_anchor"):
+		return
+	p.size = p.get_combined_minimum_size()
+	var anchor: Vector2 = p.get_meta("popup_anchor")
+	var offset: Vector2 = p.get_meta("popup_offset")
+	var sz := p.size
+	var vp := p.get_viewport_rect().size
+	var y := anchor.y + offset.y
+	if y + sz.y > vp.y:                      # 下方放不下 → 翻到点的上方
+		y = anchor.y - sz.y - offset.y
+	p.global_position = Vector2(
+		clampf(anchor.x + offset.x, 0.0, maxf(0.0, vp.x - sz.x)),
+		clampf(y, 0.0, maxf(0.0, vp.y - sz.y)))
+
+
+# ---------------------------------------------------------------------------
 # 弹窗
 # ---------------------------------------------------------------------------
+
 ## 造一个通用弹窗（DialogLayer），只设好标题与宽度；内容之后再调 d.set_content(...) 塞入。
 static func dialog(title_text: String, width: float = 480.0) -> DialogLayer:
 	var layer := DialogLayer.new()

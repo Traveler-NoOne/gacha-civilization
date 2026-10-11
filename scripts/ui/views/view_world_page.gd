@@ -12,8 +12,7 @@ var selected := ""
 # ---------------------------------------------------------------------------
 ## v1.8.2：简约地块信息小窗（点在非我方地块时，在鼠标位置弹出）
 var tile_info_popup: PanelContainer = null
-## 小窗当前该贴的鼠标位置 —— 尺寸下一帧才准，那时要拿它重算位置
-var _tile_info_gpos := Vector2.ZERO
+
 
 var tile_info_box: VBoxContainer = null
 
@@ -247,12 +246,9 @@ func _show_tile_actions(key: String, gpos: Vector2) -> void:
 			_run_tile_action(aid, key))
 		row.add_child(b)
 	action_menu.visible = true
-	action_menu.reset_size()
-	var sz := action_menu.size
-	var vp := get_viewport_rect().size
-	action_menu.position = Vector2(
-		clampf(gpos.x + 6.0, 0.0, maxf(0.0, vp.x - sz.x)),
-		clampf(gpos.y + 6.0, 0.0, maxf(0.0, vp.y - sz.y)))
+	# 贴点弹窗统一走 UIKit.place_popup_at（全局坐标 + 尺寸算准后重摆 + 下方放不下翻上方 + 夹进视口）
+	UIKit.place_popup_at(action_menu, gpos, Vector2(6.0, 6.0))
+
 
 
 func _hide_action_menu() -> void:
@@ -319,9 +315,7 @@ func _ensure_tile_info_popup() -> void:
 	tile_info_box = VBoxContainer.new()
 	tile_info_box.add_theme_constant_override("separation", UI.fs(3))
 	tile_info_popup.add_child(tile_info_box)
-	# 容器的"最小尺寸"要到下一帧才会按新内容重算 —— 所以光在当前帧设一次不够，
-	# 会留下一个过时的尺寸（实测 354px，而内容只需要 66px）。等它算好时自动校一次。
-	tile_info_popup.minimum_size_changed.connect(_fit_tile_info_size)
+
 
 
 ## 在鼠标位置显示某一格的简约信息（取代"选中地块"）
@@ -335,7 +329,7 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 	if not discovered:
 		tile_info_box.add_child(UIKit.dim("（未点亮：迷雾）", 11))
 		tile_info_popup.visible = true
-		_place_tile_info(gpos)
+		UIKit.place_popup_at(tile_info_popup, gpos, Vector2(14.0, 10.0))
 		return
 	var owner_txt := "无主"
 	var owner_col := UIKit.TEXT_DIM
@@ -376,44 +370,14 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 			refresh())
 		tile_info_box.add_child(cb)
 	tile_info_popup.visible = true
-	_place_tile_info(gpos)
-
-
-## 把窗口放到鼠标旁边；贴边时往回收，避免跑出屏幕
-func _place_tile_info(gpos: Vector2) -> void:
-	_tile_info_gpos = gpos
-	_fit_tile_info_size()      # 它会把尺寸设好、并顺手调 _apply_tile_info_pos()
-
-
-## 按「记下来的鼠标位置 + **当前**尺寸」摆放。
-## 单独抽出来是因为**尺寸要到下一帧才量得准**（见 _fit_tile_info_size 的注释）——
-## 尺寸一变就必须重算位置，否则小窗会从旧位置向下长出屏幕。
-func _apply_tile_info_pos() -> void:
-	if tile_info_popup == null:
-		return
-	var sz := tile_info_popup.size
-	var vp := get_viewport_rect().size
-	# 优先放在鼠标右下方；下方放不下就翻到上方（否则会被夹到贴着屏幕底、还盖住鼠标）
-	var y := _tile_info_gpos.y + 10.0
-	if y + sz.y > vp.y:
-		y = _tile_info_gpos.y - sz.y - 10.0
-	tile_info_popup.global_position = Vector2(
-		clampf(_tile_info_gpos.x + 14.0, 0.0, maxf(0.0, vp.x - sz.x)),
-		clampf(y, 0.0, maxf(0.0, vp.y - sz.y)))
+	UIKit.place_popup_at(tile_info_popup, gpos, Vector2(14.0, 10.0))
 
 
 
-## 让面板收缩到刚好包住内容。
-## { 面板是自由摆放的（没进容器），尺寸不会自动跟着内容缩；而"最小尺寸"又要到下一帧才重算 }
-## → 所以既要在这里主动设一次，也要靠 minimum_size_changed 在算好后补一次。
-func _fit_tile_info_size() -> void:
-	if tile_info_popup == null:
-		return
-	tile_info_popup.size = tile_info_popup.get_combined_minimum_size()
-	# v1.8.20.2：尺寸是在**这一帧**才量准的，所以必须跟着重算一次位置 ——
-	# 否则"内容变高"时小窗会从旧位置向下长出屏幕（实测：下半屏点已点亮地块，
-	# 简约信息跑到屏幕外；迷雾格内容短、新旧尺寸差不多，所以看不出来）。
-	_apply_tile_info_pos()
+
+
+
+
 
 
 
