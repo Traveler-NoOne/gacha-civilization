@@ -12,6 +12,9 @@ var selected := ""
 # ---------------------------------------------------------------------------
 ## v1.8.2：简约地块信息小窗（点在非我方地块时，在鼠标位置弹出）
 var tile_info_popup: PanelContainer = null
+## 小窗当前该贴的鼠标位置 —— 尺寸下一帧才准，那时要拿它重算位置
+var _tile_info_gpos := Vector2.ZERO
+
 var tile_info_box: VBoxContainer = null
 
 ## v1.8.4：据点管理窗口（点我方领地块时在右侧打开）
@@ -378,12 +381,26 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 
 ## 把窗口放到鼠标旁边；贴边时往回收，避免跑出屏幕
 func _place_tile_info(gpos: Vector2) -> void:
-	_fit_tile_info_size()
+	_tile_info_gpos = gpos
+	_fit_tile_info_size()      # 它会把尺寸设好、并顺手调 _apply_tile_info_pos()
+
+
+## 按「记下来的鼠标位置 + **当前**尺寸」摆放。
+## 单独抽出来是因为**尺寸要到下一帧才量得准**（见 _fit_tile_info_size 的注释）——
+## 尺寸一变就必须重算位置，否则小窗会从旧位置向下长出屏幕。
+func _apply_tile_info_pos() -> void:
+	if tile_info_popup == null:
+		return
 	var sz := tile_info_popup.size
 	var vp := get_viewport_rect().size
+	# 优先放在鼠标右下方；下方放不下就翻到上方（否则会被夹到贴着屏幕底、还盖住鼠标）
+	var y := _tile_info_gpos.y + 10.0
+	if y + sz.y > vp.y:
+		y = _tile_info_gpos.y - sz.y - 10.0
 	tile_info_popup.global_position = Vector2(
-		clampf(gpos.x + 14.0, 0.0, maxf(0.0, vp.x - sz.x)),
-		clampf(gpos.y + 10.0, 0.0, maxf(0.0, vp.y - sz.y)))
+		clampf(_tile_info_gpos.x + 14.0, 0.0, maxf(0.0, vp.x - sz.x)),
+		clampf(y, 0.0, maxf(0.0, vp.y - sz.y)))
+
 
 
 ## 让面板收缩到刚好包住内容。
@@ -393,6 +410,11 @@ func _fit_tile_info_size() -> void:
 	if tile_info_popup == null:
 		return
 	tile_info_popup.size = tile_info_popup.get_combined_minimum_size()
+	# v1.8.20.2：尺寸是在**这一帧**才量准的，所以必须跟着重算一次位置 ——
+	# 否则"内容变高"时小窗会从旧位置向下长出屏幕（实测：下半屏点已点亮地块，
+	# 简约信息跑到屏幕外；迷雾格内容短、新旧尺寸差不多，所以看不出来）。
+	_apply_tile_info_pos()
+
 
 
 func _hide_tile_info() -> void:

@@ -39,7 +39,9 @@ const SHOT_DOCS := {
 	"06d_stats_units": "统计面板·单位页｜总数 / 客人公民 / 人力 / 按职业 / 编队 | 分组清晰、数字合理",
 	"07_view_world": "大世界（纯地图，无浮窗）｜五个角落按钮 | 地图铺满、四个角按钮都在位、底栏确实没了",
 	"08a_tile_info": "简约地块信息小窗（点非我方地块）｜势力/名称/地形/土地/建筑 | 小窗在鼠标处、内容正确、没有残留据点窗口",
+	"08a2_tile_info_low": "简约地块信息小窗·在下半屏点已点亮地块｜应翻到鼠标上方或被夹进屏幕 | 小窗整个可见、没有被屏幕底边切掉",
 	"08b_stronghold_info": "据点管理窗口·信息页（点我方领地）｜掌控力/已用土地/据点明细 | 上方三个按钮在窗口边框外、下半段两条队列",
+
 	"08c_stronghold_decree": "据点管理窗口·政事页｜政事列表+政事队列 | 条目与按钮、队列跑条",
 	"08d_stronghold_labor": "据点管理窗口·人力页｜按建筑列人力 | 行内容与「无需人力」过滤",
 	"08e_tile_menu": "右键地块弹出的球形菜单｜🔨 修建建筑 | 球形按钮居中、提示文字（tooltip）不截断",
@@ -268,8 +270,22 @@ func _ready() -> void:
 		for f in 4:
 			await get_tree().process_frame
 		await _shoot("08a_tile_info")
+	# v1.8.20.2：下半屏点「已点亮的地块」—— 内容比迷雾格长，小窗应翻到鼠标上方或被正确夹进屏幕
+	#（曾经这里是坏的：小窗从旧位置向下长出屏幕）
+	var v185b_lit := ""
+	for k2 in GameState.state["tiles"].keys():
+		var t2 := GameState.tile_at(str(k2))
+		if bool(t2.get("discovered", false)) and str(t2.get("owner", "")) != "player":
+			v185b_lit = str(k2)
+			break
+	if v185b_lit != "":
+		(wp as Node).call("_on_tile_clicked", v185b_lit, "", Vector2(520, 640))
+		for f in 4:
+			await get_tree().process_frame
+		await _shoot("08a2_tile_info_low")
 	# 简约信息小窗和据点管理窗口是**两个不同的东西**，中间必须关一次
 	await _clean("简约信息小窗拍完")
+
 	# ② 据点管理窗口（三个页签各一张）
 	(wp as Node).call("_on_tile_clicked", v185_cap, "", Vector2(400, 300))
 	for f in 4:
