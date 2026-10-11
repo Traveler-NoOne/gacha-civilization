@@ -319,7 +319,7 @@ func _place_floating_ui() -> void:
 		b.position = Vector2(x, y)
 		x += b.custom_minimum_size.x + 8.0
 	if is_instance_valid(end_btn):
-		end_btn.position = Vector2(size.x - CORNER_MARGIN - 100.0, y)
+		end_btn.position = Vector2(size.x - margin - UI.px(100), y)
 	if stats_panel != null and is_instance_valid(stats_panel):
 		# 展开在「统计」按钮的正下方（和"点资源弹收支窗"一个位置逻辑）
 		var gp := Vector2.ZERO
