@@ -100,7 +100,40 @@ func _build() -> void:
 
 	mv.add_child(map)
 
+	# ---- v1.8.20.5：底部单位立绘条 + 左下角单位操作窗（按 v1.7 原样补回来） ----
+	# 起因：这两块原本建在 v1.7 的这个页面里，v1.8 重写世界页时**只把"刷新"搬了过来、"创建"丢了** ——
+	# 于是 _refresh_unit_strip / _refresh_unit_panel 开头的 is_instance_valid 判断永远成立、直接 return，
+	# 底部单位条与单位操作窗再没出现过（攻击 / 移动 / 驻军三个按钮都在那个窗里，v1.6.1 的核心交互）。
+	# 摆放全靠锚点（和 v1.7 一致），尺寸/间距走 UI.px / UI.fs；不放进 map —— map 开了 clip_contents。
+	unit_strip = PanelContainer.new()
+	unit_strip.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	unit_strip.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	unit_strip.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	unit_strip.position = Vector2(0, UI.px(-10))
+	unit_strip.visible = false
+	UIKit.apply_panel(unit_strip, Color(0.08, 0.08, 0.12, 0.94), UIKit.LINE, 6)
+	add_child(unit_strip)
+	unit_strip_row = HBoxContainer.new()
+	unit_strip_row.add_theme_constant_override("separation", UI.fs(6))
+	unit_strip.add_child(unit_strip_row)
+
+	unit_panel = PanelContainer.new()
+	unit_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	unit_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	# 左下角那一排「至宝 / 世界泡」悬浮按钮是 v1.8.7 才加的，v1.7 时这里没有东西 →
+	# 照原样摆会被按钮压住（实测过），所以抬高到按钮之上：16(边距) + 40(按钮高) + 14(原间隙)。
+	unit_panel.position = Vector2(UI.px(14), UI.px(-70))
+
+	unit_panel.custom_minimum_size = Vector2(UI.px(260), 0)
+	unit_panel.visible = false
+	UIKit.apply_panel(unit_panel, Color(0.07, 0.07, 0.11, 0.96), UIKit.GOLD, 6)
+	add_child(unit_panel)
+	unit_panel_box = VBoxContainer.new()
+	unit_panel_box.add_theme_constant_override("separation", UI.fs(4))
+	unit_panel.add_child(unit_panel_box)
+
 	call_deferred("_init_map")
+
 
 
 func _rng() -> RandomNumberGenerator:
@@ -407,14 +440,6 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 	UIKit.place_popup_at(tile_info_popup, gpos, Vector2(14.0, 10.0))
 
 
-
-
-
-
-
-
-
-
 func _hide_tile_info() -> void:
 	if tile_info_popup != null:
 		tile_info_popup.visible = false
@@ -533,6 +558,7 @@ func _refresh_unit_strip() -> void:
 
 func _refresh_unit_panel() -> void:
 	if not is_instance_valid(unit_panel_box):
+		print("if not is_instance_valid")
 		return
 	for c in unit_panel_box.get_children():
 		c.queue_free()

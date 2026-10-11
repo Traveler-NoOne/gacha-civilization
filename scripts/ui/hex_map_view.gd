@@ -27,7 +27,7 @@ var hover_key := ""
 ## 可选的高亮标记：{ "q,r": Color }
 var marks: Dictionary = {}
 var show_axis := false
-
+## 检测拖拽
 var _dragging := false
 var _drag_start := Vector2.ZERO
 var _origin_start := Vector2.ZERO
@@ -369,22 +369,22 @@ static func _cat_color(cat: String) -> Color:
 # 交互
 # ---------------------------------------------------------------------------
 func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
-			_zoom(1.12, mb.position)
+	if event is InputEventMouseButton: # 检测event是否为鼠标点击事件
+		var mb := event as InputEventMouseButton # 将event转换为鼠标点击事件储存到mb
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed: # 如果鼠标滚轮向上
+			_zoom(1.12, mb.position) # 放大地图
+			accept_event() 
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed: # 如果鼠标滚轮向下
+			_zoom(1.0 / 1.12, mb.position) # 缩小地图
 			accept_event()
-		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-			_zoom(1.0 / 1.12, mb.position)
-			accept_event()
-		elif mb.button_index == MOUSE_BUTTON_LEFT:
+		elif mb.button_index == MOUSE_BUTTON_LEFT: # 如果鼠标左键按下
 			if mb.pressed:
-				_dragging = true
-				_drag_start = mb.position
+				_dragging = true # 按住时将拖拽设置为true
+				_drag_start = mb.position # 将点击时的位置储存进拖拽起点
 				_origin_start = origin
 			else:
-				_dragging = false
-				if mb.position.distance_to(_drag_start) < 5.0:
+				_dragging = false # 按住时将拖拽设置为false
+				if mb.position.distance_to(_drag_start) < 5.0: # 如果拖拽结束点的距离小于5
 					var k := screen_to_key(mb.position)
 					if GameState.state["tiles"].has(k):
 						# v1.8.2：把"点在哪一格 + 有没有点到棋子 + 鼠标位置"一起报出去
