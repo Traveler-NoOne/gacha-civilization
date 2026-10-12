@@ -339,11 +339,9 @@ static func _apply_checkbox_look(b: Button, on: bool, label_text: String) -> voi
 ##   2) **尺寸**：容器的最小尺寸要**下一帧**才会按新内容算准。所以这里把这个点记在 p 身上，
 ##      等 minimum_size_changed 触发时再摆一次；否则弹窗会从旧位置向下长出屏幕。
 ##
-## 摆放规则：优先放在点的右下方 offset 处；下方放不下就翻到点的上方；最后夹进视口。
-## 尺寸会收缩到刚好包住内容（p 自己的 custom_minimum_size 仍是最小值）。
-##
-## 用法：p 装好内容后调一次 UIKit.place_popup_at(p, gpos)（内容再变会自动重摆）。
-## 本函数**不管显示/隐藏** —— 那是调用方的事。
+## 摆放：优先点的右下 offset 处，下方放不下翻到上方，最后夹进视口（尺寸收缩到刚好包住内容）。
+## 不管显示/隐藏 —— 那是调用方的事。
+
 static func place_popup_at(p: Control, gpos: Vector2, offset: Vector2 = Vector2(10.0, 10.0)) -> void:
 	p.set_meta("popup_anchor", gpos)
 	p.set_meta("popup_offset", offset)
