@@ -49,40 +49,24 @@ func _ready() -> void:
 	if not is_equal_approx(GameState.storage_cap("wood"), 200.0):
 		suite.failed += 1
 
-	print("\n== 3. 中控区只剩军队（v1.8.6：科技树已搬到左上角浮窗） ==")
+	# v1.8.20.6：原来这里测"管理页的中控区"，管理页已删除；这个 holder 后面几节还要用
 	var holder := Control.new()
 	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(holder)
-	var mgr: Control = load("res://scripts/ui/views/view_manage_page.gd").new()
-	mgr.set_anchors_preset(Control.PRESET_FULL_RECT)
-	holder.add_child(mgr)
-	mgr.size = Vector2(1280, 600)
-	for i in 4:
-		await get_tree().process_frame
-	var tabs: Array = mgr.get("CTRL_TABS")
-	var names: Array[String] = []
-	for t in tabs:
-		names.append(str(t["name"]))
-	print("  中控区页签：%s（期望 军队，共 1）；enemy_box=%s" % [
-		"、".join(names), str(mgr.get("enemy_box"))])
-	if names.size() != 1 or names.has("科技树") or mgr.get("enemy_box") != null:
-		suite.failed += 1
 
-	print("\n== 4. 人力管理（只列已建建筑） ==")
+
+	print("\n== 4. 人力管理（只列已建建筑）—— 改测据点窗口共用的那个 static ==")
 	GameState.new_game(20270102)
 	cap = str(GameState.state["capital"])
 	GameState.state["res"]["production"] = 100.0
 	GameState.build(cap, "classic_field")
-	var mgr2: Control = load("res://scripts/ui/views/view_manage_page.gd").new()
-	mgr2.set_anchors_preset(Control.PRESET_FULL_RECT)
-	holder.add_child(mgr2)
-	mgr2.size = Vector2(1280, 600)
-	for i in 4:
-		await get_tree().process_frame
-	var ll: Variant = mgr2.get("labor_list")
-	var rows := 0
-	if ll is Node:
-		rows = (ll as Node).get_child_count()
+	# v1.8.20.6：原管理页已删除；"人力行"的构造现在是 StrongholdPanel.build_labor_rows
+	#（static，被据点管理窗口共用 —— 覆盖保留在这里，不丢）
+	var labor_box := VBoxContainer.new()
+	holder.add_child(labor_box)
+	StrongholdPanel.build_labor_rows(labor_box, func() -> void: pass)
+	var rows := labor_box.get_child_count()
+
 	print("  人力管理行数：%d（应 > 0）" % rows)
 	if rows <= 0:
 		suite.failed += 1
@@ -115,11 +99,19 @@ func _ready() -> void:
 			suite.failed += 1
 
 	print("\n== 6. 土地口径（已用/上限） ==")
+	# v1.8.20.6：原管理页已删除；这段文案现在在据点管理窗口的「信息」页里
+	var shp_land := StrongholdPanel.new()
+	shp_land.key = GameState.state["capital"]
+	holder.add_child(shp_land)
+	shp_land.refresh()
+	for i in 3:
+		await get_tree().process_frame
 	var ok_land := false
-	if mgr2.get("tile_info") is Node:
-		var lt := U.collect_text(mgr2.get("tile_info") as Node)
+	if shp_land.get("content_box") is Node:
+		var lt := U.collect_text(shp_land.get("content_box") as Node)
 		ok_land = lt.contains("已用土地") and not lt.contains("可用土地")
-	print("  管理页据点详情土地文案：%s（应含「已用土地」、不含「可用土地」）" % ok_land)
+	print("  据点窗口「信息」页土地文案：%s（应含「已用土地」、不含「可用土地」）" % ok_land)
+
 	if not ok_land:
 		suite.failed += 1
 

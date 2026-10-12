@@ -162,7 +162,8 @@ $godot = "C:\Program Files\Godot_v4.4.1-stable_mono_win64\Godot_v4.7.2-stable_wi
 > **v1.8.7 起「管理」入口已删除**，它的功能全部搬走了：
 > 据点信息 / 人力管理 / 规划队列 → 据点管理窗口（v1.8.4）；修建 → 右键 🔨 浮窗（v1.8.5）；
 > 科技树 → 左上角浮窗（v1.8.6）；征兵 → 政事（v1.8.3）；地块明细 → 简约信息小窗（v1.8.2）。
-> `view_manage_page.gd` 文件保留，但**当前没有任何入口**。
+> `view_manage_page.gd` 已在 v1.8.20.6 **删除**（功能早已全部搬走，见上；它当时保留的理由是"据点窗口共用它的行构造"，实际共用点早已搬走）。
+
 >
 > **底栏与世界球**（底栏正中那颗）已随 v1.8.7 删除；图 `art/ui/world-ball-s/l.png` 留作备用。
 >
@@ -265,7 +266,6 @@ scripts/
 	hex_map_view.gd               六边形地图渲染与交互（含驻军标记）
 	view_host.gd                  单视图容器
 	views/
-	view_manage_page.gd         管理页【v1.8.7 起已无入口，文件保留：据点管理窗口共用它的行构造】
 	  treasure_view.gd            2 至宝（+ parts/character_page, gear_page, item_page）
 	  gacha_view.gd               3 世界泡（召唤 / 打捞 / 发展）
 	  log_view.gd                 4 日志（+ parts/task_page, record_page, codex_page, manual_page）
@@ -275,12 +275,15 @@ util/
   hex.gd                        六边形坐标换算（轴向 <-> 像素、邻居、距离）
   selfcheck.tscn/.gd              无头自检（脚本加载 / 核心循环 / 存读档 / UI 实例化）
   diag_units.tscn/.gd             单位系统专项自检
-  diag_v12.tscn/.gd               自动存档间隔 / 作弊 / 减负 / 单位选择 / 中控区页签 专项自检
+  diag_v12.tscn/.gd               自动存档间隔 / 作弊 / 单位选择 专项自检
+
   diag_v131.tscn/.gd              据点/地块 / 可用土地 / 规划队列 / 行政点数与影响力 专项自检
-  diag_v14.tscn/.gd               存储上限 / 经典仓储 / 中控区精简 / 人力管理 / 资源栏分类 专项自检
+  diag_v14.tscn/.gd               存储上限 / 经典仓储 / 人力管理（据点窗口） / 资源栏分类 专项自检
+
   diag_v141.tscn/.gd              资源收支悬浮窗 / 占领按钮文案 专项自检
   diag_v15.tscn/.gd               客人·公民 / 招募遣返 / 单位维护费 / 移动与攻击 / 点击轮换 专项自检
-  diag_v16.tscn/.gd               开局格蕾修 / 世界泡命名 / 管理页切回刷新 / 招募全流程（十连→部署→移动两格） 专项自检
+  diag_v16.tscn/.gd               开局格蕾修 / 世界泡命名 / 据点窗口切回刷新 / 招募全流程（十连→部署→移动两格） 专项自检
+
   diag_cheat_mouse.tscn/.gd       作弊功能端到端回归（含「弹窗必须落在视口内」断言）
   diag_cheat_persist.tscn/.gd     作弊开关持久化（新游戏/继续/读档后不丢失）
   autoplay.tscn/.gd               60 周期自动试玩，输出经济曲线
@@ -288,8 +291,9 @@ util/
   _shots/                         截图输出目录
 ```
 
-> 命名提醒：`view_manage_page.gd` / `view_world_page.gd` 之所以不叫 `manage_view.gd` /
-> `world_view.gd`，是因为那两个名字在 Windows 8.3 短文件名下会互相冲突。
+> 命名提醒：`view_world_page.gd` 之所以不叫 `world_view.gd`，是因为当年那两个 `*_view` 名字
+> 在 Windows 8.3 短文件名下会互相冲突（另一个文件已在 v1.8.20.6 删除，命名保持不动）。
+
 
 ---
 

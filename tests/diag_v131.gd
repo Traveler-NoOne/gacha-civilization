@@ -146,18 +146,4 @@ func _ready() -> void:
 	if not bvisible or brows <= 2:
 		suite.failed += 1
 
-	var mgr: Control = load("res://scripts/ui/views/view_manage_page.gd").new()
-	mgr.set_anchors_preset(Control.PRESET_FULL_RECT)
-	holder.add_child(mgr)
-	mgr.size = Vector2(1280, 600)
-	for i in 4:
-		await get_tree().process_frame
-	var st: Variant = mgr.get("stronghold_title")
-	var qlist: Variant = mgr.get("queue_list")
-	print("  据点标题是按钮：%s｜规划队列容器存在：%s" % [st is Button, qlist != null])
-	if not (st is Button):
-		suite.failed += 1
-	if qlist == null:
-		suite.failed += 1
-
 	suite.finish(get_tree())

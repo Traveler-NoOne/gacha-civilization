@@ -53,7 +53,6 @@ func _ready() -> void:
 	var ui_scripts := [
 		"res://scripts/ui/menu_screen.gd",
 		"res://scripts/ui/game_screen.gd",
-		"res://scripts/ui/views/view_manage_page.gd",
 		"res://scripts/ui/views/treasure_view.gd",
 		"res://scripts/ui/views/gacha_view.gd",
 		"res://scripts/ui/views/log_view.gd",
