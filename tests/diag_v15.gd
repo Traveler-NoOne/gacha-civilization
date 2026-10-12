@@ -283,8 +283,21 @@ func _ready() -> void:
 	if vis_c:
 		suite.fail("移出地图后小窗没有收起")
 
+	# v1.8.20.7：地图的左键信号到底有没有接到本页的处理函数上。
+	# 这一处是"改名"最容易漏的地方，而漏了的话左键会**静默失效** ——
+	# 自检/截图都是直接 call("_on_tile_clicked")，绕过接线，所以专门补这条。
+	var m14: HexMapView = w.get("map")
+	var conns: Array = m14.tile_left_clicked.get_connections()
+	var wired := false
+	for c in conns:
+		if str(c["callable"].get_method()) == "_on_tile_clicked":
+			wired = true
+	print("  左键信号 tile_left_clicked 接的是 _on_tile_clicked？%s（%d 条连接）" % [wired, conns.size()])
+	if not wired:
+		suite.fail("左键信号没有接到 _on_tile_clicked（点地图会没反应）")
 	w.queue_free()
 	holder.queue_free()
+
 
 	print("\n== 7. 三个子系统的命名 + 一级按钮 + 免责声明 ==")
 	var h2 := U.host(self)

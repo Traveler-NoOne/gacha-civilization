@@ -8,7 +8,8 @@ extends Control
 ##   uid  = 点到了哪个单位的图标（没点到单位则 ""）
 ##   gpos = 鼠标的全局坐标（浮窗要出现在鼠标位置）
 ## 地图只报告"空间事实"；"这格是不是我的领地、要不要开窗口"属于语义，由 view_world_page 判断。
-signal tile_clicked(key: String, uid: String, gpos: Vector2)
+signal tile_left_clicked(key: String, uid: String, gpos: Vector2)
+
 
 ## v1.8.5：右键点地块（用于弹"球形图标操作菜单"）
 signal tile_right_clicked(key: String, gpos: Vector2)
@@ -389,7 +390,8 @@ func _gui_input(event: InputEvent) -> void:
 					if GameState.state["tiles"].has(k):
 						# v1.8.2：把"点在哪一格 + 有没有点到棋子 + 鼠标位置"一起报出去
 						var uid := unit_uid_at(k, mb.position)
-						tile_clicked.emit(k, uid, get_global_transform() * mb.position)
+						tile_left_clicked.emit(k, uid, get_global_transform() * mb.position)
+
 						queue_redraw()
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:

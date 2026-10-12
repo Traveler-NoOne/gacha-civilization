@@ -94,7 +94,8 @@ func _build() -> void:
 	map.custom_minimum_size = Vector2(UI.px(120), UI.px(120))
 	map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map.tile_clicked.connect(_on_tile_clicked)
+	map.tile_left_clicked.connect(_on_tile_clicked)
+
 	map.tile_right_clicked.connect(_on_tile_right_clicked)
 	map.hover_changed.connect(_on_hover_changed)
 
@@ -268,7 +269,8 @@ func _open_stronghold_panel(key: String) -> void:
 func _place_stronghold_panel() -> void:
 	if stronghold_panel == null or not is_instance_valid(stronghold_panel):
 		return
-	stronghold_panel.position = Vector2(maxf(0.0, size.x - 356.0), 56.0)
+	stronghold_panel.position = Vector2(maxf(0.0, size.x - UI.px(356.0	)), 56.0)
+	
 
 
 ## 懒创建（第一次用到才建）；固定尺寸 + 锚在右侧。
