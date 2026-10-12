@@ -4,16 +4,23 @@ extends Node
 ## 保存一份可序列化的存档状态，并实现文档中的核心循环：
 ##   周期结算 -> 建筑产出 -> 人口/幸福度/文化率 -> 稳定度 -> 敌人演化 -> 自动存档
 
+## 检测状态是否改变
 signal state_changed
+
+## 全局轻提示广播
 signal toast(text: String)
 
+## 存档魔数
 const SAVE_MAGIC := "gacha_civilization_demo"
-## v1.8.3：存档结构变了（据点新增 decrees 政事队列），所以 +1。
+## 存档时代
 ## 按既有决策：1.0 期不做旧档兼容 —— 版本不符直接拒绝（见 load_from_slot）。
 const SAVE_VERSION := 3
 
+## 游戏状态
 var state: Dictionary = {}
+## 建筑表
 var building_defs: Array[BuildingDef] = []
+## 卡池表
 var cards: Array[Dictionary] = []
 
 ## 非序列化的运行时缓存
@@ -21,12 +28,15 @@ var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
-	DirAccess.make_dir_recursive_absolute(Consts.SAVE_DIR)
-	building_defs = BuildingDB.all()
-	cards = CardDB.all()
-	_rng.randomize()
-	if state.is_empty():
+	DirAccess.make_dir_recursive_absolute(Consts.SAVE_DIR) # 读取存档目录
+	building_defs = BuildingDB.all() # 读取建筑
+	cards = CardDB.all() # 读取卡池
+	# v1.8.20.8：这里原来是无条件 _rng.randomize()。种子改由 new_game() / load_from_slot() 按状态去播，
+	# 否则"同一个种子可以复现同一局"永远不成立（世界生成早就按 state["seed"] 播了，
+	# 但 _rng —— 赌注 / 演变 / 事件 / 打捞用的那个 —— 一直是时钟随机，读档后无法复现）。
+	if state.is_empty(): # 如果存档槽为空，初始化新游戏
 		new_game()
+
 
 
 # ===========================================================================
@@ -36,7 +46,12 @@ func new_game(seed_value: int = 0) -> void:
 	var s := int(seed_value)
 	if s == 0:
 		s = int(Time.get_unix_time_from_system()) & 0x7FFFFFFF
+	# v1.8.20.8：本局的世界生成一直是按这个种子播的（world_gen.gd:33），现在 _rng 也按它播 ——
+	# 于是"同一个种子 = 同一局"对赌注 / 演变 / 事件 / 打捞同样成立。
+	# 传 0 进来时 s 已在上面取了时钟种子，所以每局开新游戏依旧是新的。
+	_rng.seed = s
 	state = {
+
 		"seed": s,
 		"cycle": 1,
 		"current_slot": -1,
@@ -2087,7 +2102,11 @@ func load_from_slot(slot: int) -> bool:
 	state = loaded
 	state["current_slot"] = slot
 	_migrate()
+	# v1.8.20.8：读档要把这一局的随机数种子放回去，否则读回来的局和存的时候不是同一条随机数流
+	#（世界生成对得上，赌注 / 演变 / 事件却对不上）。用 get 兜底：万一某档没这个字段也不崩。
+	_rng.seed = int(state.get("seed", 0))
 	toast.emit("已读取槽位 %d" % (slot + 1))
+
 	state_changed.emit()
 	return true
 
