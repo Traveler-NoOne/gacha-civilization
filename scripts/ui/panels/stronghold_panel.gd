@@ -208,8 +208,8 @@ func _refresh_decrees(sh: Dictionary) -> void:
 
 ## 政事队列：队首 + 进度条（吃行政点数）
 func _refresh_decree_queue(sh: Dictionary) -> void:
-	var q: Array = sh.get("decrees", [])
-	if q.is_empty():
+	var q: Array = sh.get("decrees", []) # 获取政事队列
+	if q.is_empty(): # 如果政事队列为空
 		decree_box.add_child(UIKit.dim("队列为空。到上面的「政事」页排一条。", 10))
 		return
 	for i in q.size():

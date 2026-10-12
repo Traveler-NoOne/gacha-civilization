@@ -10,20 +10,25 @@ extends Control
 ## 地图只报告"空间事实"；"这格是不是我的领地、要不要开窗口"属于语义，由 view_world_page 判断。
 signal tile_left_clicked(key: String, uid: String, gpos: Vector2)
 
-
 ## v1.8.5：右键点地块（用于弹"球形图标操作菜单"）
 signal tile_right_clicked(key: String, gpos: Vector2)
 ## v1.8.20.4：鼠标悬停到的格子变了就发一次（移出地图 / 开始拖动平移时发 ""）
 ## 简约地块信息小窗改由它驱动 —— 悬停 1 秒后才显示，点击不再负责弹小窗。
 signal hover_changed(key: String)
 
-
+# 这三个常量决定了地图缩放的默认大小和最大缩小和最大放大。
+## 地块基础大小
 const SIZE_BASE := 34.0
+## 地块大小下限
 const SIZE_MIN := 20.0
+## 地块大小上限
 const SIZE_MAX := 62.0
 
+## 设置渲染地块的当前大小（默认值：地块基础大小）
 var hex_size := SIZE_BASE
+## 地图偏移量 
 var origin := Vector2.ZERO
+## 鼠标悬停地块
 var hover_key := ""
 ## 可选的高亮标记：{ "q,r": Color }
 var marks: Dictionary = {}
@@ -38,20 +43,16 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	clip_contents = true
 	_center_view()
-	resized.connect(_on_resized)
+	resized.connect(queue_redraw)
 
-
-func _on_resized() -> void:
-	queue_redraw()
-
-
+## 定位到目标地块
 func center_on_axial(c: Vector2i) -> void:
 	origin = size * 0.5 - Hex.axial_to_pixel(c.x, c.y, hex_size)
 	queue_redraw()
 
-
+## 将摄像头对准首都地块
 func _center_view() -> void:
-	center_on_axial(Vector2i.ZERO)
+	center_on_axial(WorldGen.coord_of(str(GameState.state["capital"])))
 
 
 func axial_to_screen(c: Vector2i) -> Vector2:
