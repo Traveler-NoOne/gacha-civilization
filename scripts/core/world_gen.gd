@@ -29,11 +29,12 @@ static func coord_of(key: String) -> Vector2i:
 # 生成
 # ===========================================================================
 static func generate(state: Dictionary) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = int(state["seed"])
+	# v1.8.20.9：不再自己造 rng —— 每一格的地形/资源由 _make_tile(c, 世界种子) 直接算出来
+	var world_seed := int(state["seed"])
 	var tiles := {}
 	for c in Hex.spiral(Consts.MAP_START_RADIUS):
-		tiles[key_of(c)] = _make_tile(c, rng)
+		tiles[key_of(c)] = _make_tile(c, world_seed)
+
 	state["tiles"] = tiles
 	# 首都占据中心
 	var cap := coord_of(str(state["capital"]))
@@ -51,7 +52,14 @@ static func generate(state: Dictionary) -> void:
 	_ensure_basic_nearby(state, cap)
 
 
-static func _make_tile(c: Vector2i, rng: RandomNumberGenerator) -> Dictionary:
+## 造一格（地形 + 基础资源）。
+##
+## v1.8.20.9：地形 / 资源**只由「坐标 + 世界种子」决定**（盐 = 世界种子），不再收 rng ——
+## 于是「同一个种子 = 同一张世界地图」，而且 expand_map() 后加出来的那一格，
+## 与「一开始就生成这么大」时的**同一个坐标必然一致**（纯函数，与生成顺序无关）。
+## 反过来说：若改成用 rng 按顺序摇地形，这条一致性就没了（同一格会随生成顺序变样）。
+static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
+
 	var t := {
 		"c": [c.x, c.y],
 		"terrain": "plain",
@@ -67,8 +75,9 @@ static func _make_tile(c: Vector2i, rng: RandomNumberGenerator) -> Dictionary:
 		"stronghold": "",  # v1.3.1：所属据点（我方地块才有）
 		"land_cap": Consts.LAND_CAP_DEFAULT,   # v1.3.1：可用土地上限
 	}
-	var r := Hex.hash01(c, 7)
+	var r := Hex.hash01(c, 7 + world_seed)
 	if r < 0.22:
+
 		t["terrain"] = "water"
 	elif r < 0.48:
 		t["terrain"] = "forest"
@@ -79,7 +88,8 @@ static func _make_tile(c: Vector2i, rng: RandomNumberGenerator) -> Dictionary:
 	else:
 		t["terrain"] = "plain"
 	# 基础资源点
-	var rr := Hex.hash01(c, 31)
+	var rr := Hex.hash01(c, 31 + world_seed)
+
 	var dist := Hex.distance(c, Vector2i.ZERO)
 	if t["terrain"] == "forest" and rr < 0.55:
 		t["resource"] = "wood"
@@ -654,7 +664,11 @@ static func _damage_tile(state: Dictionary, key: String, rng: RandomNumberGenera
 # ===========================================================================
 # 扩展地图上限（发展系统 / 营地升级）
 # ===========================================================================
-static func expand_map(state: Dictionary, rng: RandomNumberGenerator, rings: int = 1) -> int:
+## 往外扩 map 上限（发展系统 / 营地升级）。
+## v1.8.20.9：不再收 rng —— 地形由「坐标 + 世界种子」决定（纯函数），
+## 所以扩张出来的格子与「一开始就生成这么大」时的同一坐标完全一致。
+static func expand_map(state: Dictionary, rings: int = 1) -> int:
+
 	var tiles: Dictionary = state["tiles"]
 	var current_radius := 0
 	for k in tiles.keys():
@@ -667,7 +681,8 @@ static func expand_map(state: Dictionary, rng: RandomNumberGenerator, rings: int
 		var k := key_of(c)
 		if tiles.has(k):
 			continue
-		tiles[k] = _make_tile(c, rng)
+		tiles[k] = _make_tile(c, int(state["seed"]))
+
 		added += 1
 	return added
 

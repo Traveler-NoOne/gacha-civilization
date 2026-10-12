@@ -77,7 +77,8 @@ func _build() -> void:
 	toolbar.add_child(b_axis)
 	var b_expand := UIKit.small("扩建地图（发展系统功能）", 12)
 	b_expand.pressed.connect(func() -> void:
-		var added := WorldGen.expand_map(GameState.state, _rng(), 1)
+		var added := WorldGen.expand_map(GameState.state, 1)
+
 		if added > 0:
 			GameState.add_log("营地扩建：地图上限扩大，新增 %d 格。" % added, "world")
 			GameState.toast.emit("地图已扩大，新增 %d 格" % added)
@@ -136,11 +137,6 @@ func _build() -> void:
 	call_deferred("_init_map")
 
 
-
-func _rng() -> RandomNumberGenerator:
-	var r := RandomNumberGenerator.new()
-	r.randomize()
-	return r
 
 
 func _init_map() -> void:
