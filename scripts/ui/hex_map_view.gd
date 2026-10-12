@@ -73,9 +73,16 @@ func screen_to_key(p: Vector2) -> String:
 ##             "center": Vector2, "pts": PackedVector2Array }
 func _visible_tiles() -> Array:
 	var out: Array = []
-	if not GameState.state.has("tiles"):
-		return out
-	var tiles: Dictionary = GameState.state["tiles"]
+	# v1.8.20.10：这里**不该发生** —— new_game() 一定是先 WorldGen.generate(state) 再让 UI 绘制的。
+	# 注意光查 has("tiles") 拦不住真正的病灶：new_game 的 state 字面量本来就带 "tiles": {}，
+	# 「世界生成没跑成」时 has() 仍返回 true，地图会整片空白却零报错。
+	# 所以「缺键」和「键在但为空」一起算没数据，并走 Fatal 报码 + 结束进程（就着错误跑只会把问题藏起来）。
+	var tiles_v: Variant = GameState.state.get("tiles")
+	if tiles_v == null or (tiles_v as Dictionary).is_empty():
+		Fatal.fatal("E-MAP-001")
+		return out               # 报完之后这一帧仍要返回，别让 _draw 炸
+	var tiles: Dictionary = tiles_v
+
 	for key in tiles.keys():
 		var c := WorldGen.coord_of(key)
 		var center := axial_to_screen(c)
