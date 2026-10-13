@@ -245,12 +245,18 @@ func _draw_water_edges(v: Dictionary) -> void:
 	for k in 6:
 		var d: Vector2i = Hex.DIRECTIONS[(6 - k) % 6]
 		var nt: Variant = tiles.get(WorldGen.key_of(c + d))
-		var n_water := true          # 图外 / 未发现都当作水 → 边境也有海岸线
-		if nt != null:
-			var nd: Dictionary = nt
-			n_water = (not bool(nd.get("discovered", false))) \
-				or str(nd.get("terrain", "")) == "water"
-		if mine_water != n_water:
+		if nt == null:
+			# 图外（世界边界）当作水 → 边境仍然有一条海岸线
+			if not mine_water:
+				draw_line(corners[k], corners[(k + 1) % 6], Color(0.30, 0.55, 0.85, 0.95), EDGE_W_WATER)
+			continue
+		var nd: Dictionary = nt
+		if not bool(nd.get("discovered", false)):
+			# ⚠️ 邻居还没探索 → **说不清是水是陆，所以不画**。
+			# 2026-10-13 踩过：原来把"未发现"也当成水，于是**迷雾边缘看起来像一条海岸线**
+			#（识图当场指出"像水域的海岸线"）。
+			continue
+		if mine_water != (str(nd.get("terrain", "")) == "water"):
 			draw_line(corners[k], corners[(k + 1) % 6], Color(0.30, 0.55, 0.85, 0.95), EDGE_W_WATER)
 	# ---- 河道（W4）：**只画"我这一侧"拥有的那条边** ----
 	# 边的键是 `"q,r,d"`，owner = 两端坐标字典序较小者 → 同一条边只会有**一端**匹配上，
