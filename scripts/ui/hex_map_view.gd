@@ -91,6 +91,19 @@ func _visible_tiles() -> Array:
 	return out
 
 
+## ===========================================================================
+## 边的分层与粗细（2026-10-13 用户定）—— **从下到上**：
+##   ① 地形层（地形色 + **水路**：河道 / 水陆分界）＝ 基准 × **2.5**（"寻常描边的两三倍"）
+##   ④ 领地边 ＝ 基准 × **1.5**
+##   ⑦ 悬停高亮（**最上面**，不被任何边压住）
+## 图层顺序本来就与之一致（见下面的 8 层说明），这里只是把**粗细**定死成常量，
+## 免得以后各层各写一个数字、互相压住。
+## ===========================================================================
+const EDGE_W_BASE := 1.0            ## 寻常描边（基准）
+const EDGE_W_WATER := 2.5           ## 水路（河道 / 水陆分界）= 基准 × 2.5
+const EDGE_W_TERRITORY := 1.5       ## 领地边 = 基准 × 1.5
+
+
 ## v1.8.1：绘制顺序 = 图层顺序。
 ## 图层顺序（同时就是 8 个层函数的顺序）：
 ##   ① 底色（地形/迷雾） ② 特征物（资源点） ③ 建筑 ④ 领地边框
@@ -104,6 +117,8 @@ func _draw() -> void:
 	# 结果差异只在**跨格重叠**处：文字的层最后画，所以不会再被邻格盖住。
 	for v in vis:
 		_draw_tile_base(v)
+	for v in vis:
+		_draw_water_edges(v)      # 水路（水陆分界）：底色之上、领地边之下（用户定的分层）
 	for v in vis:
 		_draw_tile_features(v)
 	for v in vis:
@@ -144,10 +159,12 @@ func _draw_tile_base(v: Dictionary) -> void:
 	var outline := pts.duplicate()
 	outline.append(pts[0])
 	# v1.8.21：河流格用**蓝色描边**标出来（河本身没有单独的地形种类，见 world_gen 的侵蚀）
+	# 2026-10-13：加粗到 `EDGE_W_WATER`（用户定：水路要比寻常描边粗两三倍）。
+	# ⚠️ 现在还是"整格描一圈"——**W4 正式做河流时**会改成"只画河道真正经过的那条边"。
 	if bool(t.get("river", false)):
-		draw_polyline(outline, Color(0.35, 0.65, 1.0, 0.95), 2.0)
+		draw_polyline(outline, Color(0.35, 0.65, 1.0, 0.95), EDGE_W_WATER)
 	else:
-		draw_polyline(outline, Color(0, 0, 0, 0.35), 1.0)
+		draw_polyline(outline, Color(0, 0, 0, 0.35), EDGE_W_BASE)
 
 
 
@@ -210,11 +227,34 @@ func _draw_tile_border(v: Dictionary) -> void:
 	if owner == "player":
 		var o := pts.duplicate()
 		o.append(pts[0])
-		draw_polyline(o, Color(0.55, 0.85, 1.0), 2.5)
+		draw_polyline(o, Color(0.55, 0.85, 1.0), EDGE_W_TERRITORY)
 	elif owner == "enemy":
 		var o2 := pts.duplicate()
 		o2.append(pts[0])
-		draw_polyline(o2, Color(0.95, 0.30, 0.32), 2.5)
+		draw_polyline(o2, Color(0.95, 0.30, 0.32), EDGE_W_TERRITORY)
+
+
+## 水路层（最底下的边）：**水陆分界**只画"我这一侧"那条边 ——
+## 以前整张图只有 1.0 的通用格线，看不出哪里是海岸；现在海岸线是一条粗线。
+## 方向索引规范：**边 k ↔ DIRECTIONS[(−k) mod 6]**（2026-10-13 数值验证过，见 hex.gd 顶部）。
+func _draw_water_edges(v: Dictionary) -> void:
+	var t: Dictionary = v["t"]
+	if not t.get("discovered", false):
+		return
+	var c: Vector2i = v["c"]
+	var corners := Hex.corners(v["center"], hex_size - 1.5)
+	var mine_water := str(t.get("terrain", "")) == "water"
+	var tiles: Dictionary = GameState.state["tiles"]
+	for k in 6:
+		var d: Vector2i = Hex.DIRECTIONS[(6 - k) % 6]
+		var nt: Variant = tiles.get(WorldGen.key_of(c + d))
+		var n_water := true          # 图外 / 未发现都当作水 → 边境也有海岸线
+		if nt != null:
+			var nd: Dictionary = nt
+			n_water = (not bool(nd.get("discovered", false))) \
+				or str(nd.get("terrain", "")) == "water"
+		if mine_water != n_water:
+			draw_line(corners[k], corners[(k + 1) % 6], Color(0.30, 0.55, 0.85, 0.95), EDGE_W_WATER)
 
 
 ## 单位图标在屏幕上的位置。
