@@ -192,6 +192,24 @@ func _ready() -> void:
 		% [river_n, chain_ratio * 100.0, river_in_water])
 	_check(river_n > 0, "存在河流格（要用来画蓝色描边）")
 	_check(river_in_water == 0, "**没有一格河在海里**（实际 %d 个）" % river_in_water)
+
+	# ⑭ W4（文明6式）：河道**折成边路径**后，**每相邻两条边必须共顶点**（= 用户"头尾编号"那句话）。
+	#    这条断言把"视觉上会不会断"变成可无头测的几何性质 —— 不靠眼睛、也不受镜头限制。
+	var rpaths: Array = WorldGen.river_paths(int(GameState.state.get("seed", 0)))
+	var path_edges := 0
+	var bad_pairs := 0
+	var longest_chain := 0
+	for chain in rpaths:
+		var ch: Array = chain
+		path_edges += ch.size()
+		longest_chain = maxi(longest_chain, ch.size())
+		for i in range(1, ch.size()):
+			if not WorldGen.edges_adjacent(str(ch[i - 1]), str(ch[i])):
+				bad_pairs += 1
+	print("  河道边路径：%d 条链、共 %d 条边、最长一条 %d 条边；**相邻边不共顶点 %d 处**"
+		% [rpaths.size(), path_edges, longest_chain, bad_pairs])
+	_check(rpaths.size() > 0, "存在河道边路径（%d 条链）" % rpaths.size())
+	_check(bad_pairs == 0, "**每相邻两条边都共顶点**（违例 %d）→ 折好了，视觉上不会断" % bad_pairs)
 	if river_n > 0:
 		# W4（2026-10-13）：**河已经顺着流向补到入海**，所以现在**可以**要求它连成链了。
 		# 原先不能要求，是因为河只按"流量前 2%"挑、下游掉出前 2% 就断（那时只有 ~43% 有邻居）。

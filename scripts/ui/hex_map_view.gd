@@ -118,7 +118,8 @@ func _draw() -> void:
 	for v in vis:
 		_draw_tile_base(v)
 	for v in vis:
-		_draw_water_edges(v)      # 水路（水陆分界）：底色之上、领地边之下（用户定的分层）
+		_draw_water_edges(v)      # 水陆分界：底色之上、领地边之下（用户定的分层）
+	_draw_rivers()                # 河道：按"边路径"一笔画（在最底层，地物/建筑图标之下）
 	for v in vis:
 		_draw_tile_features(v)
 	for v in vis:
@@ -163,6 +164,38 @@ func _draw_tile_base(v: Dictionary) -> void:
 	# 不是"把有河的格子圈起来"。所以这里统一画普通格线。
 	draw_polyline(outline, Color(0, 0, 0, 0.35), EDGE_W_BASE)
 
+
+
+## 河道（W4，**《文明6》式**）：河走**地块与地块之间**，一条河 = 一串**相邻的边**。
+## 为什么这样就不会断：路径是 `WorldGen.river_paths()` 按"进边 → 出边绕六边形折过去"生成的，
+## **每相邻两条边必然共顶点**（这条有几何断言守着，见 seed_check ⑭）——
+## 正是用户用"头尾编号"讲的那件事（5→4、再 4→3 = 尾接头）。
+## 这里**整帧画一次**（不是每格画一次）：同一条边只画一遍，避免被两端各画一次而变粗。
+## 图层在最底下 → **不会盖住资源/建筑图标**。
+func _draw_rivers() -> void:
+	var seed_v := int(GameState.state.get("seed", 0))
+	var rpaths := WorldGen.river_paths(seed_v)
+	if rpaths.is_empty():
+		return
+	var redges := WorldGen.river_edges(seed_v)
+	var drawn := {}
+	for chain in rpaths:
+		for ek in (chain as Array):
+			var key := str(ek)
+			if drawn.has(key):
+				continue
+			drawn[key] = true
+			var parts := key.split(",")
+			if parts.size() != 3:
+				continue
+			var c0 := Vector2i(int(parts[0]), int(parts[1]))
+			var d0 := int(parts[2])
+			var kk := ((6 - d0) % 6 + 6) % 6      # 边 k ↔ DIRECTIONS[(−k) mod 6]（已验证）
+			var cs := Hex.corners(axial_to_screen(c0), hex_size - 1.5)
+			# 粗细按流量（**对数**刻度：原来 flow/60 会被钳满、所有河一样粗，看着像蜘蛛网）
+			var fl := clampf(log(1.0 + float(redges.get(key, 1))) / log(1.0 + 1000.0), 0.0, 1.0)
+			draw_line(cs[kk], cs[(kk + 1) % 6], Color(0.35, 0.70, 1.0, 0.98),
+				EDGE_W_WATER * (0.5 + 1.0 * fl))
 
 
 func _draw_tile_features(v: Dictionary) -> void:
@@ -258,24 +291,7 @@ func _draw_water_edges(v: Dictionary) -> void:
 			continue
 		if mine_water != (str(nd.get("terrain", "")) == "water"):
 			draw_line(corners[k], corners[(k + 1) % 6], Color(0.30, 0.55, 0.85, 0.95), EDGE_W_WATER)
-	# ---- 河道（W4，2026-10-13 **修订为"穿格心"**）----
-	# ⚠️ 原画法（只画"我与下游共享的那一条边"）在**数学上**是连的（边与边共顶点），
-	#   但**视觉上是断的**：水从一格"进"与"出"用的是六边形的**不同两条边**，
-	#   若这两条边不相邻（中间隔着一个角），两块线段就接不上 —— 用户用头尾编号
-	#   （5→4、再 4→3 = 尾接头）把这个"看着是断的"讲清楚了。
-	#   改成**从本格中心连到下游格中心**：同一格里"进"和"出"天然接上，不可能再断开。
-	var redges := WorldGen.river_edges(int(GameState.state.get("seed", 0)))
-	for kr in 6:
-		var ek := "%d,%d,%d" % [c.x, c.y, kr]
-		if not redges.has(ek):
-			continue
-		# 粗细随流量变：⚠️ 原来用 `flow / 60` 再 clamp —— 河格流量普遍远大于 60，
-		#   于是**全部钳到上限、所有河一样粗**（识图原话："粗细和颜色都是一样，像蜘蛛网"）。
-		#   改成**对数**刻度：差距拉得开，又不会被极端值压平。
-		var fl := clampf(log(1.0 + float(redges[ek])) / log(1.0 + 1000.0), 0.0, 1.0)
-		var to_center := axial_to_screen(c + Hex.DIRECTIONS[kr])
-		draw_line(v["center"], to_center,
-			Color(0.35, 0.70, 1.0, 0.98), EDGE_W_WATER * (0.5 + 1.0 * fl))
+	# ---- 河道在这一层**不画**：改由 `_draw_rivers()` 统一次画（见那里说明）----
 
 
 ## 单位图标在屏幕上的位置。

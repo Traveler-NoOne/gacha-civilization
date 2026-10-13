@@ -138,6 +138,9 @@ static var _flow_to: Dictionary = {}
 ## W4：**河道走的边** —— 键用 W1 定的格式 `"q,r,d"`（owner = 两端坐标字典序较小者，
 ## d = 从 owner 指向另一端的六方向序号）。值 = 流量（画线时按它定粗细）。
 static var _river_edges: Dictionary = {}
+## W4（文明6式）：**河道边路径** —— 一个 Array，每个元素是一条河的**边键序列**，
+## 且**相邻两条边必然共顶点**（"折"好了）。渲染就按它一笔画。
+static var _river_paths: Array = []
 
 
 
@@ -254,31 +257,126 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 		var ek := edge_key_of(str(kr), to)
 		if ek != "":
 			_river_edges[ek] = int(flow.get(kr, 1))
+
+	# ---- W4（文明6式）：把河道"**折**"成边路径 ----
+	# 每一步：水从"入边"进这一格、从"出边"出这一格；两条边若不相邻（不共顶点），
+	# 就**沿着这个六边形的边一条条走过去**把它们接起来 —— 走短的那一边。
+	# 于是整条河的边序列**每相邻两条必共顶点**，画出来不可能断（用户："按六边形的格式折好"）。
+	# ⚠️ 只认**河格之间**的上下游：一开始我用"全部格子"算 has_up，结果几乎每格都有上游
+	#    → **所有河头都被跳过**、一条链都建不出来（自检当场抓到 0 条）。
+	var has_up := {}
+	for ku in _river_keys.keys():
+		var tu := str(flow_to.get(ku, ""))
+		if tu != "" and _river_keys.has(tu):
+			has_up[tu] = true
+	_river_paths = []
+	for kh in _river_keys.keys():
+		var kstart := str(kh)
+		if has_up.has(kstart):
+			continue                     # 不是源头（有上游），从源头开始走就行
+		var chain: Array = []
+		var cur := kstart
+		var d_in := -1
+		var guard_a := 0
+		while guard_a < 512:
+			guard_a += 1
+			var nxt := str(flow_to.get(cur, ""))
+			if nxt == "":
+				break
+			var cc := coord_of(cur)
+			var d_out := _dir_to(cc, coord_of(nxt))
+			if d_out < 0:
+				break
+			if d_in < 0:
+				chain.append(_edge_key(cc, d_out))
+			else:
+				var step := 1 if _ring_delta(d_in, d_out) <= 3 else -1
+				var dcur := d_in
+				var guard_b := 0
+				while dcur != d_out and guard_b < 8:
+					guard_b += 1
+					dcur = ((dcur + step) % 6 + 6) % 6
+					chain.append(_edge_key(cc, dcur))
+			if not _river_keys.has(nxt):
+				break                    # 出了河网（应当就是到海了）
+			d_in = (d_out + 3) % 6       # 下一格的"入边"= 本格出边的反向
+			cur = nxt
+		if chain.size() >= 2:
+			_river_paths.append(chain)
 	return out
 
 
-## W4：把"两端坐标"规范化成一条边的键 `"q,r,d"`（owner = 字典序较小者）。
+## W1：把"两端坐标"规范化成一条边的键 `"q,r,d"`（owner = 字典序较小者）。
 ## 两端必须相邻；不相邻或重复则返回空串。
 static func edge_key_of(a: String, b: String) -> String:
 	var ca := coord_of(a)
 	var cb := coord_of(b)
 	if ca == cb:
 		return ""
-	var d := -1
-	for i in Hex.DIRECTIONS.size():
-		if ca + Hex.DIRECTIONS[i] == cb:
-			d = i
-			break
+	var d := _dir_to(ca, cb)
 	if d < 0:
 		return ""
-	# 字典序较小者当 owner（比较 (q, r)）
-	var owner := ca
-	var other := cb
+	# 字典序较小者当 owner（比较 (q, r)）；换 owner 就要把方向反过来
 	if cb.x < ca.x or (cb.x == ca.x and cb.y < ca.y):
-		owner = cb
-		other = ca
-		d = (d + 3) % 6          # 方向反过来（反向 = (i+3)%6，已数值验证）
-	return "%d,%d,%d" % [owner.x, owner.y, d]
+		return _edge_key(cb, (d + 3) % 6)
+	return _edge_key(ca, d)
+
+
+## 从 a 到 b 的六方向序号；不相邻返回 -1
+static func _dir_to(a: Vector2i, b: Vector2i) -> int:
+	for i in Hex.DIRECTIONS.size():
+		if a + Hex.DIRECTIONS[i] == b:
+			return i
+	return -1
+
+
+## 以 c 为「字典序较小者」时，边 `"q,r,d"` 的规范化键
+static func _edge_key(c: Vector2i, d: int) -> String:
+	return "%d,%d,%d" % [c.x, c.y, d]
+
+
+## 绕六边形从 a 到 b 的**最短步数**（0~3）
+static func _ring_delta(a: int, b: int) -> int:
+	return mini(((b - a) % 6 + 6) % 6, ((a - b) % 6 + 6) % 6)
+
+
+## 一条边两个**顶点**（像素空间坐标，size=1）
+static func _edge_vertices(ek: String) -> Array:
+	var parts := ek.split(",")
+	if parts.size() != 3:
+		return []
+	var c := Vector2i(int(parts[0]), int(parts[1]))
+	var d := int(parts[2])
+	var k := ((6 - d) % 6 + 6) % 6          # 边 k ↔ DIRECTIONS[(−k) mod 6]（已验证）
+	var center := Hex.axial_to_pixel(c.x, c.y, 1.0)
+	var cs := Hex.corners(center, 1.0)
+	return [cs[k], cs[(k + 1) % 6]]
+
+
+## 两条边**是否共顶点**（= 用户说的"尾接头"）。同一条边视为共顶点。
+## ⚠️ 判据用**距离**而不是"把坐标格式化成字符串再比" —— 后者会因为 `-0.000` 与 `0.000`
+##    这类浮点符号差异产生**假违例**（实测误报了 3 处）。
+static func edges_adjacent(e1: String, e2: String) -> bool:
+	if e1 == e2:
+		return true
+	var v1 := _edge_vertices(e1)
+	var v2 := _edge_vertices(e2)
+	if v1.is_empty() or v2.is_empty():
+		return false
+	var a0: Vector2 = v1[0]
+	var a1: Vector2 = v1[1]
+	var b0: Vector2 = v2[0]
+	var b1: Vector2 = v2[1]
+	return a0.distance_to(b0) < 0.001 or a0.distance_to(b1) < 0.001 \
+		or a1.distance_to(b0) < 0.001 or a1.distance_to(b1) < 0.001
+
+
+## W4（文明6式）：**河道边路径** —— 每条河从源头一路走到入海，
+## 经过一格时"从入边折到出边"（沿着这个六边形的边一条条走过去），
+## 所以**每相邻两条边必然共顶点** → 画出来不可能断（这就是"按六边形格式折好"）。
+static func river_paths(world_seed: int) -> Array:
+	_eroded_heights(world_seed)
+	return _river_paths
 
 
 ## W4：当前这一局**河道走的边**（键 `"q,r,d"` → 流量）。渲染直接用它。
