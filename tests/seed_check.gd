@@ -141,6 +141,33 @@ func _ready() -> void:
 	if pairs > 0:
 		ratio = float(same) / float(pairs)
 	print("  地形分布：%s" % str(terrain_count))
+	var cover_count := {}
+	for k9 in tiles8.keys():
+		var cv9 := str((tiles8[k9] as Dictionary).get("cover", ""))
+		cover_count[cv9] = int(cover_count.get(cv9, 0)) + 1
+	print("  地物分布：%s" % str(cover_count))
+	var covers_seen := 0
+	for key_c in cover_count.keys():
+		if str(key_c) != "":
+			covers_seen += 1
+	_check(covers_seen >= 3, "地物至少出现 3 种（实际 %d 种）" % covers_seen)
+
+	# ⑨ 出生点：应当是"资源相对丰富且不贴边境"，而不是固定在世界中心
+	var cap9 := str(GameState.state["capital"])
+	var capc9 := WorldGen.coord_of(cap9)
+	var capd9 := Hex.distance(capc9, Vector2i.ZERO)
+	var edge9 := int(float(Consts.MAP_START_RADIUS) * 0.78)
+	var res9 := 0
+	for nb9: Vector2i in Hex.spiral(3):
+		var nk9 := WorldGen.key_of(capc9 + nb9)
+		if not tiles8.has(nk9):
+			continue
+		if str((tiles8[nk9] as Dictionary).get("resource", "")) != "":
+			res9 += 1
+	print("  出生点：%s（离中心 %d 格 / 上限 %d；3 格内资源点 %d 个）" % [cap9, capd9, edge9, res9])
+	_check(capd9 <= edge9, "出生点不贴边境（离中心 %d ≤ %d）" % [capd9, edge9])
+	_check(res9 >= 3, "出生点附近不贫瘠（资源点 %d ≥ 3）" % res9)
+
 	print("  相邻格同地形比例：%.0f%%（随机撒点约 20%%，成片则应明显更高）" % (ratio * 100.0))
 	_check(ratio > 0.35, "地形是成片的（相邻同地形 %.0f%% > 35%%，随机撒点约 20%%）" % (ratio * 100.0))
 

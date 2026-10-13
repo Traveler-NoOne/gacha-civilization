@@ -14,7 +14,8 @@ signal toast(text: String)
 const SAVE_MAGIC := "gacha_civilization_demo"
 ## 存档时代
 ## 按既有决策：1.0 期不做旧档兼容 —— 版本不符直接拒绝（见 load_from_slot）。
-const SAVE_VERSION := 3
+const SAVE_VERSION := 4
+
 
 ## 游戏状态
 var state: Dictionary = {}
@@ -2086,10 +2087,14 @@ func load_from_slot(slot: int) -> bool:
 		toast.emit("存档格式不匹配")
 		return false
 	# v1.7：1.0 期间不做旧档兼容（留到 2.0）—— 版本不符直接拒绝，不再尝试迁移老档
+	# 拍板（1.8.21）：版本不匹配的档**直接删掉**（地形/数据模型都换了，
+	# 留着旧档只会在地图上显示成不认识的种类）
 	if int(d.get("version", 0)) != SAVE_VERSION:
-		toast.emit("存档版本不符（该档 v%d，当前 v%d）：1.0 不做旧档兼容，请新开一局"
-			% [int(d.get("version", 0)), SAVE_VERSION])
+		var was := int(d.get("version", 0))
+		delete_slot(slot)
+		toast.emit("存档已过期（该档 v%d，当前 v%d），已删除，请新开一局" % [was, SAVE_VERSION])
 		return false
+
 	var loaded: Dictionary = d.get("state", {})
 	if loaded.is_empty():
 		toast.emit("存档内容为空")

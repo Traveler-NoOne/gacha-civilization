@@ -51,6 +51,89 @@ static func elevation_of(c: Vector2i, world_seed: int) -> float:
 	return pow(e, 1.25)
 
 
+## 某一格的"湿度"（0~1）。必须用**另一张噪声**（换种子 + 换频率）——
+## 否则它和高程一模一样，查表就退化成"只看高程"，看不到干湿分区。
+static var _moist_noise: FastNoiseLite = null
+static var _moist_noise_seed := -1
+
+
+static func moisture_of(c: Vector2i, world_seed: int) -> float:
+	if _moist_noise == null or _moist_noise_seed != world_seed:
+		var n2 := FastNoiseLite.new()
+		n2.seed = world_seed + 1013
+		n2.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		n2.frequency = 0.09          # 比高程更"大块"，气候带才连片
+		n2.fractal_type = FastNoiseLite.FRACTAL_FBM
+		n2.fractal_octaves = 3
+		n2.fractal_gain = 0.5
+		_moist_noise = n2
+		_moist_noise_seed = world_seed
+	return (_moist_noise.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5
+
+
+## 高程 + 湿度 → 一层地形 + 一层地物（Red Blob 那篇的二维查表，阈值按本作的种类改过）。
+## 仍是 f(坐标, 种子) 的纯函数。
+static func biome_of(e: float, m: float) -> Dictionary:
+	if e < 0.36:
+		return {"terrain": "water", "cover": ""}
+	if e < 0.50:
+		if m > 0.70:
+			return {"terrain": "plain", "cover": "swamp"}
+		if m > 0.45:
+			return {"terrain": "plain", "cover": "grass"}
+		if m > 0.22:
+			return {"terrain": "plain", "cover": "forest"}
+		return {"terrain": "dune", "cover": ""}
+	if e < 0.62:
+		if m > 0.45:
+			return {"terrain": "hill", "cover": "forest"}
+		if m > 0.22:
+			return {"terrain": "hill", "cover": "grass"}
+		return {"terrain": "hill", "cover": ""}
+	if e < 0.72:
+		if m > 0.60:
+			return {"terrain": "hill", "cover": "forest"}
+		if m > 0.30:
+			return {"terrain": "hill", "cover": "grass"}
+		return {"terrain": "wasteland", "cover": ""}
+	return {"terrain": "mountain", "cover": ""}
+
+
+## v1.8.21：挑出生点（首都）。全部由地形/资源决定、**不含随机** → 同一局永远选到同一格。
+##   候选：非水、且离世界中心不超过「起始半径 × 0.78」（= 不贴边境）
+##   得分：周围 3 格内"有资源的地块数"（越丰富越好）
+##   取最高分；并列取离中心更近的；再并列取先遇到的（字典是插入序 → 确定）
+static func choose_capital(tiles: Dictionary) -> String:
+	var limit := int(float(Consts.MAP_START_RADIUS) * 0.78)
+	var best_key := ""
+	var best_score := -1
+	var best_dist := 9999
+	for k in tiles.keys():
+		var t: Dictionary = tiles[k]
+		if str(t.get("terrain", "")) == "water":
+			continue
+		var c := coord_of(str(k))
+		var d := Hex.distance(c, Vector2i.ZERO)
+		if d > limit:
+			continue
+		var score := 0
+		for nb: Vector2i in Hex.spiral(3):
+			var nk := key_of(c + nb)
+			if not tiles.has(nk):
+				continue
+			var nt: Dictionary = tiles[nk]
+			if str(nt.get("terrain", "")) == "water":
+				continue
+			if str(nt.get("resource", "")) != "":
+				score += 1
+		if score > best_score or (score == best_score and d < best_dist):
+			best_score = score
+			best_dist = d
+			best_key = str(k)
+	return best_key
+
+
+
 
 ## 将字符串坐标转换为vector2i坐标
 static func coord_of(key: String) -> Vector2i:
@@ -71,7 +154,10 @@ static func generate(state: Dictionary) -> void:
 		tiles[key_of(c)] = _make_tile(c, world_seed)
 
 	state["tiles"] = tiles
-	# 首都占据中心
+	# v1.8.21：出生点不再固定在世界中心，改成挑一处**资源相对丰富、又不贴边境**的地块
+	#（原来这里固定中心 + 下面还有一段"保证附近有基础资源"的强制补丁，那段已删）
+	state["capital"] = choose_capital(tiles)
+
 	var cap := coord_of(str(state["capital"]))
 	var cap_tile: Dictionary = tiles[key_of(cap)]
 	cap_tile["owner"] = OWNER_PLAYER
@@ -83,8 +169,7 @@ static func generate(state: Dictionary) -> void:
 	cap_tile["buildings"] = []
 	# 初始点亮范围
 	discover_radius(state, cap, Consts.CAMP_START_RADIUS)
-	# 保证首都不缺基础资源
-	_ensure_basic_nearby(state, cap)
+
 
 
 ## 造一格（地形 + 基础资源）。
@@ -97,7 +182,9 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 	var t := {
 		"c": [c.x, c.y],
 		"terrain": "plain",
+		"cover": "",
 		"resource": "",
+
 		"owner": OWNER_NONE,
 		"discovered": false,
 		"is_capital": false,
@@ -109,27 +196,19 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 		"stronghold": "",  # v1.3.1：所属据点（我方地块才有）
 		"land_cap": Consts.LAND_CAP_DEFAULT,   # v1.3.1：可用土地上限
 	}
-	# v1.8.21 第 1 段：地形由**高程**决定（成片）；本段先用现有这 5 种，
-	# 第 2 段引入"地物"层后，forest 会改落到 cover 上。
-	var e := elevation_of(c, world_seed)
-	if e < 0.36:
-		t["terrain"] = "water"
-	elif e < 0.50:
-		t["terrain"] = "plain"
-	elif e < 0.62:
-		t["terrain"] = "hill"
-	elif e < 0.72:
-		t["terrain"] = "forest"
+	# v1.8.21 第 2 段：地形（地貌）与地物（覆盖物）分两层，由高程 + 湿度查表得出
+	var b := biome_of(elevation_of(c, world_seed), moisture_of(c, world_seed))
+	t["terrain"] = b["terrain"]
+	t["cover"] = b["cover"]
 
-	else:
-		t["terrain"] = "wasteland"
 
 
 	# 基础资源点
 	var rr := Hex.hash01(c, 31 + world_seed)
 
 	var dist := Hex.distance(c, Vector2i.ZERO)
-	if t["terrain"] == "forest" and rr < 0.55:
+	if t["cover"] == "forest" and rr < 0.55:
+
 		t["resource"] = "wood"
 		t["amount"] = 4.0 + rr * 8.0
 	elif t["terrain"] == "hill" and rr < 0.45:
@@ -141,30 +220,7 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 	return t
 
 
-static func _ensure_basic_nearby(state: Dictionary, center: Vector2i) -> void:
-	var tiles: Dictionary = state["tiles"]
-	var i := 0
-	for d in Hex.DIRECTIONS:
-		var c := center + d
-		var k := key_of(c)
-		if not tiles.has(k):
-			continue
-		var t: Dictionary = tiles[k]
-		if i == 0:
-			t["terrain"] = "forest"
-			t["resource"] = "wood"
-			t["amount"] = 6.0
-		elif i == 1:
-			t["terrain"] = "hill"
-			t["resource"] = "coal"
-			t["amount"] = 5.0
-		elif i == 2:
-			t["terrain"] = "hill"
-			t["resource"] = "copper"
-			t["amount"] = 5.0
-		else:
-			break
-		i += 1
+
 
 
 # ===========================================================================

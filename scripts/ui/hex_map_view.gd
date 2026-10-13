@@ -12,8 +12,7 @@ signal tile_left_clicked(key: String, uid: String, gpos: Vector2)
 
 ## v1.8.5：右键点地块（用于弹"球形图标操作菜单"）
 signal tile_right_clicked(key: String, gpos: Vector2)
-## v1.8.20.4：鼠标悬停到的格子变了就发一次（移出地图 / 开始拖动平移时发 ""）
-## 简约地块信息小窗改由它驱动 —— 悬停 1 秒后才显示，点击不再负责弹小窗。
+## v1.8.20.4：鼠标悬停位置改变
 signal hover_changed(key: String)
 
 # 这三个常量决定了地图缩放的默认大小和最大缩小和最大放大。
@@ -54,11 +53,11 @@ func center_on_axial(c: Vector2i) -> void:
 func _center_view() -> void:
 	center_on_axial(WorldGen.coord_of(str(GameState.state["capital"])))
 
-
+## qr坐标转场景坐标
 func axial_to_screen(c: Vector2i) -> Vector2:
 	return Hex.axial_to_pixel(c.x, c.y, hex_size) + origin
 
-
+## 场景坐标转qr坐标
 func screen_to_key(p: Vector2) -> String:
 	var c := Hex.pixel_to_axial(p - origin, hex_size)
 	return WorldGen.key_of(c)
@@ -73,9 +72,6 @@ func screen_to_key(p: Vector2) -> String:
 ##             "center": Vector2, "pts": PackedVector2Array }
 func _visible_tiles() -> Array:
 	var out: Array = []
-	# v1.8.20.10：缺键**或为空**都算没数据 → Fatal。
-	# 光查 has("tiles") 不够：new_game 的 state 自带 "tiles": {}，世界生成没跑成时 has() 仍是 true。
-
 	var tiles_v: Variant = GameState.state.get("tiles")
 	if tiles_v == null or (tiles_v as Dictionary).is_empty():
 		Fatal.fatal("E-MAP-001")
@@ -96,17 +92,9 @@ func _visible_tiles() -> Array:
 
 
 ## v1.8.1：绘制顺序 = 图层顺序。
-## 以前是"一格一格画完它的所有内容"，于是邻格会盖住前格的东西 —— 最典型的就是据点名：
-## 它画在格子下缘（六边形在那儿收成一个尖），文字伸出本格后被后画的邻格覆盖，
-## 而且"谁盖谁"取决于字典遍历顺序，所以时好时坏。
-## 改成"一层画完再画下一层"后，文字在最后一层，谁都盖不到它。
-##
 ## 图层顺序（同时就是 8 个层函数的顺序）：
 ##   ① 底色（地形/迷雾） ② 特征物（资源点） ③ 建筑 ④ 领地边框
 ##   ⑤ 单位（驻军）      ⑥ 据点标记（首都星） ⑦ 标记+悬浮/选中 ⑧ 文字
-##
-## ⚠️ 这个顺序与改前"单格内的顺序"**一一对应**，所以它只改变"谁来画"，
-##    不会改变画面 —— 这是第 1-A 刀能"逐像素比对"的前提。
 func _draw() -> void:
 	var capital := WorldGen.coord_of(str(GameState.state.get("capital", "0,0")))
 	var vis := _visible_tiles()
@@ -148,6 +136,11 @@ func _draw_tile_base(v: Dictionary) -> void:
 		return
 	# 地形底色
 	draw_colored_polygon(pts, Consts.terrain_color(str(t.get("terrain", "plain"))))
+	# v1.8.21：地物（覆盖物）叠一层 —— 内缩一圈的小六边形，这样地形色还看得见
+	var cover := str(t.get("cover", ""))
+	if cover != "":
+		draw_colored_polygon(Hex.corners(v["center"], hex_size * 0.66), Consts.cover_color(cover))
+
 	var outline := pts.duplicate()
 	outline.append(pts[0])
 	draw_polyline(outline, Color(0, 0, 0, 0.35), 1.0)
@@ -220,10 +213,10 @@ func _draw_tile_border(v: Dictionary) -> void:
 
 
 ## 单位图标在屏幕上的位置。
-## 【重要】**绘制与点击命中共用这一份几何** —— 两处各算一遍的话，
-## 哪天挪了图标位置，命中就会悄悄失准（点得到的地方 ≠ 看到的地方），而且极难查。
 ## 返回：[{ "u": Dictionary, "pos": Vector2 }, ...]
 ##   "u" 就是该单位的存档数据（uid / profession 都从它取，避免再存一份造成两份口径）
+## 【重要】**绘制与点击命中共用这一份几何** —— 两处各算一遍的话，
+## 哪天挪了图标位置，命中就会悄悄失准（点得到的地方 ≠ 看到的地方），而且极难查。
 func unit_icon_positions(key: String) -> Array:
 	var out: Array = []
 	# 敌方地块不画单位标记，所以也没有可点的图标
@@ -389,16 +382,15 @@ func _gui_input(event: InputEvent) -> void:
 			if mb.pressed:
 				_dragging = true # 按住时将拖拽设置为true
 				_drag_start = mb.position # 将点击时的位置储存进拖拽起点
-				_origin_start = origin
+				_origin_start = origin # 将偏移量存进偏移起点
 			else:
 				_dragging = false # 按住时将拖拽设置为false
 				if mb.position.distance_to(_drag_start) < 5.0: # 如果拖拽结束点的距离小于5
 					var k := screen_to_key(mb.position)
-					if GameState.state["tiles"].has(k):
-						# v1.8.2：把"点在哪一格 + 有没有点到棋子 + 鼠标位置"一起报出去
-						var uid := unit_uid_at(k, mb.position)
+					if GameState.state["tiles"].has(k): # 如果qr坐标存在地块
+						# v1.8.2：把"公布qr坐标 + 单位UID + 鼠标位置"一起报出去
+						var uid := unit_uid_at(k, mb.position) # 获取最近的棋子
 						tile_left_clicked.emit(k, uid, get_global_transform() * mb.position)
-
 						queue_redraw()
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
@@ -445,12 +437,10 @@ func capital_star_hit(key: String, global_pos: Vector2) -> bool:
 	var local := get_global_transform().affine_inverse() * global_pos
 	return local.distance_to(tile_center(key)) <= hex_size * 0.42
 
-
-
 ## 这一格上，点到了哪个单位的图标？（没点中返回 ""）
-
-## 命中口径**与绘制共用** unit_icon_positions() —— 位置一致，不会"看得到却点不到"。
-## 多个图标都落进范围内时取**最近**的那个。
+## 需要参数：qr坐标: srt，鼠标位置: vec2
+## 命中口径 与绘制共用 unit_icon_positions() —— 位置一致，不会"看得到却点不到"。
+## 多个图标都落进范围内时取 最近 的那个。
 func unit_uid_at(key: String, pos: Vector2) -> String:
 	var best := ""
 	var best_d := INF

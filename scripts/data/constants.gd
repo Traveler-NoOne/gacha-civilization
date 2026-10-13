@@ -108,21 +108,41 @@ const CLAIM_COST_PER_TILE := 2.0
 ## 每块领地每个周期提供的基础生产力（让扩张本身有正收益）
 const PRODUCTION_PER_TILE := 0.6
 
+## v1.8.21：地形 = 地表形态（地貌）。森林/草地这类"地表覆盖物"归**地物**，见下面的 COVER_*。
 const TERRAIN_NAMES := {
-	"plain": "平原",
-	"forest": "树林",
-	"hill": "丘陵",
 	"water": "水域",
+	"plain": "平原",
+	"hill": "丘陵",
+	"mountain": "山脉",
+	"dune": "沙丘",
 	"wasteland": "荒地",
+	"forest": "树林",   # 旧档遗留：森林已改归「地物」，这条只为老档不至于显示成洋红
 }
 
 const TERRAIN_COLORS := {
-	"plain": Color(0.30, 0.42, 0.26),
-	"forest": Color(0.16, 0.32, 0.20),
-	"hill": Color(0.40, 0.36, 0.28),
 	"water": Color(0.16, 0.28, 0.46),
+	"plain": Color(0.30, 0.42, 0.26),
+	"hill": Color(0.40, 0.36, 0.28),
+	"mountain": Color(0.48, 0.46, 0.44),
+	"dune": Color(0.58, 0.50, 0.32),
 	"wasteland": Color(0.34, 0.28, 0.26),
+	"forest": Color(0.16, 0.32, 0.20),   # 旧档遗留，同上
 }
+
+## v1.8.21：地物 = 地表覆盖物（叠在地形之上的一层）。空串 = 裸地。
+const COVER_NAMES := {
+	"": "裸地",
+	"grass": "草地",
+	"forest": "森林",
+	"swamp": "沼泽",
+}
+
+const COVER_COLORS := {
+	"grass": Color(0.44, 0.60, 0.30),
+	"forest": Color(0.14, 0.34, 0.20),
+	"swamp": Color(0.26, 0.36, 0.28),
+}
+
 
 # ---------------------------------------------------------------------------
 # 战斗（演示用简化数值）
@@ -350,3 +370,13 @@ static func terrain_color(t: String) -> Color:
 
 static func terrain_name(t: String) -> String:
 	return TERRAIN_NAMES.get(t, t)
+
+
+## v1.8.21：地物取色/取名。空串 = 裸地，取色返回全透明（表示"不叠加"）。
+static func cover_color(c: String) -> Color:
+	return COVER_COLORS.get(c, Color(0, 0, 0, 0))
+
+
+static func cover_name(c: String) -> String:
+	return COVER_NAMES.get(c, c)
+
