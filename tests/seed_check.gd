@@ -178,6 +178,34 @@ func _ready() -> void:
 		elif (r10 == "coal" or r10 == "copper") and str(t10.get("terrain", "")) != "hill":
 			mismatched.append("%s(%s但terrain=%s)" % [k10, r10, str(t10.get("terrain", ""))])
 	print("  资源分布：%s" % str(res_count))
+
+	# ⑪ v1.8.21 第 3 段：大陆形状 —— 中心应当基本是陆，初始半径边缘应当基本是海
+	var edge_tiles := 0
+	var edge_water := 0
+	var core_tiles := 0
+	var core_water := 0
+	for k11 in tiles8.keys():
+		var d11 := Hex.distance(WorldGen.coord_of(str(k11)), Vector2i.ZERO)
+		var is_w := str((tiles8[k11] as Dictionary).get("terrain", "")) == "water"
+		if d11 >= Consts.MAP_START_RADIUS - 1:
+			edge_tiles += 1
+			if is_w:
+				edge_water += 1
+		elif d11 <= 3:
+			core_tiles += 1
+			if is_w:
+				core_water += 1
+	var edge_ratio := 0.0
+	if edge_tiles > 0:
+		edge_ratio = float(edge_water) / float(edge_tiles)
+	var core_ratio := 0.0
+	if core_tiles > 0:
+		core_ratio = float(core_water) / float(core_tiles)
+	print("  大陆形状：边缘含水 %.0f%%（%d/%d）；中心含水 %.0f%%（%d/%d）" % [
+		edge_ratio * 100.0, edge_water, edge_tiles, core_ratio * 100.0, core_water, core_tiles])
+	_check(edge_ratio >= 0.60, "边缘基本是海（含水 %.0f%% ≥ 60%%）" % (edge_ratio * 100.0))
+	_check(core_ratio <= 0.20, "中心基本是陆（含水 %.0f%% ≤ 20%%）" % (core_ratio * 100.0))
+
 	print("  资源与地貌不符：%d 处" % mismatched.size())
 	_check(mismatched.is_empty(), "资源都长在对应地貌上（木头←森林、煤/铜←山丘）")
 

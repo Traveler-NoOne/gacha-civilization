@@ -43,12 +43,23 @@ static func _elevation_noise(world_seed: int) -> FastNoiseLite:
 	return n
 
 
-## 某一格的高度（0~1）：多倍频采样后做**重塑**——把中间高度往下压一点，让平原多些。
-## 指数就是"水多不多"的旋钮：调大 → 整体变低 → 水变多（2.6 那次半张图都是海，别调过头）。
+## v1.8.21 第 3 段：大陆形状。离世界中心越远 → 越往水拉，于是"中间大陆、四周海洋"。
+## ⚠️ 尺度必须用**固定常量**（起始半径 × 1.3），不能用"当前半径"——
+## 否则地图一扩张，老格子的地形就会变（1.8.20.9 那条纯函数约束）。
+## 1.3 这个系数决定"海岸线落在哪"：太小 → 初始图大半是海；太大 → 看不出海岸。
+static func mainland_pull(c: Vector2i) -> float:
+	var d := float(Hex.distance(c, Vector2i.ZERO)) / (float(Consts.MAP_START_RADIUS) * 1.3)
+	return clampf(d, 0.0, 1.0)
+
+
+## 某一格的高度（0~1）：多倍频采样 → **大陆形状**（往 1-距离 混）→ 重塑（往下压，让平原多些）。
+## 重塑指数是"水多不多"的旋钮（2.6 那次半张图都是海，别调过头）。
 static func elevation_of(c: Vector2i, world_seed: int) -> float:
 	var n := _elevation_noise(world_seed)
 	var e := (n.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5
+	e = lerp(e, 1.0 - mainland_pull(c), 0.55)
 	return pow(e, 1.25)
+
 
 
 ## 某一格的"湿度"（0~1）。必须用**另一张噪声**（换种子 + 换频率）——
