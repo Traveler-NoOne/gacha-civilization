@@ -143,7 +143,12 @@ func _draw_tile_base(v: Dictionary) -> void:
 
 	var outline := pts.duplicate()
 	outline.append(pts[0])
-	draw_polyline(outline, Color(0, 0, 0, 0.35), 1.0)
+	# v1.8.21：河流格用**蓝色描边**标出来（河本身没有单独的地形种类，见 world_gen 的侵蚀）
+	if bool(t.get("river", false)):
+		draw_polyline(outline, Color(0.35, 0.65, 1.0, 0.95), 2.0)
+	else:
+		draw_polyline(outline, Color(0, 0, 0, 0.35), 1.0)
+
 
 
 func _draw_tile_features(v: Dictionary) -> void:

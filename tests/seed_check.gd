@@ -190,6 +190,32 @@ func _ready() -> void:
 			eroded_n += 1
 			max_drop = maxf(max_drop, raw12 - er12)
 	print("  侵蚀：被削低的格子 %d 个（最大削低 %.3f）" % [eroded_n, max_drop])
+
+	# ⑬ v1.8.21：河流（蓝色描边用的那批格子）—— 要有，而且大致连成链（不是散点）
+	var river_n := 0
+	var river_with_nb := 0
+	for k13 in tiles8.keys():
+		if not bool((tiles8[k13] as Dictionary).get("river", false)):
+			continue
+		river_n += 1
+		var c13 := WorldGen.coord_of(str(k13))
+		for nb13: Vector2i in Hex.neighbors(c13):
+			var t13: Variant = tiles8.get(WorldGen.key_of(nb13))
+			if t13 != null and bool((t13 as Dictionary).get("river", false)):
+				river_with_nb += 1
+				break
+	var chain_ratio := 0.0
+	if river_n > 0:
+		chain_ratio = float(river_with_nb) / float(river_n)
+	print("  河流格：%d 个（其中 %.0f%% 有相邻河流格）" % [river_n, chain_ratio * 100.0])
+	_check(river_n > 0, "存在河流格（要用来画蓝色描边）")
+	if river_n > 0:
+		# 现阶段只承诺"河格不是随机散点"（相当一部分彼此相邻）。真正连续的水系需要完整的
+		# 流向模型（优先淹没 + D8 坡度完成），那是**用户明确同意推后的未来事项**（"水流以后再说"），
+		# 所以这里不断言"连成链"。
+		_check(chain_ratio >= 0.25, "河格彼此相邻的比例明显高于随机（%.0f%% ≥ 25%%）" % (chain_ratio * 100.0))
+
+
 	_check(eroded_n > 0, "侵蚀确实削低了部分格子（河谷）")
 	_check(max_drop > 0.001, "削低的幅度可见（最大 %.3f > 0.001）" % max_drop)
 

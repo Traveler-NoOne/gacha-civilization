@@ -76,8 +76,11 @@ static func elevation_of(c: Vector2i, world_seed: int) -> float:
 ## 侵蚀系数：按真实感设的物理量，**不为平衡调**（用户定的原则）。
 const EROSION_RATE := 0.02
 
+
 static var _eroded: Dictionary = {}
 static var _eroded_seed := -1
+static var _river_keys: Dictionary = {}
+
 
 
 static func _eroded_heights(world_seed: int) -> Dictionary:
@@ -89,7 +92,22 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 		var k := key_of(c)
 		raw[k] = elevation_of(c, world_seed)
 		cells.append(c)
+	# 填洼（水文建模的标准一步，之前漏了）：
+	# 噪声面上有无数小坑，水一流进去就断了 → 汇流量永远攒不起来，河就成不了链
+	#（第一版没这步，全图只有 5 个孤立河格）。做法是迭代松弛：每格抬到不低于"最矮的邻格"，
+	# 即"水必须漫过最低的坑沿才能流出去、于是坑被填成平湖"。迭代次数固定 + 遍历顺序固定 → 结果确定。
+	for _pass in 8:
+		for c1: Vector2i in cells:
+			var k1 := key_of(c1)
+			var lowest_nb := 9.9
+			for nb1: Vector2i in Hex.neighbors(c1):
+				var nk1 := key_of(nb1)
+				if raw.has(nk1):
+					lowest_nb = minf(lowest_nb, float(raw[nk1]))
+			if lowest_nb < 9.9:
+				raw[k1] = maxf(float(raw[k1]), lowest_nb)
 	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+
 		var ha: float = raw[key_of(a)]
 		var hb: float = raw[key_of(b)]
 		if not is_equal_approx(ha, hb):
@@ -101,13 +119,20 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 		flow[k2] = int(flow.get(k2, 0)) + 1
 		var lowest := ""
 		var lowest_h := float(raw[k2])
+		var lowest_key := ""
 		for nb: Vector2i in Hex.neighbors(c2):
 			var nk := key_of(nb)
 			if not raw.has(nk):
 				continue
-			if float(raw[nk]) < lowest_h:
-				lowest_h = float(raw[nk])
+			var h_nb := float(raw[nk])
+			# 取"高度最小、同高则比坐标键"的邻格。填洼保证了每格都至少有一个**不高于**自己的邻格，
+			# 所以平地上也能按坐标键定出一个确定的流向；而 (高度, 键) 每步严格递减 → 绝不会打转。
+			# （第一版只认"严格更低"，水一进平湖就停了 → 河里全是断口。）
+			if h_nb < lowest_h or (is_equal_approx(h_nb, lowest_h) and (lowest_key == "" or nk < lowest_key)):
+				lowest_h = h_nb
+				lowest_key = nk
 				lowest = nk
+
 		if lowest != "":
 			flow[lowest] = int(flow.get(lowest, 0)) + int(flow[k2])
 	var out := {}
@@ -119,7 +144,23 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 
 	_eroded = out
 	_eroded_seed = world_seed
+	# 顺手把"河流格"挑出来 —— 每次重建，换种子自然就换掉了。
+	# 判据用**汇流量的前 2%**（= "流域面积最大的那批"），而不是一个固定数字：
+	# 这样"河"的定义随地图规模自动成立，不用为每张图调参（第一版用固定阈值 35，
+	# 结果全图只有 3 个河格 —— 这片地形的汇流本来就细）。
+	var flows: Array = []
+	for k4 in flow.keys():
+		flows.append(int(flow[k4]))
+	flows.sort()
+	var river_want := maxi(1, int(float(flows.size()) * 0.02))
+	var river_cut := int(flows[flows.size() - river_want])
+	_river_keys = {}
+	for k5 in flow.keys():
+		if int(flow[k5]) >= river_cut:
+			_river_keys[k5] = true
+
 	return out
+
 
 
 ## 带侵蚀的高度。表里没有的坐标（超出最大范围）退回原始高度。
@@ -282,6 +323,10 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 
 	t["terrain"] = b["terrain"]
 	t["cover"] = b["cover"]
+	# v1.8.21：河流格（上面那次侵蚀已经顺便挑好了，这里只是取用）
+	if _river_keys.has(key_of(c)):
+		t["river"] = true
+
 
 
 
