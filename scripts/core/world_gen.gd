@@ -121,6 +121,8 @@ static func elevation_of(c: Vector2i, world_seed: int) -> float:
 # ===========================================================================
 ## 侵蚀系数：按真实感设的物理量，**不为平衡调**（用户定的原则）。
 const EROSION_RATE := 0.02
+## 水线（= biome_of 里"水"的判据）。W4 的河流要用它区分"陆上"与"入海"。
+const SEA_LEVEL := 0.36
 
 
 static var _eroded: Dictionary = {}
@@ -198,25 +200,29 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 	_eroded = out
 	_eroded_seed = world_seed
 	# 顺手把"河流格"挑出来 —— 每次重建，换种子自然就换掉了。
-	# 判据用**汇流量的前 2%**（= "流域面积最大的那批"），而不是一个固定数字：
-	# 这样"河"的定义随地图规模自动成立，不用为每张图调参（第一版用固定阈值 35，
-	# 结果全图只有 3 个河格 —— 这片地形的汇流本来就细）。
+	# ⚠️ 2026-10-13 **只按"陆地格"统计**：海里也有"流量"（海盆会把大片区域的水汇到一起），
+	# 把海算进去的话，**"流量前 2%"几乎全是深海格** → 玩家实测"**大多数河流在海里**、
+	# 陆地上只有一两条、还离得很远"。而且分界线也会被海抬高，让陆地格根本够不着。
 	var flows: Array = []
 	for k4 in flow.keys():
-		flows.append(int(flow[k4]))
+		if float(out.get(k4, 1.0)) >= SEA_LEVEL:
+			flows.append(int(flow[k4]))
+	_river_keys = {}
+	if flows.is_empty():
+		_flow_to = flow_to
+		_river_edges = {}
+		return out
 	flows.sort()
 	var river_want := maxi(1, int(float(flows.size()) * 0.02))
 	var river_cut := int(flows[flows.size() - river_want])
-	_river_keys = {}
 	for k5 in flow.keys():
-		if int(flow[k5]) >= river_cut:
+		if float(out.get(k5, 1.0)) >= SEA_LEVEL and int(flow[k5]) >= river_cut:
 			_river_keys[k5] = true
 
 	# W4：**把河从"高流量那一批"顺着流向一路补到入海**。
 	# 不补的话河会在半路断掉 —— 因为"河"只按"流量前 2%"挑，下游流量一旦掉出前 2% 就没了
 	# （实测只有 43% 的河格有相邻河格，看上去就是一小段一小段的弧，读不出流向）。
 	# 判据照计划：「流量 ≥ 阈值 **或** 终点是海/湖」——这里补的就是后半句。
-	const SEA_LEVEL := 0.36
 	for k0 in _river_keys.keys():
 		var cur := str(k0)
 		var guard := 0
@@ -226,9 +232,9 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 			if to == "":
 				break                       # 没有下游（汇/图边）→ 到头了
 			var h_to := float(out.get(to, 1.0))
-			_river_keys[to] = true
 			if h_to < SEA_LEVEL:
-				break                       # 已经入海 → 到这儿为止
+				break                       # 到海就停 —— **入海口那格不标成河**（否则河边又跑到海里）
+			_river_keys[to] = true
 			cur = to
 
 	# W4：**把河道落到边上去** —— 每一条"河格 → 下游河格"就算一条河道边。

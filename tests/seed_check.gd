@@ -172,10 +172,13 @@ func _ready() -> void:
 	# ⑬ v1.8.21：河流（蓝色描边用的那批格子）—— 要有，而且大致连成链（不是散点）
 	var river_n := 0
 	var river_with_nb := 0
+	var river_in_water := 0        # ★ 用户 2026-10-13 报的 bug：河跑到海里去了
 	for k13 in tiles8.keys():
 		if not bool((tiles8[k13] as Dictionary).get("river", false)):
 			continue
 		river_n += 1
+		if str((tiles8[k13] as Dictionary).get("terrain", "")) == "water":
+			river_in_water += 1
 		var c13 := WorldGen.coord_of(str(k13))
 		for nb13: Vector2i in Hex.neighbors(c13):
 			var t13: Variant = tiles8.get(WorldGen.key_of(nb13))
@@ -185,8 +188,10 @@ func _ready() -> void:
 	var chain_ratio := 0.0
 	if river_n > 0:
 		chain_ratio = float(river_with_nb) / float(river_n)
-	print("  河流格：%d 个（其中 %.0f%% 有相邻河流格）" % [river_n, chain_ratio * 100.0])
+	print("  河流格：%d 个（其中 %.0f%% 有相邻河流格；**在海里的 %d 个**）"
+		% [river_n, chain_ratio * 100.0, river_in_water])
 	_check(river_n > 0, "存在河流格（要用来画蓝色描边）")
+	_check(river_in_water == 0, "**没有一格河在海里**（实际 %d 个）" % river_in_water)
 	if river_n > 0:
 		# W4（2026-10-13）：**河已经顺着流向补到入海**，所以现在**可以**要求它连成链了。
 		# 原先不能要求，是因为河只按"流量前 2%"挑、下游掉出前 2% 就断（那时只有 ~43% 有邻居）。
