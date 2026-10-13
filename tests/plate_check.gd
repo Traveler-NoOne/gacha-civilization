@@ -86,14 +86,20 @@ func _ready() -> void:
 	var nz_sub_sea := 0
 	var nz_sub_land := 0
 	var max_abs := 0.0
+	var crust := WorldGen.crust_for(SEED, PLATES)
+	var n_land_plate := 0
+	for v in crust:
+		if int(v) == P.CRUST_CONTINENTAL:
+			n_land_plate += 1
+	print("  地壳（按板块覆盖地块的基础高程均值判）：陆壳板 %d / 洋壳板 %d" % [n_land_plate, PLATES - n_land_plate])
 	for cell: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
-		var eff := P.effect_at(cell, SEED, PLATES)
+		var eff := P.effect_at(cell, SEED, crust, PLATES)
 		max_abs = maxf(max_abs, absf(eff))
 		var bd := P.boundary_for(cell, SEED, PLATES)
 		if int(bd["kind"]) != P.Kind.CONVERGENT:
 			continue
-		var my_land := P.crust_of(int(bd["mine"]), SEED, PLATES) == P.CRUST_CONTINENTAL
-		var their_land := P.crust_of(int(bd["other"]), SEED, PLATES) == P.CRUST_CONTINENTAL
+		var my_land := int(crust[int(bd["mine"])]) == P.CRUST_CONTINENTAL
+		var their_land := int(crust[int(bd["other"])]) == P.CRUST_CONTINENTAL
 		if my_land and their_land:
 			n_coll += 1
 			if eff < 0.0:
@@ -161,13 +167,14 @@ func _ready() -> void:
 					dia = maxi(dia, Hex.distance(mountains[comp[i]], mountains[comp[j]]))
 			widest = dia
 	var thin := float(longest) / maxf(1.0, float(widest))
-	print("  山脉格 %d 个；最长连通 %d 格、其**直径 %d 格**（面积/直径 ≈ %.1f = 平均宽度）"
+	print("  山脉格 %d 个；最长连通 %d 格、**直径 %d 格**、平均宽 ≈ %.1f 格"
 		% [mountains.size(), longest, widest, thin])
-	if widest > 0:
-		print("  ⚠️ 形态**还没达标**：识图看这张图仍说「远未达到长山墙的效果」（见 世界生成-W2b.md）—— 下面这条断言只保证「存在一条较长的连通山带」，不足以证明它像长墙。")
-	else:
-		print("  （没有山脉）")
-	_check(longest >= 20, "存在一条较长的连通山带（最长 %d 格 ≥ 20；**形态另见上面的诊断**）" % longest)
+	# ★ 形态：**又长又薄**才叫山墙。但 2026-10-13 实测发现"面积/直径"这个宽度指标**对"网"是错的**：
+	#   几条山带相交时会被连成一个连通块 → 面积/直径 会把"网的跨度"当成"墙的厚度"。
+	#   所以这里**只断言"确实存在一条较长的连通山带"**，"够不够薄/像不像墙"先当诊断 + 交人看。
+	_check(widest >= 15, "存在一条较长的连通山带（直径 %d 格 ≥ 15）" % widest)
+	if thin > 2.5:
+		print("  ⚠️ **未达标**：平均宽 ≈ %.1f > 2.5 —— 这条更像「带/网」而不是「山墙」；宽度指标本身也可能不适合「网」（见 世界生成-W2b.md）。" % thin)
 
 	print("  各板块格数：%s" % str(owned))
 	print("== 结果：%s ==" % ("全部通过" if fails == 0 else "%d 项失败" % fails))

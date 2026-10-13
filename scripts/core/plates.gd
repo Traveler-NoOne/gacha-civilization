@@ -48,15 +48,17 @@ const NEIGHBORS: Array[Vector2i] = [
 ##   ⚠️ 碰撞必须够大（0.34）：这样"底子 0.40 的陆格"也能被顶过 0.72 的山脉线（world_gen.biome_of），
 ##      于是整条边界连成一条**长墙**，而不是碰阈值碰出几个孤峰（W2 的老毛病，见 世界生成-W2b.md）。
 ## ===========================================================================
-const AMP_COLLISION := 0.34      ## 陆-陆碰撞：山系（喜马拉雅型）
-const AMP_ARC_LAND := 0.22       ## 俯冲：陆侧的沿岸山链（科迪勒拉型）
+const AMP_COLLISION := 0.36      ## 陆-陆碰撞：山系（喜马拉雅型）。**别贪大**：0.50 会让整条 4 格宽的带全越线 → 变疙瘩（实测）
+const AMP_ARC_LAND := 0.30       ## 俯冲：陆侧的沿岸山链（科迪勒拉型）
 const AMP_TRENCH := 0.20         ## 俯冲：洋侧的海沟（往下削）
 const AMP_ARC := 0.26            ## 洋-洋相向：另一侧的岛弧
 const AMP_RIFT := 0.14           ## 陆内裂谷（往下陷）
 const AMP_RIDGE := 0.10          ## 洋中脊（微抬）
 
-const W_COLLISION := 5           ## 各类型的带宽（格）
-const W_SUBDUCT := 4
+## 带宽（格）。**碰撞取 4 而不是 5**：配合 0.50 的振幅，"越线成山"的那部分大约只有 2 格宽
+## → 长而薄的**山墙**（W2b 第一版 5 格宽 + 0.34 振幅，结果是一团 21×3.6 的疙瘩，眼睛不认）。
+const W_COLLISION := 4
+const W_SUBDUCT := 3
 const W_NARROW := 3
 ## 找边界时最多看几格（= 最宽的那一种）
 const SCAN_STEPS := 5
@@ -64,11 +66,9 @@ const SCAN_STEPS := 5
 ## 地壳类型：陆壳 / 洋壳
 const CRUST_CONTINENTAL := 0
 const CRUST_OCEANIC := 1
-## **近似**判据：**种子落在地图范围内（含 5% 边距）→ 陆壳；落在图外 → 洋壳**。
-## 归一化用的是**地图**的外接椭圆（不是种子盒 —— 用种子盒会让尺度偏小、几乎全判成洋壳，实测踩过）。
-## 地图本来就是"中间陆、四周海"，所以这个近似够用；约 40% 的种子会落在图内。
-## ⚠️ W5 有了真正的参数图之后，应改成"按板块覆盖区域的平均基础高程"判（那才符合过程）。
-const CRUST_RATIO := 1.05
+## 地壳类型由 **WorldGen.crust_for()** 按"该板覆盖地块的**基础高程均值**"算好再传进来
+##（Plates 不依赖 WorldGen，避免循环依赖）。⚠️ 曾经这里按"种子离中心远近"猜 —— 那会让
+## 碰撞带常常落在**海里**（陆壳板覆盖的其实是海），长不出长墙；2026-10-13 改成均值判据。
 
 static var _frame_cache := {}
 
@@ -108,15 +108,6 @@ static func plate_at_point(p: Vector2, seeds: Array) -> int:
 	return best
 
 
-## 这一块是**陆壳**还是**洋壳**（近似：种子落在地图范围内 → 陆壳，图外 → 洋壳，见 CRUST_RATIO）
-static func crust_of(plate: int, world_seed: int, plate_count: int = 8) -> int:
-	var fr := frame(world_seed, plate_count)
-	var mh := fr["map_half"] as Vector2
-	var s: Vector2 = (fr["seeds"] as Array)[plate]
-	var rr := Vector2(s.x / maxf(1.0, mh.x), s.y / maxf(1.0, mh.y)).length()
-	return CRUST_OCEANIC if rr > CRUST_RATIO else CRUST_CONTINENTAL
-
-
 ## 这一格"**实际会用到的那条边界**"：SCAN_STEPS 格内、相向/相离里**最强**的一条
 ##（并列保留先遇到的 → 确定）。返回 `{kind, stress, dist}`；没有边界时 kind = `Kind.NONE`。
 ## 之所以要单独抽出来：自检要能问"函数到底按哪条边界算的"，否则测试只能靠猜（2026-10-13 踩过）。
@@ -126,23 +117,44 @@ static func boundary_for(c: Vector2i, world_seed: int, plate_count: int = 8) -> 
 	var motions: Array = fr["motions"]
 	var p := Hex.axial_to_pixel(c.x, c.y, 1.0)
 	var mine := plate_at_point(p, seeds)
-	var best := {"kind": Kind.NONE, "stress": 0.0, "dist": 0, "mine": mine, "other": mine}
-	for o: Vector2i in Hex.spiral(SCAN_STEPS):
-		if o == Vector2i.ZERO:
-			continue
-		var q := c + o
-		var their := plate_at_point(Hex.axial_to_pixel(q.x, q.y, 1.0), seeds)
-		if their == mine:
-			continue
-		var rel: Vector2 = (motions[mine] as Vector2) - (motions[their] as Vector2)
-		var normal := (Hex.axial_to_pixel(q.x, q.y, 1.0) - p).normalized()
-		var k := classify(rel, normal)
-		if k == Kind.TRANSFORM:
-			continue
-		var st := absf(rel.dot(normal))
-		if int(best["kind"]) == Kind.NONE or st > float(best["stress"]) + 0.000001:
-			best = {"kind": k, "stress": st, "dist": Hex.distance(c, q), "mine": mine, "other": their}
-	return best
+	# ⚠️ **按距离由近及远找**，只在同一圈里比强度。
+	#    第一版取"全局最强"的那条边界 → 山带的 d 会指向 5 格外的强边界（带外 = 效应 0），
+	#    于是山带被撕成碎块（2026-10-13 自检 + 识图一起抓到）。
+	for ring in range(1, SCAN_STEPS + 1):
+		var found := Kind.NONE
+		var best_stress := 0.0
+		var best_other := -1
+		for o: Vector2i in _ring(ring):
+			var q := c + o
+			var their := plate_at_point(Hex.axial_to_pixel(q.x, q.y, 1.0), seeds)
+			if their == mine:
+				continue
+			var rel: Vector2 = (motions[mine] as Vector2) - (motions[their] as Vector2)
+			var normal := (Hex.axial_to_pixel(q.x, q.y, 1.0) - p).normalized()
+			var k := classify(rel, normal)
+			if k == Kind.TRANSFORM:
+				continue
+			var st := absf(rel.dot(normal))
+			if found == Kind.NONE or st > best_stress + 0.000001:
+				found = k
+				best_stress = st
+				best_other = their
+		if found != Kind.NONE:
+			return {"kind": found, "stress": best_stress, "dist": ring, "mine": mine, "other": best_other}
+	return {"kind": Kind.NONE, "stress": 0.0, "dist": 0, "mine": mine, "other": mine}
+
+
+## 恰好距离 r 的那一圈（= spiral(r) 减去 spiral(r-1)）
+static func _ring(r: int) -> Array:
+	var out: Array = []
+	var inner := {}
+	if r > 1:
+		for c in Hex.spiral(r - 1):
+			inner[c] = true
+	for c in Hex.spiral(r):
+		if not inner.has(c):
+			out.append(c)
+	return out
 
 
 ## 板块对某一格高度的影响（**可正可负**，0 = 无影响）。
@@ -151,15 +163,15 @@ static func boundary_for(c: Vector2i, world_seed: int, plate_count: int = 8) -> 
 ##   洋-洋相向 → 一侧海沟、另一侧**岛弧**（序号大的那块先俯冲 —— 用它代替"谁更老更密"，确定）
 ##   陆-陆相离 → **裂谷**｜含洋相离 → 洋侧**洋中脊**、陆侧小裂谷｜错动 → 0
 ## ⚠️ 振幅**按类型分级、且已按类型定上限**（见本文件顶部的 AMP_* 常量）。
-static func effect_at(c: Vector2i, world_seed: int, plate_count: int = 8) -> float:
+static func effect_at(c: Vector2i, world_seed: int, crust: PackedByteArray, plate_count: int = 8) -> float:
 	var b := boundary_for(c, world_seed, plate_count)
 	if int(b["kind"]) == Kind.NONE:
 		return 0.0
 	var d := int(b["dist"])
 	var mine := int(b["mine"])
 	var other := int(b["other"])
-	var my_land := crust_of(mine, world_seed, plate_count) == CRUST_CONTINENTAL
-	var their_land := crust_of(other, world_seed, plate_count) == CRUST_CONTINENTAL
+	var my_land := int(crust[mine]) == CRUST_CONTINENTAL
+	var their_land := int(crust[other]) == CRUST_CONTINENTAL
 	match int(b["kind"]):
 		Kind.CONVERGENT:
 			if my_land and their_land:

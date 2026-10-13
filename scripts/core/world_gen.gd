@@ -52,17 +52,53 @@ static func mainland_pull(c: Vector2i) -> float:
 	return clampf(d, 0.0, 1.0)
 
 
-## 某一格的高度（0~1）：多倍频采样 → **大陆形状**（往 1-距离 混）→ 重塑（往下压，让平原多些）
-## → **W2（S2）：叠上板块过程**（相向边界造山/造沟、相离边界造脊/造谷）。
-## 重塑指数是"水多不多"的旋钮（2.6 那次半张图都是海，别调过头）。
-## ⚠️ 板块那一层由 `Plates.effect_at()` 提供，它**只按这一格的坐标 + 种子算**（逐格纯函数）——
-## 所以 W1 定的"整图可复现"依然成立（见 docs/更新指导/世界生成-过程模拟.md 3.4）。
-static func elevation_of(c: Vector2i, world_seed: int) -> float:
+## 基础高度（0~1，**不含板块作用**）：多倍频采样 → 大陆形状 → 重塑（往下压，让平原多些）。
+## 单独拆出来，是因为 W2b 要用它算"**每块板的地壳类型**"（取均值）——
+## 那一步**不能**把板块作用算进去，否则是自己引用自己。
+static func base_elevation_of(c: Vector2i, world_seed: int) -> float:
 	var n := _elevation_noise(world_seed)
 	var e := (n.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5
 	e = lerp(e, 1.0 - mainland_pull(c), 0.55)
-	e = pow(e, 1.25)
-	return clampf(e + Plates.effect_at(c, world_seed), 0.0, 1.0)
+	return pow(e, 1.25)
+
+
+## **每块板的地壳类型**（W2b）：看这块板**实际覆盖到的地块**的基础高程均值 ——
+## 均值 ≥ `CRUST_LAND_MEAN` → 陆壳，否则洋壳。全程确定，按种子缓存。
+## ⚠️ 为什么不能用"种子离中心远近"猜：陆壳板会因此**覆盖着海**，
+##    于是"陆-陆碰撞"发生在海中央 → 抬出一堆海上孤山，**长不出长墙**（第一版实测如此）。
+const CRUST_LAND_MEAN := 0.38
+static var _crust_seed := -1
+static var _crust_arr := PackedByteArray()
+
+
+static func crust_for(world_seed: int, plate_count: int = 8) -> PackedByteArray:
+	if _crust_seed == world_seed and _crust_arr.size() == plate_count:
+		return _crust_arr
+	var seeds: Array = (Plates.frame(world_seed, plate_count) as Dictionary)["seeds"]
+	var sum := PackedFloat32Array()
+	var cnt := PackedInt32Array()
+	sum.resize(plate_count)
+	cnt.resize(plate_count)
+	for c in Hex.spiral(Consts.MAP_START_RADIUS):
+		var p := Plates.plate_at_point(Hex.axial_to_pixel(c.x, c.y, 1.0), seeds)
+		sum[p] += base_elevation_of(c, world_seed)
+		cnt[p] += 1
+	var out := PackedByteArray()
+	out.resize(plate_count)
+	for p in plate_count:
+		var mean := sum[p] / maxf(1.0, float(cnt[p]))
+		out[p] = Plates.CRUST_CONTINENTAL if mean >= CRUST_LAND_MEAN else Plates.CRUST_OCEANIC
+	_crust_seed = world_seed
+	_crust_arr = out
+	return out
+
+
+## 某一格的高度（0~1）= **基础高度 + 板块作用**。
+## ⚠️ 板块那一层由 `Plates.effect_at()` 提供，它**只按这一格的坐标 + 种子算**（逐格纯函数）——
+## 所以 W1 定的"整图可复现"依然成立（见 docs/更新指导/世界生成-过程模拟.md 3.4）。
+static func elevation_of(c: Vector2i, world_seed: int) -> float:
+	var eff := Plates.effect_at(c, world_seed, crust_for(world_seed))
+	return clampf(base_elevation_of(c, world_seed) + eff, 0.0, 1.0)
 
 
 # ===========================================================================
