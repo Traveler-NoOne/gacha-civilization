@@ -258,18 +258,24 @@ func _draw_water_edges(v: Dictionary) -> void:
 			continue
 		if mine_water != (str(nd.get("terrain", "")) == "water"):
 			draw_line(corners[k], corners[(k + 1) % 6], Color(0.30, 0.55, 0.85, 0.95), EDGE_W_WATER)
-	# ---- 河道（W4）：**只画"我这一侧"拥有的那条边** ----
-	# 边的键是 `"q,r,d"`，owner = 两端坐标字典序较小者 → 同一条边只会有**一端**匹配上，
-	# 所以不会出现"两边各画一次变成双倍粗"的问题。
+	# ---- 河道（W4，2026-10-13 **修订为"穿格心"**）----
+	# ⚠️ 原画法（只画"我与下游共享的那一条边"）在**数学上**是连的（边与边共顶点），
+	#   但**视觉上是断的**：水从一格"进"与"出"用的是六边形的**不同两条边**，
+	#   若这两条边不相邻（中间隔着一个角），两块线段就接不上 —— 用户用头尾编号
+	#   （5→4、再 4→3 = 尾接头）把这个"看着是断的"讲清楚了。
+	#   改成**从本格中心连到下游格中心**：同一格里"进"和"出"天然接上，不可能再断开。
 	var redges := WorldGen.river_edges(int(GameState.state.get("seed", 0)))
 	for kr in 6:
 		var ek := "%d,%d,%d" % [c.x, c.y, kr]
 		if not redges.has(ek):
 			continue
-		# 粗细随流量微调（大江比小溪粗一点）
-		var fl := clampf(float(redges[ek]) / 60.0, 0.0, 1.0)
-		draw_line(corners[kr], corners[(kr + 1) % 6],
-			Color(0.35, 0.70, 1.0, 0.98), EDGE_W_WATER * (1.0 + 0.35 * fl))
+		# 粗细随流量变：⚠️ 原来用 `flow / 60` 再 clamp —— 河格流量普遍远大于 60，
+		#   于是**全部钳到上限、所有河一样粗**（识图原话："粗细和颜色都是一样，像蜘蛛网"）。
+		#   改成**对数**刻度：差距拉得开，又不会被极端值压平。
+		var fl := clampf(log(1.0 + float(redges[ek])) / log(1.0 + 1000.0), 0.0, 1.0)
+		var to_center := axial_to_screen(c + Hex.DIRECTIONS[kr])
+		draw_line(v["center"], to_center,
+			Color(0.35, 0.70, 1.0, 0.98), EDGE_W_WATER * (0.5 + 1.0 * fl))
 
 
 ## 单位图标在屏幕上的位置。
