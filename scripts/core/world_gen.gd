@@ -220,24 +220,12 @@ static func eroded_elevation_of(c: Vector2i, world_seed: int) -> float:
 
 
 
-## 某一格的"湿度"（0~1）。必须用**另一张噪声**（换种子 + 换频率）——
-## 否则它和高程一模一样，查表就退化成"只看高程"，看不到干湿分区。
-static var _moist_noise: FastNoiseLite = null
-static var _moist_noise_seed := -1
-
-
+## 某一格的"湿度"（0~1）= **年均降水**，来自气候参数图。
+## ⚠️ **W3b 起它不再是一张噪声了**：现在是"风把水汽从海上吹进来 → 沿路下雨 →
+## 迎风坡爬升下得更多 → 背风侧干"推出来的（见 climate.gd 的 W3b 段）。
+## 所以地图上会出现**雨影沙漠**，而不再是"随机干湿斑块"。
 static func moisture_of(c: Vector2i, world_seed: int) -> float:
-	if _moist_noise == null or _moist_noise_seed != world_seed:
-		var n2 := FastNoiseLite.new()
-		n2.seed = world_seed + 1013
-		n2.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-		n2.frequency = 0.09          # 比高程更"大块"，气候带才连片
-		n2.fractal_type = FastNoiseLite.FRACTAL_FBM
-		n2.fractal_octaves = 3
-		n2.fractal_gain = 0.5
-		_moist_noise = n2
-		_moist_noise_seed = world_seed
-	return (_moist_noise.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5
+	return Climate.annual_precip_at(c, climate_for(world_seed))
 
 
 ## 高程 + 湿度 → 一层地形 + 一层地物（Red Blob 那篇的二维查表，阈值按本作的种类改过）。
@@ -258,6 +246,11 @@ static func climate_for(world_seed: int) -> Dictionary:
 ## 某格的**年平均温度**（℃）
 static func annual_temp_at(c: Vector2i, world_seed: int) -> float:
 	return Climate.annual_temp_at(c, climate_for(world_seed))
+
+
+## 某格的**年均降水**（归一化 0~1）—— 与 `moisture_of()` 同源，给自检用
+static func annual_precip_at(c: Vector2i, world_seed: int) -> float:
+	return Climate.annual_precip_at(c, climate_for(world_seed))
 
 
 ## W3a：**太冷就长不出森林**（一阶近似；完整的柯本分类在 W3c）。

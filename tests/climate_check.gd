@@ -133,12 +133,58 @@ func _ready() -> void:
 			cold_forest_warm += 1
 		if str(WorldGen.biome_of(e, m, t)["cover"]) == "forest":
 			cold_forest += 1
-	print("  极冷格（< %.0f℃）：%d 格；加温度后森林 %d 个；不加温度（对照）森林 %d 个"
-		% [WorldGen.COLD_FOREST_NONE, cold_n, cold_forest, cold_forest_warm])
+	print("  极冷格（< %.0f℃）：%d 格；加温度后森林 %d 个" % [WorldGen.COLD_FOREST_NONE, cold_n, cold_forest])
 	_check(cold_n > 0, "存在极冷的格子（%d 格）" % cold_n)
 	_check(cold_forest == 0, "极冷格**一个森林都没有**（实际 %d 个）" % cold_forest)
-	_check(cold_forest_warm > 0, "对照：不加温度时这些格**本来是有森林的**（%d 个）→ 差异确实来自温度"
-		% cold_forest_warm)
+	# 对照改一下：W3b 之后降水也换了，所以"不加温度"的对照不再说明问题；
+	# 改为**正面对照**：暖且潮的格子必须**真的长得出森林**（证明整条查表链还活着）
+	var warm_forest := 0
+	for cw: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
+		var ew := WorldGen.elevation_of(cw, SEED)
+		var mw := WorldGen.moisture_of(cw, SEED)
+		var tw := WorldGen.annual_temp_at(cw, SEED)
+		if ew >= 0.5 and ew < 0.72 and mw > 0.5 and tw > 10.0:
+			if str(WorldGen.biome_of(ew, mw, tw)["cover"]) == "forest":
+				warm_forest += 1
+	print("  对照：暖（>10℃）且潮（降水>0.5）的丘陵里有 **%d 个森林**" % warm_forest)
+	_check(warm_forest > 0, "暖且潮的地方**真的长得出森林**（%d 个）→ 查表链是活的" % warm_forest)
+
+	# ⑥ W3b **雨影**：同一座山，**迎风侧应当比背风侧湿**。
+	#    做法：挑高地格 → 按它所在纬度取风向 → 沿风向前后各取约 2 格，比降水。
+	#    （风向是纯东西向的，所以**南北走向**的山才有明显雨影；东西走向的山不分迎背风 —— 见 climate.gd）
+	var win := 0
+	var lee := 0
+	var pairs := 0
+	for ch: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
+		if WorldGen.elevation_of(ch, SEED) < 0.62:
+			continue
+		var ph := Hex.axial_to_pixel(ch.x, ch.y, 1.0)
+		var lath := clampf(ph.y / maxf(1.0, half.y), -1.0, 1.0)
+		var wh := Climate.wind_at(lath)
+		var up_p := WorldGen.annual_precip_at(Hex.pixel_to_axial(ph - wh * 3.5, 1.0), SEED)
+		var dn_p := WorldGen.annual_precip_at(Hex.pixel_to_axial(ph + wh * 3.5, 1.0), SEED)
+		pairs += 1
+		if up_p > dn_p + 0.01:
+			win += 1
+		elif dn_p > up_p + 0.01:
+			lee += 1
+	print("  雨影：高地格 %d 个；**迎风侧更湿 %d 个** / 背风侧更湿 %d 个（其余持平）" % [pairs, win, lee])
+	_check(pairs > 20, "取到了足够多的高地格（%d 个）" % pairs)
+	_check(win > lee, "**迎风侧普遍更湿**（%d > %d）→ 雨影是推出来的" % [win, lee])
+	# ⑦ 降水分布（用来核对归一化参考 RAIN_REF 选得合不合适）
+	var pmin := 9.9
+	var pmax := -9.9
+	var psum := 0.0
+	var pn := 0
+	for cp: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
+		var pv := WorldGen.annual_precip_at(cp, SEED)
+		pmin = minf(pmin, pv)
+		pmax = maxf(pmax, pv)
+		psum += pv
+		pn += 1
+	print("  年均降水（归一化 0~1）：%.3f ~ %.3f，均值 %.3f（自动参考 rain_ref=%.4f）"
+		% [pmin, pmax, psum / maxf(1.0, float(pn)), float(clim["rain_ref"])])
+	_check(pmax > 0.6 and pmin < 0.25, "降水有足够反差（最干 %.3f / 最湿 %.3f）" % [pmin, pmax])
 
 	print("== 结果：%s ==" % ("全部通过" if fails == 0 else "%d 项失败" % fails))
 	get_tree().quit(1 if fails > 0 else 0)

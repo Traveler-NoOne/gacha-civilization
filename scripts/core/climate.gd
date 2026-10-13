@@ -34,6 +34,42 @@ static func map_half() -> Vector2:
 	return Vector2(Hex.SQRT3 * r, 1.5 * r)
 
 
+## 像素点 → 网格坐标（含 0.5 偏移，供双线性用）
+static func _grid_coord(p: Vector2) -> Vector2:
+	var size := float(GRID)
+	var half := map_half()
+	return Vector2((p.x + half.x) / (2.0 * half.x) * size - 0.5,
+		(p.y + half.y) / (2.0 * half.y) * size - 0.5)
+
+
+## ===========================================================================
+## W3b：降水
+##   做法是**推出来的**、不是画上去的：风把水汽从海上吹进来 → 经过陆地就下掉一些 →
+##   **爬坡（迎风坡）下得更多** → 翻过山脊之后水汽已经没了 → **背风侧干旱（雨影）**。
+##   ⚠️ 只做**东西向**推进（风带本身带南北倾斜，但推进时忽略南北分量）——
+##   代价是"南北走向的山"才有明显雨影；够 W3b 用，W3c/将来可补。
+## ===========================================================================
+const MOIST_START := 0.55         ## 从图外进来的空气初始含水量
+const OCEAN_RECHARGE := 0.10      ## 每走一格海面补充多少
+const RAIN_BASE := 0.008          ## 平地每格下掉多少（**很小**：空气要能吹进内陆）
+const RAIN_ORO := 0.35            ## **迎风爬坡**的降雨系数（雨影强弱主要看它）
+const COLD_DRY_C := 5.0           ## 低于这个温度，空气含水能力开始往下掉
+## ⚠️ 归一化参考**不再手调**，改成**按场自动定**（见 build 里取"年均降水的 85 分位"）。
+## 第一版手调 0.28 时全图均值只有 0.015 —— 因为每格降雨给太大，空气出海岸十几格就下光了。
+const RAIN_REF_FALLBACK := 0.05
+
+
+## 风向（像素空间：+x 向东、+y 向南）。按纬度带：
+##   |纬度| < 0.30 → **信风**（由东向西）｜0.30 ~ 0.65 → **西风**（由西向东）｜更外 → **极地东风**
+static func wind_at(lat: float) -> Vector2:
+	var a := absf(lat)
+	if a < 0.30:
+		return Vector2(-1.0, 0.25 * signf(lat)).normalized()
+	if a < 0.65:
+		return Vector2(1.0, -0.25 * signf(lat)).normalized()
+	return Vector2(-1.0, 0.2 * signf(lat)).normalized()
+
+
 ## 建（或取缓存）这一局种子的气候场。`elev_fn` 传"按格取高度"的函数，
 ## **用 Callable 传进来是为了避免 Climate ↔ WorldGen 互相引用**（那在 GDScript 里会很难看）。
 ## 返回 { temp: PackedFloat32Array(MONTHS*GRID*GRID), size: int, seed: int }
@@ -42,45 +78,102 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 		return _cache
 	var size := GRID
 	var half := map_half()
-	var temp := PackedFloat32Array()
-	temp.resize(MONTHS * size * size)
+	var n2 := size * size
+	# ---- 先按格取一遍高度（温度和降水都要用，只取一次）----
+	var heights := PackedFloat32Array()
+	heights.resize(n2)
 	for gy in size:
 		for gx in size:
-			# 方格中心 → 像素坐标（场铺在地图外接矩形上）
 			var px := (float(gx) + 0.5) / float(size) * 2.0 * half.x - half.x
 			var py := (float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y
-			var c := Hex.pixel_to_axial(Vector2(px, py), 1.0)
-			var e := float(elev_fn.call(c))
-			# 纬度：用像素 y 模拟（-1 南极 … +1 北极）。总纲第十一节：这不是真球面
-			var lat := clampf(py / maxf(1.0, half.y), -1.0, 1.0)
-			var land_h := maxf(0.0, (e - SEA_E) / (1.0 - SEA_E))   # 0 = 海岸，1 = 最高峰
+			heights[gy * size + gx] = float(elev_fn.call(Hex.pixel_to_axial(Vector2(px, py), 1.0)))
+	# ---- 温度：纬度梯度 × 12 个月 + 海拔递减 ----
+	var temp := PackedFloat32Array()
+	temp.resize(MONTHS * n2)
+	for gy in size:
+		var py2 := (float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y
+		var lat := clampf(py2 / maxf(1.0, half.y), -1.0, 1.0)
+		for gx in size:
+			var h := heights[gy * size + gx]
+			var land_h := maxf(0.0, (h - SEA_E) / (1.0 - SEA_E))
 			var lapse := -(land_h * HEIGHT_MAX_M / 100.0) * LAPSE_PER_100M
 			for m in MONTHS:
-				# 季节：北半球 7 月（m=6）最热；南北反相
 				var phase := cos(TAU * float(m - 6) / float(MONTHS))
 				var base := lerpf(TEMP_EQUATOR, TEMP_POLE, absf(lat))
 				var swing := lerpf(SWING_EQUATOR, SWING_POLE, absf(lat))
 				var t := base + swing * phase * (1.0 if lat >= 0.0 else -1.0) + lapse
-				temp[m * size * size + gy * size + gx] = t
-	_cache = {"temp": temp, "size": size, "seed": world_seed}
+				temp[m * n2 + gy * size + gx] = t
+	# ---- 降水：沿风向逐行推进水汽 ----
+	var precip := PackedFloat32Array()
+	precip.resize(MONTHS * n2)
+	for m in MONTHS:
+		var off := m * n2
+		for gy in size:
+			var py3 := (float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y
+			var lat3 := clampf(py3 / maxf(1.0, half.y), -1.0, 1.0)
+			var eastward := wind_at(lat3).x > 0.0
+			var moist := MOIST_START
+			var prev_h := SEA_E        # 图外的上风侧当作海面
+			for i in size:
+				var gx := i if eastward else size - 1 - i
+				var idx := gy * size + gx
+				var h := heights[idx]
+				if h < SEA_E:
+					moist = minf(1.0, moist + OCEAN_RECHARGE)
+				else:
+					var climb := maxf(0.0, h - prev_h)
+					var cold := clampf((temp[off + idx] + COLD_DRY_C) / 25.0, 0.0, 1.0)
+					var rain := moist * (RAIN_BASE + RAIN_ORO * climb) * cold
+					precip[off + idx] = rain
+					moist = maxf(0.0, moist - rain)
+				prev_h = h
+	# ---- 归一化参考：按场自动定（年均降水的 85 分位）----
+	var annual := PackedFloat32Array()
+	annual.resize(n2)
+	for i in n2:
+		var acc := 0.0
+		for mm in MONTHS:
+			acc += precip[mm * n2 + i]
+		annual[i] = acc / float(MONTHS)
+	var sorted := annual.duplicate()
+	sorted.sort()
+	var rain_ref := maxf(0.005, sorted[int(float(n2) * 0.85)])
+	_cache = {"temp": temp, "precip": precip, "heights": heights, "size": size,
+		"seed": world_seed, "rain_ref": rain_ref}
 	_cache_seed = world_seed
 	return _cache
 
 
 ## 按**像素点**取某月温度（双线性）。
-## 之所以要有这个入口：① 自检要能验证"采样器本身连续"；② **W3b 的降水要沿风向在像素空间行走**。
+## 之所以要有这个入口：① 自检要能验证"采样器本身连续"；② W3b 的降水也在像素空间推进。
 static func temp_at_pixel(p: Vector2, month: int, field: Dictionary) -> float:
+	var g := _grid_coord(p)
 	var size := int(field["size"])
-	var half := map_half()
-	var fx := (p.x + half.x) / (2.0 * half.x) * float(size) - 0.5
-	var fy := (p.y + half.y) / (2.0 * half.y) * float(size) - 0.5
 	var mm := ((month % MONTHS) + MONTHS) % MONTHS
-	return _bilinear(field["temp"] as PackedFloat32Array, size, mm * size * size, fx, fy)
+	return _bilinear(field["temp"] as PackedFloat32Array, size, mm * size * size, g.x, g.y)
 
 
-## 某格 × 某月的温度（双线性采样）
+## 某格 × 某月的温度
 static func temp_at(c: Vector2i, month: int, field: Dictionary) -> float:
 	return temp_at_pixel(Hex.axial_to_pixel(c.x, c.y, 1.0), month, field)
+
+
+## 某格 × 某月的**降水**（原始量，未归一化）
+static func precip_at(c: Vector2i, month: int, field: Dictionary) -> float:
+	var g := _grid_coord(Hex.axial_to_pixel(c.x, c.y, 1.0))
+	var size := int(field["size"])
+	var mm := ((month % MONTHS) + MONTHS) % MONTHS
+	return _bilinear(field["precip"] as PackedFloat32Array, size, mm * size * size, g.x, g.y)
+
+
+## **年均降水**归一化到 0~1 —— 这才是 `world_gen.moisture_of()` 要的数
+## （归一化参考取场自带的 85 分位，见 build —— 这样每个种子都有合适的干湿反差）
+static func annual_precip_at(c: Vector2i, field: Dictionary) -> float:
+	var s := 0.0
+	for m in MONTHS:
+		s += precip_at(c, m, field)
+	var ref := maxf(0.001, float(field.get("rain_ref", RAIN_REF_FALLBACK)))
+	return clampf(s / float(MONTHS) / ref, 0.0, 1.0)
 
 
 ## 年平均温度（W3a 先用它；W3c 会换成用"最冷月/最热月 + 降水"的完整柯本判据）
