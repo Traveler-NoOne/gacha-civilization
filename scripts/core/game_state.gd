@@ -2225,6 +2225,19 @@ func cheat_destroy_all_enemies() -> int:
 	return keys.size()
 
 
+## 作弊：**点亮全部迷雾**（把所有地块标为已发现）—— 一次性动作，不能盖回去
+func cheat_reveal_all() -> int:
+	var n := 0
+	for k in (state["tiles"] as Dictionary).keys():
+		var t: Dictionary = state["tiles"][k]
+		if not bool(t.get("discovered", false)):
+			t["discovered"] = true
+			n += 1
+	_add_log("【作弊】点亮了全部迷雾（%d 格）。" % n, "cheat")
+	toast.emit("已点亮全部迷雾（%d 格）" % n)
+	state_changed.emit()
+	return n
+
 func has_continue() -> bool:
 	return slot_exists(Consts.AUTOSAVE_SLOT)
 

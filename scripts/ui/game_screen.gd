@@ -663,6 +663,55 @@ func _open_cheat_menu() -> void:
 	var v := UIKit.vbox(8)
 	v.add_child(UIKit.text_label("注意：作弊会直接修改存档数据，仅用于调试。", 12, UIKit.WARN))
 
+	# ---- 顶部页签：三个按钮**一直可见**，点哪个，下面 body 里就换成哪一页 ----
+	# 2026-10-13 按用户要求分「资源 / 世界 / 杂项」三页：资源货币归资源页；杂项 = 击杀
+	var page := [0]
+	var bar := UIKit.hbox(6)
+	v.add_child(bar)
+	var body := UIKit.vbox(8)
+	v.add_child(body)
+	var rebuild := func() -> void:
+		for ch in body.get_children():
+			body.remove_child(ch)
+			ch.queue_free()
+		match page[0]:
+			0:
+				_cheat_page_resources(body)
+			1:
+				_cheat_page_world(body)
+			_:
+				_cheat_page_misc(body)
+	var tab_names := ["资源", "世界", "杂项"]
+	var tab_buttons: Array[Button] = []
+	for i in tab_names.size():
+		var tb := UIKit.normal(tab_names[i], 13)
+		tab_buttons.append(tb)
+		bar.add_child(tb)
+	for i in tab_buttons.size():
+		var idx := i
+		tab_buttons[i].pressed.connect(func() -> void:
+			page[0] = idx
+			for j in tab_buttons.size():
+				UIKit.style_button(tab_buttons[j], j == idx, false)
+			rebuild.call())
+	UIKit.style_button(tab_buttons[0], true, false)   # 默认停在「资源」页
+	rebuild.call()
+
+	v.add_child(UIKit.dim("关闭作弊：回到主页面 → 反馈 → 取消勾选「作弊功能」。", 11))
+
+	# 外层滚动容器：(0,0) 最小尺寸 + 撑满剩余高度。
+	# 关键点：一定不能给它写死的最小高度（或累加出超过视口的高度），
+	# 否则 VBoxContainer 的最小高度会把弹窗顶出屏幕，底部按钮就点不到了。
+	var sc := UIKit.scroll(v)
+	sc.custom_minimum_size = Vector2(0, 0)
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	d.set_content(sc)
+	open_dialog(d)
+
+
+
+## 作弊页：资源 —— **所有资源货币都在这里**
+func _cheat_page_resources(v: VBoxContainer) -> void:
 	# ---- 添加资源 ----
 	v.add_child(UIKit.title("添加资源", 15))
 	v.add_child(UIKit.dim("填写每个资源想增加的数量（可填空或 0），然后点最下面的「一次性添加」。"))
@@ -711,6 +760,21 @@ func _open_cheat_menu() -> void:
 		close_dialog())
 	v.add_child(apply)
 
+
+## 作弊页：世界 —— 目前只有「点亮所有迷雾」（按用户要求先只放这一个）
+func _cheat_page_world(v: VBoxContainer) -> void:
+	v.add_child(UIKit.title("点亮所有迷雾", 15))
+	v.add_child(UIKit.dim("把大世界里**所有**格子标为「已发现」—— 迷雾全清、视野全开。这是**一次性**动作，不能盖回去。"))
+	var fb := UIKit.primary("点亮所有迷雾", 15)
+	fb.pressed.connect(func() -> void:
+		GameState.cheat_reveal_all()
+		close_dialog())
+	v.add_child(fb)
+
+
+
+## 作弊页：杂项 —— 击杀（= 原来的「摧毁敌对单位」整块搬过来）
+func _cheat_page_misc(v: VBoxContainer) -> void:
 	# ---- 摧毁敌对单位 ----
 	v.add_child(UIKit.spacer(6.0))
 	v.add_child(UIKit.title("摧毁敌对单位", 15))
@@ -752,17 +816,6 @@ func _open_cheat_menu() -> void:
 		GameState.cheat_destroy_all_enemies()
 		close_dialog())
 	v.add_child(all_btn)
-
-	v.add_child(UIKit.dim("关闭作弊：回到主页面 → 反馈 → 取消勾选「作弊功能」。", 11))
-
-	# 外层滚动容器：(0,0) 最小尺寸 + 撑满剩余高度。
-	# 关键点：一定不能给它写死的最小高度（或累加出超过视口的高度），
-	# 否则 VBoxContainer 的最小高度会把弹窗顶出屏幕，底部按钮就点不到了。
-	var sc := UIKit.scroll(v)
-	sc.custom_minimum_size = Vector2(0, 0)
-	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	d.set_content(sc)
-	open_dialog(d)
 
 
 func open_dialog(d: DialogLayer) -> void:
