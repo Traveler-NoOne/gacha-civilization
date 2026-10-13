@@ -118,7 +118,35 @@ func _ready() -> void:
 		_check(JSON.stringify((GameState.state["tiles"] as Dictionary)[new_key]) == JSON.stringify(from_world),
 			"新格与「标准世界」同坐标一致（纯函数，与生成顺序无关）")
 
+	# ⑧ v1.8.21 第 1 段：地形应当是"成片"的，而不是随机撒点。
+	#    衡量方法：相邻格同地形的比例。纯随机（5 种地形）期望约 20%；噪声地图应显著更高。
+	GameState.new_game(20240607)
+	var tiles8: Dictionary = GameState.state["tiles"]
+	var terrain_count := {}
+	var same := 0
+	var pairs := 0
+	for k8 in tiles8.keys():
+		var t8: Dictionary = tiles8[k8]
+		var tn8 := str(t8.get("terrain", ""))
+		terrain_count[tn8] = int(terrain_count.get(tn8, 0)) + 1
+		var c8 := WorldGen.coord_of(str(k8))
+		for nb: Vector2i in Hex.neighbors(c8):
+			var nk8 := WorldGen.key_of(nb)
+			if not tiles8.has(nk8):
+				continue
+			pairs += 1
+			if str((tiles8[nk8] as Dictionary).get("terrain", "")) == tn8:
+				same += 1
+	var ratio := 0.0
+	if pairs > 0:
+		ratio = float(same) / float(pairs)
+	print("  地形分布：%s" % str(terrain_count))
+	print("  相邻格同地形比例：%.0f%%（随机撒点约 20%%，成片则应明显更高）" % (ratio * 100.0))
+	_check(ratio > 0.35, "地形是成片的（相邻同地形 %.0f%% > 35%%，随机撒点约 20%%）" % (ratio * 100.0))
+
+
 	print("== 结果：%s ==" % ("全部通过" if fails == 0 else "%d 项失败" % fails))
 	get_tree().quit(1 if fails > 0 else 0)
+
 
 

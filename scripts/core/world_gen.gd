@@ -18,6 +18,41 @@ static func key_of(c: Vector2i) -> String:
 	return "%d,%d" % [c.x, c.y]
 
 
+# ===========================================================================
+# v1.8.21（更真实的地图生成·第 1 段）：高程噪声
+#   地形不再是"每格一个哈希定死"，而是由一张**高程噪声场**决定 —— 于是海/陆/丘陵会成片出现。
+#   用的是引擎内置的 FastNoiseLite（MIT），它按坐标采样 → 天生是 f(坐标, 种子) 的纯函数，
+#   所以"扩张出来的格子与一开始生成时一致"（1.8.20.9 那条约束）自动成立。
+# ===========================================================================
+static var _elev_noise: FastNoiseLite = null
+static var _elev_noise_seed := -1
+
+
+static func _elevation_noise(world_seed: int) -> FastNoiseLite:
+	if _elev_noise != null and _elev_noise_seed == world_seed:
+		return _elev_noise
+	var n := FastNoiseLite.new()
+	n.seed = world_seed
+	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	n.frequency = 0.14          # 单位是"格"：0.14 ≈ 每 7 格一个起伏
+	n.fractal_type = FastNoiseLite.FRACTAL_FBM
+	n.fractal_octaves = 4
+	n.fractal_gain = 0.5
+	_elev_noise = n
+	_elev_noise_seed = world_seed
+	return n
+
+
+## 某一格的高度（0~1）：多倍频采样后做**重塑**——把中间高度往下压一点，让平原多些。
+## 指数就是"水多不多"的旋钮：调大 → 整体变低 → 水变多（2.6 那次半张图都是海，别调过头）。
+static func elevation_of(c: Vector2i, world_seed: int) -> float:
+	var n := _elevation_noise(world_seed)
+	var e := (n.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5
+	return pow(e, 1.25)
+
+
+
+## 将字符串坐标转换为vector2i坐标
 static func coord_of(key: String) -> Vector2i:
 	var parts := key.split(",")
 	if parts.size() != 2:
@@ -74,18 +109,22 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 		"stronghold": "",  # v1.3.1：所属据点（我方地块才有）
 		"land_cap": Consts.LAND_CAP_DEFAULT,   # v1.3.1：可用土地上限
 	}
-	var r := Hex.hash01(c, 7 + world_seed)
-	if r < 0.22:
-
+	# v1.8.21 第 1 段：地形由**高程**决定（成片）；本段先用现有这 5 种，
+	# 第 2 段引入"地物"层后，forest 会改落到 cover 上。
+	var e := elevation_of(c, world_seed)
+	if e < 0.36:
 		t["terrain"] = "water"
-	elif r < 0.48:
-		t["terrain"] = "forest"
-	elif r < 0.66:
-		t["terrain"] = "hill"
-	elif r < 0.80:
-		t["terrain"] = "wasteland"
-	else:
+	elif e < 0.50:
 		t["terrain"] = "plain"
+	elif e < 0.62:
+		t["terrain"] = "hill"
+	elif e < 0.72:
+		t["terrain"] = "forest"
+
+	else:
+		t["terrain"] = "wasteland"
+
+
 	# 基础资源点
 	var rr := Hex.hash01(c, 31 + world_seed)
 
