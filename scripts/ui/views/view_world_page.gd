@@ -586,7 +586,6 @@ func _refresh_unit_strip() -> void:
 
 func _refresh_unit_panel() -> void:
 	if not is_instance_valid(unit_panel_box):
-		print("if not is_instance_valid")
 		return
 	for c in unit_panel_box.get_children():
 		c.queue_free()

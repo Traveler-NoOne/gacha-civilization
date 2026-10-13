@@ -221,7 +221,9 @@ func _refresh_list() -> void:
 		c.queue_free()
 	var units := _filtered_units()
 	if units.is_empty():
-		list_box.add_child(UIKit.dim("这里还没有单位。\n去「世界泡 → 召唤系统」召唤角色，\n或在「管理」里招募募集兵。"))
+		# 1.8.21.2：原来写「在「管理」里招募募集兵」—— 管理入口 v1.8.7 已删、
+		# 征兵 v1.8.3 就搬进「政事」了，照它走是死路。
+		list_box.add_child(UIKit.dim("这里还没有单位。\n去「世界泡 → 召唤系统」召唤角色，\n或在据点管理窗口的「政事」里征兵。"))
 		return
 	for u in units:
 		list_box.add_child(_unit_row(u))

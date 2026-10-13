@@ -27,8 +27,14 @@ UI="*res://scripts/core/ui_scale.gd"
 window/size/viewport_width=1600
 window/size/viewport_height=900
 window/stretch/aspect="expand"
-"#â ï¸1.8.20å¤å¿ï¼é½å«è¸©ï¼ï¼#Â·çªå£éå®ï¼ä¸è®¸æè¾¹ï¼**ä¸åå¨è¿é**ï¼æ¹ç±main.gdè¿è¡æè®¾ââåresizable"=false
-"让无头测试拿到可用视口ä¸èµ·å¤çã[editor_plugins]enabled"=PackedStringArray()
+; ⚠️ 1.8.20 备忘（都别踩）：窗口锁定（不许拖边）**不写在这里** ——
+; 改由 main.gd 运行期设 DisplayServer.window_set_flag(WINDOW_FLAG_RESIZE_DISABLED)，写这儿会「改了没生效」。
+;
+; 1.8.21.2：上面这段原本是两行**被写坏的键**（备忘文字被当成键名，还把 [editor_plugins] 段头吞进了引号里）。
+; 原文已双重编码且丢过字节、无法逐字还原，所以只保留它能表达的信息，并把段头建回来。
+[editor_plugins]
+
+enabled=PackedStringArray()
 
 [gui]
 

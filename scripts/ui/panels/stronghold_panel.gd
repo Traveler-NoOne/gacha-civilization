@@ -227,7 +227,11 @@ func _refresh_decree_queue(sh: Dictionary) -> void:
 func _refresh_build_queue(sh: Dictionary) -> void:
 	var q: Array = sh.get("queue", [])
 	if q.is_empty():
-		build_box.add_child(UIKit.dim("队列为空。到「世界 → 地块规划页」或右键地块选择建筑修建。", 10))
+		# 1.8.21.2：这行原来写「到「世界 → 地块规划页」…」，但那个页面 v1.8.5 就删了 —— 玩家照它找不到入口。
+		# 顺带开自动换行：文案长，原来会被窗口右边缘直接切掉（bug#1 / bug#11）。
+		var empty_tip := UIKit.dim("队列为空。右键地块 → 🔨 选择建筑修建。", 10)
+		empty_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		build_box.add_child(empty_tip)
 		return
 	for i in q.size():
 		var item: Dictionary = q[i]
