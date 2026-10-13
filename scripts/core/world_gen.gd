@@ -123,6 +123,11 @@ static func elevation_of(c: Vector2i, world_seed: int) -> float:
 const EROSION_RATE := 0.02
 ## 水线（= biome_of 里"水"的判据）。W4 的河流要用它区分"陆上"与"入海"。
 const SEA_LEVEL := 0.36
+## W4：**河头**的取法 —— 取**陆地格**汇流量的前百分之几当河头（再由河头顺流补到入海）。
+## ⚠️ 这是"河多河少"的**唯一旋钮**，纯口味、可逆：
+##   0.02 → 全图约 22 格河（2~4 条短河，用户 2026-10-13 觉得"太少太短"）；
+##   调大 → 河更多更密；调小 → 更少更长。
+const RIVER_FLOW_PERCENT := 0.20
 
 
 static var _eroded: Dictionary = {}
@@ -213,7 +218,7 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 		_river_edges = {}
 		return out
 	flows.sort()
-	var river_want := maxi(1, int(float(flows.size()) * 0.02))
+	var river_want := maxi(1, int(float(flows.size()) * RIVER_FLOW_PERCENT))
 	var river_cut := int(flows[flows.size() - river_want])
 	for k5 in flow.keys():
 		if float(out.get(k5, 1.0)) >= SEA_LEVEL and int(flow[k5]) >= river_cut:
