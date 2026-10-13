@@ -126,6 +126,11 @@ const EROSION_RATE := 0.02
 static var _eroded: Dictionary = {}
 static var _eroded_seed := -1
 static var _river_keys: Dictionary = {}
+## W4：每格"往哪流"（下游邻格的键）。河要画在**边**上，就得知道水从哪格流向哪格。
+static var _flow_to: Dictionary = {}
+## W4：**河道走的边** —— 键用 W1 定的格式 `"q,r,d"`（owner = 两端坐标字典序较小者，
+## d = 从 owner 指向另一端的六方向序号）。值 = 流量（画线时按它定粗细）。
+static var _river_edges: Dictionary = {}
 
 
 
@@ -160,6 +165,7 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 			return ha > hb              # 高的先流
 		return key_of(a) < key_of(b))   # 并列用键兜底 → 结果确定
 	var flow := {}
+	var flow_to := {}       # W4：本轮的"往哪流"
 	for c2: Vector2i in cells:
 		var k2 := key_of(c2)
 		flow[k2] = int(flow.get(k2, 0)) + 1
@@ -181,6 +187,7 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 
 		if lowest != "":
 			flow[lowest] = int(flow.get(lowest, 0)) + int(flow[k2])
+			flow_to[k2] = lowest        # W4：把"往哪流"留下来，河道才能画到**边**上
 	var out := {}
 	var base := log(2.0)   # 流量=1（没人往这儿汇水）对应的"基线"：这一档不该被削
 	for k3 in raw.keys():
@@ -205,7 +212,49 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 		if int(flow[k5]) >= river_cut:
 			_river_keys[k5] = true
 
+	# W4：**把河道落到边上去** —— 每一条"河格 → 下游河格"就算一条河道边。
+	# 边键用 W1 定的格式：owner = 两端坐标字典序较小者，d = 从 owner 指向另一端的六方向序号。
+	# 这样渲染时**只画河道真正经过的那条边**，而不是把整个六边形描一圈（那是 W3 之前的旧画法）。
+	_flow_to = flow_to
+	_river_edges = {}
+	for kr in _river_keys.keys():
+		var to := str(flow_to.get(kr, ""))
+		if to == "":
+			continue
+		var ek := edge_key_of(str(kr), to)
+		if ek != "":
+			_river_edges[ek] = int(flow.get(kr, 1))
 	return out
+
+
+## W4：把"两端坐标"规范化成一条边的键 `"q,r,d"`（owner = 字典序较小者）。
+## 两端必须相邻；不相邻或重复则返回空串。
+static func edge_key_of(a: String, b: String) -> String:
+	var ca := coord_of(a)
+	var cb := coord_of(b)
+	if ca == cb:
+		return ""
+	var d := -1
+	for i in Hex.DIRECTIONS.size():
+		if ca + Hex.DIRECTIONS[i] == cb:
+			d = i
+			break
+	if d < 0:
+		return ""
+	# 字典序较小者当 owner（比较 (q, r)）
+	var owner := ca
+	var other := cb
+	if cb.x < ca.x or (cb.x == ca.x and cb.y < ca.y):
+		owner = cb
+		other = ca
+		d = (d + 3) % 6          # 方向反过来（反向 = (i+3)%6，已数值验证）
+	return "%d,%d,%d" % [owner.x, owner.y, d]
+
+
+## W4：当前这一局**河道走的边**（键 `"q,r,d"` → 流量）。渲染直接用它。
+static func river_edges(world_seed: int) -> Dictionary:
+	_eroded_heights(world_seed)
+	return _river_edges
 
 
 

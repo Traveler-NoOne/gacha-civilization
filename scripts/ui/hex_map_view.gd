@@ -158,13 +158,10 @@ func _draw_tile_base(v: Dictionary) -> void:
 
 	var outline := pts.duplicate()
 	outline.append(pts[0])
-	# v1.8.21：河流格用**蓝色描边**标出来（河本身没有单独的地形种类，见 world_gen 的侵蚀）
-	# 2026-10-13：加粗到 `EDGE_W_WATER`（用户定：水路要比寻常描边粗两三倍）。
-	# ⚠️ 现在还是"整格描一圈"——**W4 正式做河流时**会改成"只画河道真正经过的那条边"。
-	if bool(t.get("river", false)):
-		draw_polyline(outline, Color(0.35, 0.65, 1.0, 0.95), EDGE_W_WATER)
-	else:
-		draw_polyline(outline, Color(0, 0, 0, 0.35), EDGE_W_BASE)
+	# v1.8.21：河流格曾用**蓝色整格描边**标出（那时河只按格记）。
+	# 2026-10-13（W4）：**改成按边画**（见 `_draw_water_edges`）—— 河道是"一条线沿着边走"，
+	# 不是"把有河的格子圈起来"。所以这里统一画普通格线。
+	draw_polyline(outline, Color(0, 0, 0, 0.35), EDGE_W_BASE)
 
 
 
@@ -255,6 +252,18 @@ func _draw_water_edges(v: Dictionary) -> void:
 				or str(nd.get("terrain", "")) == "water"
 		if mine_water != n_water:
 			draw_line(corners[k], corners[(k + 1) % 6], Color(0.30, 0.55, 0.85, 0.95), EDGE_W_WATER)
+	# ---- 河道（W4）：**只画"我这一侧"拥有的那条边** ----
+	# 边的键是 `"q,r,d"`，owner = 两端坐标字典序较小者 → 同一条边只会有**一端**匹配上，
+	# 所以不会出现"两边各画一次变成双倍粗"的问题。
+	var redges := WorldGen.river_edges(int(GameState.state.get("seed", 0)))
+	for kr in 6:
+		var ek := "%d,%d,%d" % [c.x, c.y, kr]
+		if not redges.has(ek):
+			continue
+		# 粗细随流量微调（大江比小溪粗一点）
+		var fl := clampf(float(redges[ek]) / 60.0, 0.0, 1.0)
+		draw_line(corners[kr], corners[(kr + 1) % 6],
+			Color(0.35, 0.70, 1.0, 0.98), EDGE_W_WATER * (1.0 + 0.35 * fl))
 
 
 ## 单位图标在屏幕上的位置。
