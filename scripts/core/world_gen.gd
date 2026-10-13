@@ -212,6 +212,25 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 		if int(flow[k5]) >= river_cut:
 			_river_keys[k5] = true
 
+	# W4：**把河从"高流量那一批"顺着流向一路补到入海**。
+	# 不补的话河会在半路断掉 —— 因为"河"只按"流量前 2%"挑，下游流量一旦掉出前 2% 就没了
+	# （实测只有 43% 的河格有相邻河格，看上去就是一小段一小段的弧，读不出流向）。
+	# 判据照计划：「流量 ≥ 阈值 **或** 终点是海/湖」——这里补的就是后半句。
+	const SEA_LEVEL := 0.36
+	for k0 in _river_keys.keys():
+		var cur := str(k0)
+		var guard := 0
+		while guard < 512:
+			guard += 1
+			var to := str(flow_to.get(cur, ""))
+			if to == "":
+				break                       # 没有下游（汇/图边）→ 到头了
+			var h_to := float(out.get(to, 1.0))
+			_river_keys[to] = true
+			if h_to < SEA_LEVEL:
+				break                       # 已经入海 → 到这儿为止
+			cur = to
+
 	# W4：**把河道落到边上去** —— 每一条"河格 → 下游河格"就算一条河道边。
 	# 边键用 W1 定的格式：owner = 两端坐标字典序较小者，d = 从 owner 指向另一端的六方向序号。
 	# 这样渲染时**只画河道真正经过的那条边**，而不是把整个六边形描一圈（那是 W3 之前的旧画法）。
