@@ -253,27 +253,36 @@ static func annual_precip_at(c: Vector2i, world_seed: int) -> float:
 	return Climate.annual_precip_at(c, climate_for(world_seed))
 
 
-## W3a：**太冷就长不出森林**（一阶近似；完整的柯本分类在 W3c）。
-## 做法：把"可用湿度"按温度打折 —— 5℃ 以上不打折，-5℃ 以下完全打光，中间线性。
-const COLD_FOREST_FULL := 5.0
-const COLD_FOREST_NONE := -5.0
+## 某格的**柯本气候类别**（W3c，如 "Af" / "BW" / "ET"）
+static func koppen_at(c: Vector2i, world_seed: int) -> String:
+	return Climate.koppen_at(c, climate_for(world_seed))
 
 
-static func _moist_for_cover(m: float, t: float) -> float:
-	if t >= COLD_FOREST_FULL:
-		return m
-	if t <= COLD_FOREST_NONE:
-		return 0.0
-	return m * (t - COLD_FOREST_NONE) / (COLD_FOREST_FULL - COLD_FOREST_NONE)
+## W3c：按**柯本类别**决定"这点湿度能长出什么"。
+## 取代 W3a 那个"拍一个温度阈值"的做法 —— 现在"极地不长树""沙漠不长树""草原只长草"
+## 都是**气候类别**说了算（判据见 climate.gd 的 koppen_at）。
+static func _moist_for_climate(m: float, koppen: String) -> float:
+	match koppen:
+		"BW":
+			return 0.0                                  # 沙漠：什么都不长
+		"BS":
+			return clampf(maxf(m, 0.30), 0.0, 0.45)     # 草原：至少长草，但别到森林
+	return m
 
 
-## 地形 / 地物：由**高度 + 湿度 + 温度**决定。
-## ⚠️ W3a 只加了温度这一层（把可用湿度打折），**下面的判断一字未改**；
-## 完整的柯本分类（最冷月/最热月 + 降水分带）在 W3c。
-static func biome_of(e: float, m_in: float, t: float = 999.0) -> Dictionary:
-	var m := _moist_for_cover(m_in, t)
+## 地形 / 地物：由**高度 + 湿度 + 气候类别**决定。
+## ⚠️ W3c 只换了"气候那一层"（`_moist_for_climate`），**下面的高度判断一字未改**。
+static func biome_of(e: float, m_in: float, koppen: String = "") -> Dictionary:
 	if e < 0.36:
 		return {"terrain": "water", "cover": ""}
+	# ---- W3c：极地（E）单独处理 —— 不长树，地面是"荒地"，**不是沙漠**（沙漠是 B 类的事）----
+	if koppen.substr(0, 1) == "E":
+		if e < 0.50:
+			return {"terrain": "plain", "cover": ""}
+		if e < 0.72:
+			return {"terrain": "wasteland", "cover": ""}
+		return {"terrain": "mountain", "cover": ""}
+	var m := _moist_for_climate(m_in, koppen)
 	if e < 0.50:
 		if m > 0.70:
 			return {"terrain": "plain", "cover": "swamp"}
@@ -396,9 +405,9 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 		"land_cap": Consts.LAND_CAP_DEFAULT,   # v1.3.1：可用土地上限
 	}
 	# v1.8.21 第 2 段：地形（地貌）与地物（覆盖物）分两层，由高程 + 湿度查表得出
-	# W3a：再多给一个**温度**（这一年均温来自气候参数图）→ 太冷的地方长不出森林
+	# W3c：多给一个**柯本气候类别**（由最冷月/最热月温度 + 年降水毫米判）→ 决定地物
 	var b := biome_of(eroded_elevation_of(c, world_seed), moisture_of(c, world_seed),
-		annual_temp_at(c, world_seed))
+		koppen_at(c, world_seed))
 
 	t["terrain"] = b["terrain"]
 	t["cover"] = b["cover"]

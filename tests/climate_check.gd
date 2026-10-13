@@ -117,37 +117,56 @@ func _ready() -> void:
 	#   （若采样器坏了，会一步跳出**整格**的差 5~15℃，所以 3℃ 这条能抓住它。）
 	_check(step_max < 3.0, "采样器本身是连续的（每 0.15 像素最大变化 %.4f℃，没有整格跳变）" % step_max)
 
-	# ⑤ **真的接进了地貌**：比 -5℃ 更冷的格子不该有森林；
-	#    再把温度参数去掉（默认 999 = 暖）当**对照** → 应当又长出森林，证明差异确实来自温度。
-	var cold_n := 0
-	var cold_forest := 0
-	var cold_forest_warm := 0
+	# ⑤ **真的接进了地貌**（W3c 起按**柯本类别**判）：极地不长树、沙漠不长树、草原不长树（只长草）
+	var e_n := 0
+	var e_forest := 0
+	var bw_n := 0
+	var bw_forest := 0
+	var bs_n := 0
+	var bs_forest := 0
 	for c: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
-		var t := WorldGen.annual_temp_at(c, SEED)
-		if t > WorldGen.COLD_FOREST_NONE:
-			continue
-		cold_n += 1
+		var k := WorldGen.koppen_at(c, SEED)
 		var e := WorldGen.elevation_of(c, SEED)
 		var m := WorldGen.moisture_of(c, SEED)
-		if str(WorldGen.biome_of(e, m)["cover"]) == "forest":
-			cold_forest_warm += 1
-		if str(WorldGen.biome_of(e, m, t)["cover"]) == "forest":
-			cold_forest += 1
-	print("  极冷格（< %.0f℃）：%d 格；加温度后森林 %d 个" % [WorldGen.COLD_FOREST_NONE, cold_n, cold_forest])
-	_check(cold_n > 0, "存在极冷的格子（%d 格）" % cold_n)
-	_check(cold_forest == 0, "极冷格**一个森林都没有**（实际 %d 个）" % cold_forest)
-	# 对照改一下：W3b 之后降水也换了，所以"不加温度"的对照不再说明问题；
-	# 改为**正面对照**：暖且潮的格子必须**真的长得出森林**（证明整条查表链还活着）
+		var cv := str(WorldGen.biome_of(e, m, k)["cover"])
+		if k == "EF" or k == "ET":
+			e_n += 1
+			if cv == "forest":
+				e_forest += 1
+		elif k == "BW":
+			bw_n += 1
+			if cv == "forest":
+				bw_forest += 1
+		elif k == "BS":
+			bs_n += 1
+			if cv == "forest":
+				bs_forest += 1
+	print("  极地(E) %d 格→森林 %d；沙漠(BW) %d 格→森林 %d；草原(BS) %d 格→森林 %d"
+		% [e_n, e_forest, bw_n, bw_forest, bs_n, bs_forest])
+	_check(e_n > 0, "存在极地格（%d）" % e_n)
+	_check(e_forest == 0, "极地格**不长树**（实际 %d）" % e_forest)
+	_check(bw_n > 0, "存在沙漠格（%d）" % bw_n)
+	_check(bw_forest == 0, "沙漠**不长树**（实际 %d）" % bw_forest)
+	_check(bs_forest == 0, "草原**不长树**（实际 %d，草原只长草）" % bs_forest)
+	# 正面对照：暖且潮的地方必须**真的长得出森林**（证明整条查表链还活着）
 	var warm_forest := 0
 	for cw: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
+		var kw := WorldGen.koppen_at(cw, SEED)
 		var ew := WorldGen.elevation_of(cw, SEED)
 		var mw := WorldGen.moisture_of(cw, SEED)
-		var tw := WorldGen.annual_temp_at(cw, SEED)
-		if ew >= 0.5 and ew < 0.72 and mw > 0.5 and tw > 10.0:
-			if str(WorldGen.biome_of(ew, mw, tw)["cover"]) == "forest":
+		if ew >= 0.5 and ew < 0.72 and mw > 0.5 and (kw == "Af" or kw == "Am" or kw == "Cf" or kw == "Df"):
+			if str(WorldGen.biome_of(ew, mw, kw)["cover"]) == "forest":
 				warm_forest += 1
-	print("  对照：暖（>10℃）且潮（降水>0.5）的丘陵里有 **%d 个森林**" % warm_forest)
+	print("  对照：暖且潮（Af/Am/Cf/Df 且降水>0.5）的丘陵里有 **%d 个森林**" % warm_forest)
 	_check(warm_forest > 0, "暖且潮的地方**真的长得出森林**（%d 个）→ 查表链是活的" % warm_forest)
+
+	# ⑤b 柯本分类本身：类别数够多（气候有分带，不是"一种气候铺满全图"）
+	var kinds := {}
+	for ck: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
+		var kk := WorldGen.koppen_at(ck, SEED)
+		kinds[kk] = int(kinds.get(kk, 0)) + 1
+	print("  柯本类别分布：%s" % str(kinds))
+	_check(kinds.size() >= 4, "柯本类别数 ≥ 4（实际 %d 类）→ 气候分带出来了" % kinds.size())
 
 	# ⑥ W3b **雨影**：同一座山，**迎风侧应当比背风侧湿**。
 	#    做法：挑高地格 → 按它所在纬度取风向 → 沿风向前后各取约 2 格，比降水。

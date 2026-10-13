@@ -195,6 +195,72 @@ static func month_range(c: Vector2i, field: Dictionary) -> Vector2:
 	return Vector2(lo, hi)
 
 
+## ===========================================================================
+## W3c：柯本气候分类
+##   柯本要的是**绝对量**（年降水毫米 + 最冷月/最热月温度），所以先把降水换成毫米。
+## ===========================================================================
+## 降水标尺：场里的"原始降水"→ **毫米/年**。
+## 标定依据：raw 年均的 85 分位约 0.003，让它落在 ~1600mm（湿润区），
+## 于是沙漠（<250mm）／草原（~500mm）／雨林（>2000mm）都能落进合理区间。
+## ⚠️ 这是**近似标尺**（不是真实物理量），只为让柯本阈值有意义；可逆。
+const PRECIP_MM_PER_RAW := 530000.0
+
+
+## 原始年均降水（未归一化）
+static func annual_precip_raw_at(c: Vector2i, field: Dictionary) -> float:
+	var s := 0.0
+	for m in MONTHS:
+		s += precip_at(c, m, field)
+	return s / float(MONTHS)
+
+
+## 年降水（毫米）
+static func annual_precip_mm(c: Vector2i, field: Dictionary) -> float:
+	return annual_precip_raw_at(c, field) * PRECIP_MM_PER_RAW
+
+
+## 最干那个月的降水（毫米）—— 柯本用它分 Af/Am/Aw 与 f/s/w
+static func driest_month_mm(c: Vector2i, field: Dictionary) -> float:
+	var lo := 999999.0
+	for m in MONTHS:
+		lo = minf(lo, precip_at(c, m, field) * PRECIP_MM_PER_RAW)
+	return lo
+
+
+## 柯本气候分类（**简化版**，够本作用）：E 极地 / B 干旱 / A 热带 / C 温带 / D 大陆，
+## 再按干湿给一个子字母。返回 2 个字符的类别码。
+##   判据顺序照柯本原意：**先看最热月**（够不够暖）→ 再看**干湿**（够不够湿）→ 最后看**最冷月**（冷不冷）。
+static func koppen_at(c: Vector2i, field: Dictionary) -> String:
+	var mm := annual_precip_mm(c, field)
+	var rng := month_range(c, field)          # Vector2(最冷月, 最热月)
+	var tcold := rng.x
+	var twarm := rng.y
+	var tmean := annual_temp_at(c, field)
+	# ---- E 极地：最热月都不足 10℃ ----
+	if twarm < 10.0:
+		return "EF" if twarm <= 0.0 else "ET"
+	# ---- B 干旱：降水低于"随温度走的阈值"（柯本-桑斯韦特那套的简化）----
+	var thr := 20.0 * tmean + 140.0
+	if mm < thr:
+		return "BW" if mm < thr * 0.5 else "BS"
+	# ---- A 热带：最冷月也 ≥ 18℃ ----
+	if tcold >= 18.0:
+		if driest_month_mm(c, field) >= 60.0:
+			return "Af"
+		if mm >= 2500.0:
+			return "Am"
+		return "Aw"
+	# ---- C 温带 / D 大陆：看最冷月是否到 0℃ 以下 ----
+	var head := "D" if tcold < 0.0 else "C"
+	var driest := driest_month_mm(c, field)
+	if driest < 30.0:
+		# 干季在冬天还是夏天？用"最热月降水 vs 最冷月降水"粗判（够用）
+		var pw := precip_at(c, 6, field) * PRECIP_MM_PER_RAW
+		var pc := precip_at(c, 0, field) * PRECIP_MM_PER_RAW
+		return head + ("s" if pw < pc else "w")
+	return head + "f"
+
+
 static func _bilinear(a: PackedFloat32Array, size: int, off: int, fx: float, fy: float) -> float:
 	var x0 := int(floor(fx))
 	var y0 := int(floor(fy))
