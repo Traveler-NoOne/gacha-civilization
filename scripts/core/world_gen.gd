@@ -61,6 +61,77 @@ static func elevation_of(c: Vector2i, world_seed: int) -> float:
 	return pow(e, 1.25)
 
 
+# ===========================================================================
+# v1.8.21 第 4 段：侵蚀（按拍板 = **固定最大范围**的后处理，不看"当前半径"）
+#   为什么必须用最大范围：否则地图一扩张，这个后处理看到的格子变多 → 老格子的结果就变了
+#   （那会直接违反 1.8.20.9 那条"扩张出来的格子与一开始生成时一致"）。
+#   算法（mewo2/terrain 那套的简化版，全程确定、不含随机）：
+#     1) 算出最大范围内每格的原始高度；
+#     2) 按高度从高到低排序（并列用坐标键兜底 → 确定）；
+#     3) 每格往"最矮的邻格"流，沿途累加流量；
+#     4) 流量大的地方把高度削下去 → 水路上出现河谷。
+#   注意：河不单独算一种地形 —— 被削低之后它自然"更容易成为水/平原"，
+#   这与既有模型（地形只由高度+湿度查表）一致，也和"真实过程决定结果"这条原则一致。
+# ===========================================================================
+## 侵蚀系数：按真实感设的物理量，**不为平衡调**（用户定的原则）。
+const EROSION_RATE := 0.02
+
+static var _eroded: Dictionary = {}
+static var _eroded_seed := -1
+
+
+static func _eroded_heights(world_seed: int) -> Dictionary:
+	if _eroded_seed == world_seed and not _eroded.is_empty():
+		return _eroded
+	var raw := {}
+	var cells: Array = []
+	for c in Hex.spiral(Consts.MAP_MAX_RADIUS):
+		var k := key_of(c)
+		raw[k] = elevation_of(c, world_seed)
+		cells.append(c)
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		var ha: float = raw[key_of(a)]
+		var hb: float = raw[key_of(b)]
+		if not is_equal_approx(ha, hb):
+			return ha > hb              # 高的先流
+		return key_of(a) < key_of(b))   # 并列用键兜底 → 结果确定
+	var flow := {}
+	for c2: Vector2i in cells:
+		var k2 := key_of(c2)
+		flow[k2] = int(flow.get(k2, 0)) + 1
+		var lowest := ""
+		var lowest_h := float(raw[k2])
+		for nb: Vector2i in Hex.neighbors(c2):
+			var nk := key_of(nb)
+			if not raw.has(nk):
+				continue
+			if float(raw[nk]) < lowest_h:
+				lowest_h = float(raw[nk])
+				lowest = nk
+		if lowest != "":
+			flow[lowest] = int(flow.get(lowest, 0)) + int(flow[k2])
+	var out := {}
+	var base := log(2.0)   # 流量=1（没人往这儿汇水）对应的"基线"：这一档不该被削
+	for k3 in raw.keys():
+		# 只削"比别人多汇了水"的地方 —— 否则每一格都会被均匀压低，等于偷偷抬高海平面（不真实）
+		var drain := log(1.0 + float(flow.get(k3, 1))) - base
+		out[k3] = clampf(float(raw[k3]) - EROSION_RATE * maxf(drain, 0.0), 0.0, 1.0)
+
+	_eroded = out
+	_eroded_seed = world_seed
+	return out
+
+
+## 带侵蚀的高度。表里没有的坐标（超出最大范围）退回原始高度。
+static func eroded_elevation_of(c: Vector2i, world_seed: int) -> float:
+	var table := _eroded_heights(world_seed)
+	var k := key_of(c)
+	if table.has(k):
+		return float(table[k])
+	return elevation_of(c, world_seed)
+
+
+
 
 ## 某一格的"湿度"（0~1）。必须用**另一张噪声**（换种子 + 换频率）——
 ## 否则它和高程一模一样，查表就退化成"只看高程"，看不到干湿分区。
@@ -207,7 +278,8 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 		"land_cap": Consts.LAND_CAP_DEFAULT,   # v1.3.1：可用土地上限
 	}
 	# v1.8.21 第 2 段：地形（地貌）与地物（覆盖物）分两层，由高程 + 湿度查表得出
-	var b := biome_of(elevation_of(c, world_seed), moisture_of(c, world_seed))
+	var b := biome_of(eroded_elevation_of(c, world_seed), moisture_of(c, world_seed))
+
 	t["terrain"] = b["terrain"]
 	t["cover"] = b["cover"]
 

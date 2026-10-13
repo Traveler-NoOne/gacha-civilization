@@ -179,6 +179,21 @@ func _ready() -> void:
 			mismatched.append("%s(%s但terrain=%s)" % [k10, r10, str(t10.get("terrain", ""))])
 	print("  资源分布：%s" % str(res_count))
 
+	# ⑫ v1.8.21 第 4 段：侵蚀（固定最大范围的后处理）—— 看它确实削低了格子
+	var eroded_n := 0
+	var max_drop := 0.0
+	for k12 in tiles8.keys():
+		var c12 := WorldGen.coord_of(str(k12))
+		var raw12 := WorldGen.elevation_of(c12, 20240607)
+		var er12 := WorldGen.eroded_elevation_of(c12, 20240607)
+		if er12 < raw12 - 0.0001:
+			eroded_n += 1
+			max_drop = maxf(max_drop, raw12 - er12)
+	print("  侵蚀：被削低的格子 %d 个（最大削低 %.3f）" % [eroded_n, max_drop])
+	_check(eroded_n > 0, "侵蚀确实削低了部分格子（河谷）")
+	_check(max_drop > 0.001, "削低的幅度可见（最大 %.3f > 0.001）" % max_drop)
+
+
 	# ⑪ v1.8.21 第 3 段：大陆形状 —— 中心应当基本是陆，初始半径边缘应当基本是海
 	var edge_tiles := 0
 	var edge_water := 0
