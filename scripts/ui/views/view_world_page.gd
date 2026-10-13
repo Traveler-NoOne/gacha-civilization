@@ -75,17 +75,6 @@ func _build() -> void:
 		map.show_axis = on
 		map.queue_redraw())
 	toolbar.add_child(b_axis)
-	var b_expand := UIKit.small("扩建地图（发展系统功能）", 12)
-	b_expand.pressed.connect(func() -> void:
-		var added := WorldGen.expand_map(GameState.state, 1)
-
-		if added > 0:
-			GameState.add_log("营地扩建：地图上限扩大，新增 %d 格。" % added, "world")
-			GameState.toast.emit("地图已扩大，新增 %d 格" % added)
-			GameState.state_changed.emit()
-		else:
-			GameState.toast.emit("已达地图大小上限"))
-	toolbar.add_child(b_expand)
 
 	tip_label = UIKit.dim("左键拖动平移　·　滚轮缩放　·　左键点击地块查看详情　·　中键回到首都", 11)
 	mv.add_child(tip_label)

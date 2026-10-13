@@ -138,7 +138,10 @@ static func _build(out: Array[Dictionary]) -> void:
 	out.append(_c("fn_genesis_crystal", "创世结晶", 5, "提瓦特", "function", "star", {"tech": "genesis_crystal"}))
 	out.append(_c("fn_elem_leyline", "元素地脉", 3, "提瓦特", "function", "circle", {"regen": "crystal_shard"}))
 	out.append(_c("fn_tech_scroll", "古代技术卷轴", 3, "通用", "function", "square", {"research": 120.0}))
-	out.append(_c("fn_camp_upgrade", "营地扩建许可", 4, "通用", "function", "square", {"expand_map": 1}))
+	# W1：原来这里是 {"expand_map": 1}（扩建地图）—— 扩张已废弃、expand_map 已删。
+	# ⚠️ 名字与效果暂时不贴切：这张卡的**真正归宿在 W7**（发展卡池给一整个世界，是它语义上的继承者），
+	#    到那时再改名/改效果。现在先给一个**已支持**的效果（research）把它接住，免得指向已删的东西。
+	out.append(_c("fn_camp_upgrade", "营地扩建许可", 4, "通用", "function", "square", {"research": 150.0}))
 
 	# ---------------- 终局威胁（发展页必定产出） ----------------
 

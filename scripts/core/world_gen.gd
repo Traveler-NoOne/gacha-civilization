@@ -62,9 +62,13 @@ static func elevation_of(c: Vector2i, world_seed: int) -> float:
 
 
 # ===========================================================================
-# v1.8.21 第 4 段：侵蚀（按拍板 = **固定最大范围**的后处理，不看"当前半径"）
+# v1.8.21 第 4 段：侵蚀（**固定最大范围**的后处理，不看"当前半径"）
 #   为什么必须用最大范围：否则地图一扩张，这个后处理看到的格子变多 → 老格子的结果就变了
-#   （那会直接违反 1.8.20.9 那条"扩张出来的格子与一开始生成时一致"）。
+#   （那会违反 1.8.20.9 那条"扩张出来的格子与一开始生成时一致"）。
+#   ⚠️ W1：扩张与 `expand_map()` 已经删除，这条约束**从原理上不再需要**。
+#   但**本段暂时保持原样** —— 现在改它（例如改成按当前半径跑）会让**当前地图立刻变样**，
+#   而 W1 的验收要求是"观感零变化"。**等 W2 换掉高程管线时再真正拆掉这个写法**
+#   （见 docs/更新指导/世界生成-W2.md）。
 #   算法（mewo2/terrain 那套的简化版，全程确定、不含随机）：
 #     1) 算出最大范围内每格的原始高度；
 #     2) 按高度从高到低排序（并列用坐标键兜底 → 确定）；
@@ -295,9 +299,11 @@ static func generate(state: Dictionary) -> void:
 
 
 ## 造一格（地形 + 基础资源）。
-## v1.8.20.9：地形/资源 = f(坐标, 世界种子) 的纯函数 —— 同种子同地图，
-## 且 expand_map() 后加的那一格与"一开始就生成这么大"时必然一致。
-## 别改成用 rng 按顺序摇地形：那样同一格会随生成顺序变样，这条一致性就没了。
+## 地形/资源 = f(坐标, 世界种子)：同种子同地图，且**与生成顺序无关**（并列一律按坐标兜底）。
+## ⚠️ W1 起约束变了：不再要求"逐格独立、扩张不能改变老格"（**扩张已废弃**）；
+## 但**"整图可复现"必须保住** —— 同一配方（种子 + 尺寸 + 裁切窗口）每次生成必须**逐位一致**，
+## 否则读档重算就等于换了一张图（见 docs/更新指导/世界生成-过程模拟.md 第 3.4 节）。
+## 别改成用 rng 按顺序摇地形：那样同一格会随生成顺序变样。
 
 static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 
@@ -878,28 +884,10 @@ static func _damage_tile(state: Dictionary, key: String, rng: RandomNumberGenera
 
 
 # ===========================================================================
-# 扩展地图上限（发展系统 / 营地升级）
+# 地图半径
 # ===========================================================================
-## v1.8.20.9：不收 rng —— 地形由坐标 + 世界种子决定，扩张出来的格子与"一开始就生成这么大"时一致。
-
-static func expand_map(state: Dictionary, rings: int = 1) -> int:
-
-	var tiles: Dictionary = state["tiles"]
-	var current_radius := 0
-	for k in tiles.keys():
-		current_radius = maxi(current_radius, Hex.distance(coord_of(k), Vector2i.ZERO))
-	var target := mini(current_radius + rings, Consts.MAP_MAX_RADIUS)
-	if target <= current_radius:
-		return 0
-	var added := 0
-	for c in Hex.spiral(target):
-		var k := key_of(c)
-		if tiles.has(k):
-			continue
-		tiles[k] = _make_tile(c, int(state["seed"]))
-
-		added += 1
-	return added
+## W1：`expand_map()` 已删除 ——「扩张」这个玩法要废弃，将来改由**发展卡池给一整个世界**
+## （见 docs/更新指导/世界生成-W7.md）。这里只留下"量一下当前地图半径"这个小工具。
 
 
 static func map_radius(state: Dictionary) -> int:

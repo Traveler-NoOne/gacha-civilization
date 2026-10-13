@@ -285,11 +285,6 @@ static func _apply_card(state: Dictionary, c: Dictionary) -> void:
 				var rk := str(c["regen"])
 				if not (state["techs_owned_flags"] as Array).has("regen_" + rk):
 					state["techs_owned_flags"].append("regen_" + rk)
-			if c.has("expand_map"):
-				var added := WorldGen.expand_map(state, int(c["expand_map"]))
-
-				if added > 0:
-					GameState.add_log("营地扩建：可探索范围增加了 %d 格。" % added, "world")
 		_:
 			pass
 

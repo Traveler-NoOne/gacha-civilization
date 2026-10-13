@@ -14,7 +14,7 @@ signal toast(text: String)
 const SAVE_MAGIC := "gacha_civilization_demo"
 ## 存档时代
 ## 按既有决策：1.0 期不做旧档兼容 —— 版本不符直接拒绝（见 load_from_slot）。
-const SAVE_VERSION := 4
+const SAVE_VERSION := 5   # W1：新增 state["worlds"] / state["edges"]（老档直接删，见 load_from_slot）
 
 
 ## 游戏状态
@@ -59,6 +59,15 @@ func new_game(seed_value: int = 0) -> void:
 		},
 		"pop_total": Consts.POP_START,
 		"tiles": {},          # "q,r" -> tile dict
+		"worlds": [          # W1：每块世界一份"配方"（现在只有第一块；W5/W6/W7 才真正用上）
+			{
+				"dir": null, "origin": [0, 0], "seed": s,
+				"map_radius": Consts.MAP_START_RADIUS,
+				"sim_size": 512, "climate_size": 128,
+				"crop_center": null, "crop_radius": 107, "world_age": 0.35,
+			},
+		],
+		"edges": {},         # W1：边集合（键 "q,r,d"；两类边 river_edge / water_edge）；W4 才写入
 		"capital": "0,0",
 		"strongholds": [],    # v1.3.1 据点（据点可包含多个地块；本作仅首都）
 		"admin_effects": [],  # v1.3.1 行政点数的限时 buff / debuff
@@ -418,6 +427,11 @@ func enemy_force() -> float:
 ## 文档公式：稳定度
 ##   ((玩家总战斗力 / 敌人总战斗力) * (空白格子数 / (空白格子数 + 1)))
 ##   * (1 - (敌人数量 / 地图总格子数) * 0.5)
+## ⚠️ W1：这里**故意是全局口径** —— 下面的 player_force / enemy_force / free_tiles
+## 以及"地图总格子数"（`state["tiles"].size()`）全都遍历**整张 tiles 字典**。
+## 将来的"多块世界"是**并进同一个 tiles 字典**的（见 世界生成-W7.md），
+## 所以它们自动就是"所有世界加总"。**别改成按"当前显示的世界"统计** ——
+## 那样每拼一块新世界，稳定度就会突跳一次。
 func stability() -> float:
 	var pf := player_force()
 	var ef := enemy_force()

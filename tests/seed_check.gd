@@ -96,28 +96,6 @@ func _ready() -> void:
 		terrain_d[tn3] = int(terrain_d.get(tn3, 0)) + 1
 	_check(terrain_a != terrain_d, "不传种子（取时钟）→ 每局也是不同的世界")
 
-	# ⑦ 扩张：不改动已有地块；新加的那一格 = 同种子同坐标的「标准世界」
-	GameState.new_game(20240607)
-	var old_tiles: Dictionary = (GameState.state["tiles"] as Dictionary).duplicate(true)
-	var added_n: int = WorldGen.expand_map(GameState.state, 1)
-	_check(added_n > 0, "扩张加进来 %d 格" % added_n)
-	var unchanged := true
-	for k in old_tiles.keys():
-		if not (GameState.state["tiles"] as Dictionary).has(k) \
-				or JSON.stringify((GameState.state["tiles"] as Dictionary)[k]) != JSON.stringify(old_tiles[k]):
-			unchanged = false
-	_check(unchanged, "扩张不会改动已有地块（逐格逐字段相同）")
-	var new_key := ""
-	for k in GameState.state["tiles"].keys():
-		if not old_tiles.has(k):
-			new_key = str(k)
-			break
-	_check(new_key != "", "找到了扩张出来的新格：%s" % new_key)
-	if new_key != "":
-		var from_world: Dictionary = WorldGen._make_tile(WorldGen.coord_of(new_key), 20240607)
-		_check(JSON.stringify((GameState.state["tiles"] as Dictionary)[new_key]) == JSON.stringify(from_world),
-			"新格与「标准世界」同坐标一致（纯函数，与生成顺序无关）")
-
 	# ⑧ v1.8.21 第 1 段：地形应当是"成片"的，而不是随机撒点。
 	#    衡量方法：相邻格同地形的比例。纯随机（5 种地形）期望约 20%；噪声地图应显著更高。
 	GameState.new_game(20240607)
