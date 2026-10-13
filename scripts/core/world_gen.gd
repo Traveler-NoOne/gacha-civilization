@@ -52,13 +52,17 @@ static func mainland_pull(c: Vector2i) -> float:
 	return clampf(d, 0.0, 1.0)
 
 
-## 某一格的高度（0~1）：多倍频采样 → **大陆形状**（往 1-距离 混）→ 重塑（往下压，让平原多些）。
+## 某一格的高度（0~1）：多倍频采样 → **大陆形状**（往 1-距离 混）→ 重塑（往下压，让平原多些）
+## → **W2（S2）：叠上板块过程**（相向边界造山/造沟、相离边界造脊/造谷）。
 ## 重塑指数是"水多不多"的旋钮（2.6 那次半张图都是海，别调过头）。
+## ⚠️ 板块那一层由 `Plates.effect_at()` 提供，它**只按这一格的坐标 + 种子算**（逐格纯函数）——
+## 所以 W1 定的"整图可复现"依然成立（见 docs/更新指导/世界生成-过程模拟.md 3.4）。
 static func elevation_of(c: Vector2i, world_seed: int) -> float:
 	var n := _elevation_noise(world_seed)
 	var e := (n.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5
 	e = lerp(e, 1.0 - mainland_pull(c), 0.55)
-	return pow(e, 1.25)
+	e = pow(e, 1.25)
+	return clampf(e + Plates.effect_at(c, e, world_seed), 0.0, 1.0)
 
 
 # ===========================================================================

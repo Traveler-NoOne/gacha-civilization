@@ -74,5 +74,46 @@ func _ready() -> void:
 		"合成：纯切向错动 → 转换断层")
 
 	print("  各板块格数：%s" % str(owned))
+
+	# ⑤ S2：板块对高度的影响 —— **逐格符号断言**（"山脉/海沟长在正确一侧"的护栏）
+	#    问"函数实际会用到哪条边界"（boundary_for），再验它的结果是正还是负。
+	var n_conv := 0
+	var n_div := 0
+	var n_none := 0
+	var bad_conv := 0
+	var bad_div := 0
+	var bad_none := 0
+	var max_abs := 0.0
+	for cell: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
+		var eff := P.effect_at(cell, 0.6, SEED, PLATES)     # base=0.6 → 当作**陆地**
+		max_abs = maxf(max_abs, absf(eff))
+		var bd := P.boundary_for(cell, SEED, PLATES)
+		match int(bd["kind"]):
+			P.Kind.CONVERGENT:
+				n_conv += 1
+				if eff <= 0.0:
+					bad_conv += 1
+			P.Kind.DIVERGENT:
+				n_div += 1
+				if eff >= 0.0:
+					bad_div += 1
+			_:
+				n_none += 1
+				if absf(eff) > 0.000001:
+					bad_none += 1
+	print("  板块效应（陆地基准）：相向 %d 格 / 相离 %d 格 / 无边 %d 格；最大幅度 %.4f"
+		% [n_conv, n_div, n_none, max_abs])
+	_check(n_conv > 0 and n_div > 0, "两种边界附近都取到了样本")
+	_check(bad_conv == 0, "相向边界附近的陆地格**全部被抬高**（造山）→ 违例 %d" % bad_conv)
+	_check(bad_div == 0, "相离边界附近的陆地格**全部被压低**（裂谷）→ 违例 %d" % bad_div)
+	_check(bad_none == 0, "没有边界的格子**完全不受板块影响** → 违例 %d" % bad_none)
+	_check(max_abs <= P.PLATE_AMPLITUDE + 0.0001,
+		"板块效应幅度不超过振幅上限 %.2f（实际最大 %.4f）" % [P.PLATE_AMPLITUDE, max_abs])
+	# 海陆基准换一下，符号应当反过来（海侧相向 → 海沟、海侧相离 → 洋中脊）
+	_check(P.effect_at(Vector2i(0, 0), 0.2, SEED, PLATES) == -P.effect_at(Vector2i(0, 0), 0.8, SEED, PLATES)
+		or P.boundary_for(Vector2i(0, 0), SEED, PLATES)["kind"] == P.Kind.NONE,
+		"同一格：陆地侧与海洋侧的符号相反（山 / 沟）")
+
+	print("  各板块格数：%s" % str(owned))
 	print("== 结果：%s ==" % ("全部通过" if fails == 0 else "%d 项失败" % fails))
 	get_tree().quit(1 if fails > 0 else 0)

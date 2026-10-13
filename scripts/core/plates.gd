@@ -35,7 +35,113 @@ const NEIGHBORS: Array[Vector2i] = [
 ]
 
 
-## 生成一张板块图。
+## ===========================================================================
+## 无网格原语（W2 的 S2 用这一组把板块接进高程）
+##   为什么要有它们：现在的高度是 `f(一格坐标, 种子)` 的**逐格纯函数**
+##   （见 world_gen.elevation_of），所以板块也必须能"按一格直接问"，
+##   而不是只能先算出整张网格再采样。坐标统一用**像素空间**（Hex.axial_to_pixel，size=1）——
+##   那里各向同性，距离/法线才有意义。
+## ===========================================================================
+
+## 板块对高度的振幅（0~1 的高程单位）。**可逆参数**，只为"像真实地理"而调。
+const PLATE_AMPLITUDE := 0.22
+## 离边界多少格之内还有影响（越远越弱）
+const PLATE_FALLOFF_STEPS := 3
+## 判"这一侧是海洋"的高度线（低于它 → 相向时是俯冲侧/海沟，相离时是洋中脊）
+const SEA_LEVEL_HINT := 0.5
+
+static var _frame_cache := {}
+
+
+## 某一局种子的板块骨架（种子位置 + 运动矢量），按种子缓存。
+## 种子铺在"当前地图外接矩形 × 1.4"的盒子里 —— 这样边界真的会**穿过**地图，
+## 而不是整张图落在同一块板里（那样就完全没有山脉了）。
+static func frame(world_seed: int, plate_count: int = 8) -> Dictionary:
+	var key := "%d/%d" % [world_seed, plate_count]
+	if _frame_cache.has(key):
+		return _frame_cache[key]
+	var n := maxi(2, plate_count)
+	var map_r := float(Consts.MAP_START_RADIUS)
+	var half := Vector2(Hex.SQRT3 * map_r * 1.4, 1.5 * map_r * 1.4)
+	var seeds: Array = []
+	for i in n:
+		var fx := Hex.hash01(Vector2i(i, 0), SALT_X + world_seed)
+		var fy := Hex.hash01(Vector2i(i, 0), SALT_Y + world_seed)
+		seeds.append(Vector2((fx * 2.0 - 1.0) * half.x, (fy * 2.0 - 1.0) * half.y))
+	var out := {"seeds": seeds, "motions": _make_motions(world_seed, n), "count": n}
+	_frame_cache[key] = out
+	return out
+
+
+## 像素坐标属于哪一块板（最近种子；并列取序号小的 → 确定）
+static func plate_at_point(p: Vector2, seeds: Array) -> int:
+	var best := 0
+	var best_d := INF
+	for i in seeds.size():
+		var s: Vector2 = seeds[i]
+		var d := p.distance_squared_to(s)
+		if d < best_d - 0.000001:
+			best_d = d
+			best = i
+	return best
+
+
+## 这一格"**实际会用到的那条边界**"：3 格内、相向/相离里**最强**的一条
+##（并列保留先遇到的 → 确定）。返回 `{kind, stress, dist}`；没有边界时 kind = `Kind.NONE`。
+## 之所以要单独抽出来：自检要能问"函数到底按哪条边界算的"，否则测试只能靠猜（2026-10-13 踩过）。
+static func boundary_for(c: Vector2i, world_seed: int, plate_count: int = 8) -> Dictionary:
+	var fr := frame(world_seed, plate_count)
+	var seeds: Array = fr["seeds"]
+	var motions: Array = fr["motions"]
+	var p := Hex.axial_to_pixel(c.x, c.y, 1.0)
+	var mine := plate_at_point(p, seeds)
+	var best := {"kind": Kind.NONE, "stress": 0.0, "dist": 0}
+	for o: Vector2i in Hex.spiral(PLATE_FALLOFF_STEPS):
+		if o == Vector2i.ZERO:
+			continue
+		var q := c + o
+		var their := plate_at_point(Hex.axial_to_pixel(q.x, q.y, 1.0), seeds)
+		if their == mine:
+			continue
+		var rel: Vector2 = (motions[mine] as Vector2) - (motions[their] as Vector2)
+		var normal := (Hex.axial_to_pixel(q.x, q.y, 1.0) - p).normalized()
+		var k := classify(rel, normal)
+		if k == Kind.TRANSFORM:
+			continue
+		var st := absf(rel.dot(normal))
+		if int(best["kind"]) == Kind.NONE or st > float(best["stress"]) + 0.000001:
+			best = {"kind": k, "stress": st, "dist": Hex.distance(c, q)}
+	return best
+
+
+## 板块对某一格高度的影响（**可正可负**，0 = 无影响）。
+## base 是该格"没有板块作用时"的高度 —— 用来判断这一侧是陆还是海：
+##   相向（碰撞/俯冲）：这一侧低（海）→ **海沟**（往下削）；这一侧高（陆）→ **山系**（往上抬）
+##   相离（裂谷/洋中脊）：这一侧低（海）→ **洋中脊**（微抬）；这一侧高（陆）→ **裂谷**（往下陷）
+##   错动：垂直方向基本不动 → 0
+## ⚠️ 振幅**钳在 `PLATE_AMPLITUDE` 以内** —— `stress` 是两块板的相对速度，可以大于 1，
+##    不钳的话"振幅上限"这个说法就是假的（2026-10-13 自检抓到过）。
+static func effect_at(c: Vector2i, base: float, world_seed: int, plate_count: int = 8) -> float:
+	var b := boundary_for(c, world_seed, plate_count)
+	if int(b["kind"]) == Kind.NONE:
+		return 0.0
+	var falloff := clampf(1.0 - float(int(b["dist"]) - 1) / float(PLATE_FALLOFF_STEPS), 0.0, 1.0)
+	var amp := PLATE_AMPLITUDE * minf(1.0, float(b["stress"])) * falloff
+	var is_sea := base < SEA_LEVEL_HINT
+	match int(b["kind"]):
+		Kind.CONVERGENT:
+			return -amp if is_sea else amp
+		Kind.DIVERGENT:
+			return amp * 0.5 if is_sea else -amp * 0.6
+		_:
+			return 0.0
+
+
+## ===========================================================================
+## 网格版（保留给将来的"死地图"用：整张参数图一次算完，见总纲）
+## ===========================================================================
+
+
 ## 返回 { plate: PackedInt32Array, kind: PackedByteArray, stress: PackedFloat32Array,
 ##        seeds: Array[Vector2], motions: Array[Vector2], size: int, plate_count: int }
 ## 索引约定：i = y * size + x（行优先）。
