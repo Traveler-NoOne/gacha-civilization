@@ -242,7 +242,43 @@ static func moisture_of(c: Vector2i, world_seed: int) -> float:
 
 ## 高程 + 湿度 → 一层地形 + 一层地物（Red Blob 那篇的二维查表，阈值按本作的种类改过）。
 ## 仍是 f(坐标, 种子) 的纯函数。
-static func biome_of(e: float, m: float) -> Dictionary:
+## ===========================================================================
+## W3a：气候参数图（**本项目第一次引入"参数图"**，见 climate.gd 顶部与 世界生成-W3.md 第六节）
+##   温度可以按格算，但**降水不行**（要沿风向累积）→ 所以先把"场"搭起来，W3b 才做得下去。
+##   场**不进存档**（种子 + 配方可重算）→ SAVE_VERSION 不变。
+## ===========================================================================
+
+## 这一局的气候场（128×128，按种子缓存）
+static func climate_for(world_seed: int) -> Dictionary:
+	var fn := func(c: Vector2i) -> float:
+		return elevation_of(c, world_seed)
+	return Climate.build(world_seed, fn)
+
+
+## 某格的**年平均温度**（℃）
+static func annual_temp_at(c: Vector2i, world_seed: int) -> float:
+	return Climate.annual_temp_at(c, climate_for(world_seed))
+
+
+## W3a：**太冷就长不出森林**（一阶近似；完整的柯本分类在 W3c）。
+## 做法：把"可用湿度"按温度打折 —— 5℃ 以上不打折，-5℃ 以下完全打光，中间线性。
+const COLD_FOREST_FULL := 5.0
+const COLD_FOREST_NONE := -5.0
+
+
+static func _moist_for_cover(m: float, t: float) -> float:
+	if t >= COLD_FOREST_FULL:
+		return m
+	if t <= COLD_FOREST_NONE:
+		return 0.0
+	return m * (t - COLD_FOREST_NONE) / (COLD_FOREST_FULL - COLD_FOREST_NONE)
+
+
+## 地形 / 地物：由**高度 + 湿度 + 温度**决定。
+## ⚠️ W3a 只加了温度这一层（把可用湿度打折），**下面的判断一字未改**；
+## 完整的柯本分类（最冷月/最热月 + 降水分带）在 W3c。
+static func biome_of(e: float, m_in: float, t: float = 999.0) -> Dictionary:
+	var m := _moist_for_cover(m_in, t)
 	if e < 0.36:
 		return {"terrain": "water", "cover": ""}
 	if e < 0.50:
@@ -367,7 +403,9 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 		"land_cap": Consts.LAND_CAP_DEFAULT,   # v1.3.1：可用土地上限
 	}
 	# v1.8.21 第 2 段：地形（地貌）与地物（覆盖物）分两层，由高程 + 湿度查表得出
-	var b := biome_of(eroded_elevation_of(c, world_seed), moisture_of(c, world_seed))
+	# W3a：再多给一个**温度**（这一年均温来自气候参数图）→ 太冷的地方长不出森林
+	var b := biome_of(eroded_elevation_of(c, world_seed), moisture_of(c, world_seed),
+		annual_temp_at(c, world_seed))
 
 	t["terrain"] = b["terrain"]
 	t["cover"] = b["cover"]
