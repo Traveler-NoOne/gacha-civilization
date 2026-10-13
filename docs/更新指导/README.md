@@ -46,7 +46,11 @@
 ### 现行验收方式（唯一出处）
 
 1. **无头自检**（`--headless`，逐条跑）。**必须用「场景」跑，不能 `--script`** —— 后者不注册 autoload，测试会**假通过**：
-   `seed_check` / `fatal_check` / `popup_measure_check` / `dead_ref_check`
+   `seed_check` / `fatal_check` / `popup_measure_check` / `dead_ref_check` / `plate_check`
+   > ⚠️ **跑的时候要带超时、并把输出落文件**（**别用会缓冲的管道**）：
+   > 被测脚本或其依赖一旦有**解析错**（例如 `Cannot infer the type`），测试会打印半行后
+   > **永远走不到 `quit()` → 静默挂死**，缓冲管道会让你连报错都看不到（2026-10-13 连踩两次）。
+   > 另：**新建了带 `class_name` 的脚本后先跑一次 `--import`**，否则类名没注册。
 2. **截图自检**（**非** headless；双击 `跑截图.bat`，或跑 `res://tests/screenshot.tscn`）：
    出图到 `tests/_shots/` 并生成 `00_MANIFEST.md`；观感逐张人看。
 3. **像素验收用容差对比**（平均绝对差 MAD ≤ 2%；**不许用哈希相等**）—— 规矩与已知噪声清单见 `1.8.20.md`。
