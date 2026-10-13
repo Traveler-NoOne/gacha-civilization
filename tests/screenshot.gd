@@ -79,6 +79,10 @@ func _ready() -> void:
 	# 像素对比会把这些**内容差异**当成"我改坏了"，白折腾。（详见 1.8.20.md 的验收说明）
 	seed(20240607)
 	GameState._rng.seed = 20240607
+	# ⚠️ 1.8.21.1 补记（2026-10-13）：本脚本**中途会开/关「作弊功能」这个全局设置**，
+	# 而它是**持久化**的（`user://settings.cfg`）—— 跑完脚本会把玩家的设置改掉（1.8.1b 那类"测试不得改玩家东西"）。
+	# 所以开头记下原值，收尾还原。
+	var cheat_was := GameState.cheat_enabled()
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	_clear_out_dir()
 	_arm_watchdog()
@@ -138,6 +142,12 @@ func _ready() -> void:
 	# v1.3：勾选「作弊功能」后的二次确认弹窗 + 勾选态
 	var cheat_box: Variant = U.find_toggle(menu, "作弊功能")
 	if cheat_box != null:
+		# ⚠️ 1.8.21.1 补记（2026-10-13 实测到的偶发）：
+		# 这个勾选框的**初始态来自持久化的全局设置**（玩家自己可能开着作弊 / 上一次跑脚本留下的状态）。
+		# 若初始就已经是"勾上"的，`button_pressed = true` **不产生变化 → toggled 不触发** →
+		# 二次确认弹窗压根不会生成 → 02e 拍不到（清单悄悄少一张）。
+		# 所以先"无信号地"清零，保证这里一定发生一次"未勾 → 勾上"的变化。
+		(cheat_box as Button).set_pressed_no_signal(false)
 		(cheat_box as Button).button_pressed = true
 		for f2b in 6:
 			await get_tree().process_frame
@@ -468,7 +478,7 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await _shoot("19_dialog_cheat")
 	gs.call("close_dialog")
-	GameState.set_cheat_enabled(false)
+	GameState.set_cheat_enabled(false)   # 中间清理：否则后面的图会多出顶部那个红色「作弊」按钮
 	for f15 in 3:
 		await get_tree().process_frame
 
@@ -523,6 +533,10 @@ func _ready() -> void:
 	await _clean("收尾")
 	await _shoot("22_back_to_map")
 	_write_manifest()
+
+	# 还原玩家原本的「作弊功能」设置（见 _ready 开头的说明）
+	GameState.set_cheat_enabled(cheat_was)
+	print("  已还原「作弊功能」设置为：%s" % str(cheat_was))
 
 	print("截图完成，共 %d 张，输出目录 %s" % [shot, OUT_DIR])
 	get_tree().quit(0)
