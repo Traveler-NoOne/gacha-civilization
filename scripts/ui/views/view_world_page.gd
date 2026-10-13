@@ -188,9 +188,12 @@ func _on_tile_clicked(key: String, uid: String, gpos: Vector2) -> void:
 func _on_hover_changed(key: String, at: Vector2 = Vector2(-1.0, -1.0)) -> void:
 	_hover_seq += 1
 	var my_seq := _hover_seq
+	# v1.8.20.11：鼠标一离开那个地块就**销毁**旧弹窗（不是等新弹窗来了再清）。
+	# 于是"新的在量尺寸"时旧的已经真的不在了 —— 不必等帧、也不必给它固定高度。
+	_destroy_tile_info()
 	if key == "":
-		_hide_tile_info()
 		return
+
 	var pos := at
 	if pos.x < 0.0:
 		pos = get_viewport().get_mouse_position()
@@ -386,8 +389,12 @@ func _ensure_tile_info_popup() -> void:
 ## 在鼠标位置显示某一格的简约信息（取代"选中地块"）
 func _show_tile_info(key: String, gpos: Vector2) -> void:
 	_ensure_tile_info_popup()
+	# 第二道保险：即使哪天有人不经过"离开地块"就重弹，这里也把旧内容**立即**清掉
+	# （queue_free 要等帧末，会把旧内容算进这一次的尺寸测量）。
+	# 这里不在任何子控件的回调里，free 是安全的；_hide_tile_info 那边保留 queue_free。
 	for c in tile_info_box.get_children():
-		c.queue_free()
+		c.free()
+
 	var t := GameState.tile_at(key)
 	tile_info_box.add_child(UIKit.title("地块 %s" % key, 13))
 	var discovered := bool(t.get("discovered", false))
@@ -396,6 +403,8 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 		tile_info_popup.visible = true
 		UIKit.place_popup_at(tile_info_popup, gpos, Vector2(14.0, 10.0))
 		return
+
+
 	var owner_txt := "无主"
 	var owner_col := UIKit.TEXT_DIM
 	match str(t.get("owner", "")):
@@ -438,7 +447,23 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 	UIKit.place_popup_at(tile_info_popup, gpos, Vector2(14.0, 10.0))
 
 
+
+
+
+## v1.8.20.11：销毁弹窗（连内容一起，下次用时会自动重建）。
+## 用 queue_free 而不是 free：这条路径也可能被「占领」按钮的回调走到，立即释放等于把它自己删掉；
+## 而下次弹窗至少要等悬停 1 秒，帧末释放绰绰有余。
+func _destroy_tile_info() -> void:
+	if tile_info_popup == null:
+		return
+	tile_info_popup.queue_free()
+	tile_info_popup = null
+	tile_info_box = null
+
+
 func _hide_tile_info() -> void:
+
+
 	if tile_info_popup != null:
 		tile_info_popup.visible = false
 
