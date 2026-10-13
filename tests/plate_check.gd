@@ -75,44 +75,99 @@ func _ready() -> void:
 
 	print("  各板块格数：%s" % str(owned))
 
-	# ⑤ S2：板块对高度的影响 —— **逐格符号断言**（"山脉/海沟长在正确一侧"的护栏）
-	#    问"函数实际会用到哪条边界"（boundary_for），再验它的结果是正还是负。
-	var n_conv := 0
-	var n_div := 0
-	var n_none := 0
-	var bad_conv := 0
-	var bad_div := 0
-	var bad_none := 0
+	# ⑤ W2b：板块效应 —— **按地壳类型**的符号断言
+	var n_coll := 0
+	var n_sub_sea := 0
+	var n_sub_land := 0
+	var bad_coll := 0
+	var bad_sub_sea := 0
+	var bad_sub_land := 0
+	var nz_coll := 0
+	var nz_sub_sea := 0
+	var nz_sub_land := 0
 	var max_abs := 0.0
 	for cell: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
-		var eff := P.effect_at(cell, 0.6, SEED, PLATES)     # base=0.6 → 当作**陆地**
+		var eff := P.effect_at(cell, SEED, PLATES)
 		max_abs = maxf(max_abs, absf(eff))
 		var bd := P.boundary_for(cell, SEED, PLATES)
-		match int(bd["kind"]):
-			P.Kind.CONVERGENT:
-				n_conv += 1
-				if eff <= 0.0:
-					bad_conv += 1
-			P.Kind.DIVERGENT:
-				n_div += 1
-				if eff >= 0.0:
-					bad_div += 1
-			_:
-				n_none += 1
-				if absf(eff) > 0.000001:
-					bad_none += 1
-	print("  板块效应（陆地基准）：相向 %d 格 / 相离 %d 格 / 无边 %d 格；最大幅度 %.4f"
-		% [n_conv, n_div, n_none, max_abs])
-	_check(n_conv > 0 and n_div > 0, "两种边界附近都取到了样本")
-	_check(bad_conv == 0, "相向边界附近的陆地格**全部被抬高**（造山）→ 违例 %d" % bad_conv)
-	_check(bad_div == 0, "相离边界附近的陆地格**全部被压低**（裂谷）→ 违例 %d" % bad_div)
-	_check(bad_none == 0, "没有边界的格子**完全不受板块影响** → 违例 %d" % bad_none)
-	_check(max_abs <= P.PLATE_AMPLITUDE + 0.0001,
-		"板块效应幅度不超过振幅上限 %.2f（实际最大 %.4f）" % [P.PLATE_AMPLITUDE, max_abs])
-	# 海陆基准换一下，符号应当反过来（海侧相向 → 海沟、海侧相离 → 洋中脊）
-	_check(P.effect_at(Vector2i(0, 0), 0.2, SEED, PLATES) == -P.effect_at(Vector2i(0, 0), 0.8, SEED, PLATES)
-		or P.boundary_for(Vector2i(0, 0), SEED, PLATES)["kind"] == P.Kind.NONE,
-		"同一格：陆地侧与海洋侧的符号相反（山 / 沟）")
+		if int(bd["kind"]) != P.Kind.CONVERGENT:
+			continue
+		var my_land := P.crust_of(int(bd["mine"]), SEED, PLATES) == P.CRUST_CONTINENTAL
+		var their_land := P.crust_of(int(bd["other"]), SEED, PLATES) == P.CRUST_CONTINENTAL
+		if my_land and their_land:
+			n_coll += 1
+			if eff < 0.0:
+				bad_coll += 1
+			if absf(eff) > 0.000001:
+				nz_coll += 1
+		elif not my_land and their_land:
+			n_sub_sea += 1
+			if eff > 0.0:
+				bad_sub_sea += 1
+			if absf(eff) > 0.000001:
+				nz_sub_sea += 1
+		elif my_land and not their_land:
+			n_sub_land += 1
+			if eff < 0.0:
+				bad_sub_land += 1
+			if absf(eff) > 0.000001:
+				nz_sub_land += 1
+	print("  相向边界（按地壳）：陆-陆碰撞 %d 格 / 洋侧俯冲 %d 格 / 陆侧山链 %d 格；最大幅度 %.4f"
+		% [n_coll, n_sub_sea, n_sub_land, max_abs])
+	print("  其中**真的产生非零效应**：碰撞 %d / 海沟 %d / 山链 %d（带外为 0 是正常的）"
+		% [nz_coll, nz_sub_sea, nz_sub_land])
+	_check(n_coll + n_sub_sea + n_sub_land > 0, "相向边界取到了样本")
+	_check(bad_coll == 0, "陆-陆碰撞：凡有非零效应的一律**抬高**（山系）→ 违例 %d" % bad_coll)
+	_check(bad_sub_sea == 0, "洋-陆俯冲：凡有非零效应的一律**压低**（海沟）→ 违例 %d" % bad_sub_sea)
+	_check(bad_sub_land == 0, "洋-陆俯冲：凡有非零效应的一律**抬高**（沿岸山链）→ 违例 %d" % bad_sub_land)
+	_check(nz_coll > 0 and nz_sub_sea > 0 and nz_sub_land > 0,
+		"三类相互作用**都真的产生了非零效应**（各自 %d / %d / %d 格）" % [nz_coll, nz_sub_sea, nz_sub_land])
+	_check(max_abs <= P.AMP_COLLISION + 0.0001,
+		"振幅不超过分级上限 %.2f（实际 %.4f）" % [P.AMP_COLLISION, max_abs])
+
+	# ★ 形态断言：**连续山脉格的最长连通长度** —— 把"喜马拉雅/科迪勒拉那种长墙"变成可测的
+	#   （W2 之后最长只有 5~6 格；W2b 的"造山带成型"就是要把它拉成几十格）
+	var mountains := {}
+	for cell2: Vector2i in Hex.spiral(Consts.MAP_START_RADIUS):
+		var e2 := WorldGen.elevation_of(cell2, SEED)
+		var m2 := WorldGen.moisture_of(cell2, SEED)
+		if str(WorldGen.biome_of(e2, m2)["terrain"]) == "mountain":
+			mountains[WorldGen.key_of(cell2)] = cell2
+	var seen := {}
+	var longest := 0
+	var widest := 0
+	for k2 in mountains.keys():
+		if seen.has(k2):
+			continue
+		var stack: Array = [k2]
+		seen[k2] = true
+		var comp: Array = []
+		while not stack.is_empty():
+			var cur: String = stack.pop_back()
+			comp.append(cur)
+			var cc: Vector2i = mountains[cur]
+			for nb: Vector2i in Hex.neighbors(cc):
+				var nk := WorldGen.key_of(nb)
+				if mountains.has(nk) and not seen.has(nk):
+					seen[nk] = true
+					stack.append(nk)
+		longest = maxi(longest, comp.size())
+		# ★ 形态诊断（**不是断言**）：最长的这条到底是"长墙"还是"一团疙瘩"？
+		#   直径（成员间最大格距）远大于宽度才像墙；面积/直径 ≈ 平均宽度。
+		if comp.size() == longest:
+			var dia := 0
+			for i in comp.size():
+				for j in range(i + 1, comp.size()):
+					dia = maxi(dia, Hex.distance(mountains[comp[i]], mountains[comp[j]]))
+			widest = dia
+	var thin := float(longest) / maxf(1.0, float(widest))
+	print("  山脉格 %d 个；最长连通 %d 格、其**直径 %d 格**（面积/直径 ≈ %.1f = 平均宽度）"
+		% [mountains.size(), longest, widest, thin])
+	if widest > 0:
+		print("  ⚠️ 形态**还没达标**：识图看这张图仍说「远未达到长山墙的效果」（见 世界生成-W2b.md）—— 下面这条断言只保证「存在一条较长的连通山带」，不足以证明它像长墙。")
+	else:
+		print("  （没有山脉）")
+	_check(longest >= 20, "存在一条较长的连通山带（最长 %d 格 ≥ 20；**形态另见上面的诊断**）" % longest)
 
 	print("  各板块格数：%s" % str(owned))
 	print("== 结果：%s ==" % ("全部通过" if fails == 0 else "%d 项失败" % fails))

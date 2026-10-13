@@ -62,7 +62,7 @@ static func elevation_of(c: Vector2i, world_seed: int) -> float:
 	var e := (n.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5
 	e = lerp(e, 1.0 - mainland_pull(c), 0.55)
 	e = pow(e, 1.25)
-	return clampf(e + Plates.effect_at(c, e, world_seed), 0.0, 1.0)
+	return clampf(e + Plates.effect_at(c, world_seed), 0.0, 1.0)
 
 
 # ===========================================================================

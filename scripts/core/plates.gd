@@ -43,12 +43,32 @@ const NEIGHBORS: Array[Vector2i] = [
 ##   那里各向同性，距离/法线才有意义。
 ## ===========================================================================
 
-## 板块对高度的振幅（0~1 的高程单位）。**可逆参数**，只为"像真实地理"而调。
-const PLATE_AMPLITUDE := 0.22
-## 离边界多少格之内还有影响（越远越弱）
-const PLATE_FALLOFF_STEPS := 3
-## 判"这一侧是海洋"的高度线（低于它 → 相向时是俯冲侧/海沟，相离时是洋中脊）
-const SEA_LEVEL_HINT := 0.5
+## ===========================================================================
+## 造山 / 造沟的强度与宽度（**按"相互作用类型"分级**；全是可逆参数，只为"像真实地理"而调）
+##   ⚠️ 碰撞必须够大（0.34）：这样"底子 0.40 的陆格"也能被顶过 0.72 的山脉线（world_gen.biome_of），
+##      于是整条边界连成一条**长墙**，而不是碰阈值碰出几个孤峰（W2 的老毛病，见 世界生成-W2b.md）。
+## ===========================================================================
+const AMP_COLLISION := 0.34      ## 陆-陆碰撞：山系（喜马拉雅型）
+const AMP_ARC_LAND := 0.22       ## 俯冲：陆侧的沿岸山链（科迪勒拉型）
+const AMP_TRENCH := 0.20         ## 俯冲：洋侧的海沟（往下削）
+const AMP_ARC := 0.26            ## 洋-洋相向：另一侧的岛弧
+const AMP_RIFT := 0.14           ## 陆内裂谷（往下陷）
+const AMP_RIDGE := 0.10          ## 洋中脊（微抬）
+
+const W_COLLISION := 5           ## 各类型的带宽（格）
+const W_SUBDUCT := 4
+const W_NARROW := 3
+## 找边界时最多看几格（= 最宽的那一种）
+const SCAN_STEPS := 5
+
+## 地壳类型：陆壳 / 洋壳
+const CRUST_CONTINENTAL := 0
+const CRUST_OCEANIC := 1
+## **近似**判据：**种子落在地图范围内（含 5% 边距）→ 陆壳；落在图外 → 洋壳**。
+## 归一化用的是**地图**的外接椭圆（不是种子盒 —— 用种子盒会让尺度偏小、几乎全判成洋壳，实测踩过）。
+## 地图本来就是"中间陆、四周海"，所以这个近似够用；约 40% 的种子会落在图内。
+## ⚠️ W5 有了真正的参数图之后，应改成"按板块覆盖区域的平均基础高程"判（那才符合过程）。
+const CRUST_RATIO := 1.05
 
 static var _frame_cache := {}
 
@@ -62,13 +82,15 @@ static func frame(world_seed: int, plate_count: int = 8) -> Dictionary:
 		return _frame_cache[key]
 	var n := maxi(2, plate_count)
 	var map_r := float(Consts.MAP_START_RADIUS)
-	var half := Vector2(Hex.SQRT3 * map_r * 1.4, 1.5 * map_r * 1.4)
+	var map_half := Vector2(Hex.SQRT3 * map_r, 1.5 * map_r)
+	var half := map_half * 1.4
 	var seeds: Array = []
 	for i in n:
 		var fx := Hex.hash01(Vector2i(i, 0), SALT_X + world_seed)
 		var fy := Hex.hash01(Vector2i(i, 0), SALT_Y + world_seed)
 		seeds.append(Vector2((fx * 2.0 - 1.0) * half.x, (fy * 2.0 - 1.0) * half.y))
-	var out := {"seeds": seeds, "motions": _make_motions(world_seed, n), "count": n}
+	var out := {"seeds": seeds, "motions": _make_motions(world_seed, n), "count": n,
+		"half": half, "map_half": map_half}
 	_frame_cache[key] = out
 	return out
 
@@ -86,7 +108,16 @@ static func plate_at_point(p: Vector2, seeds: Array) -> int:
 	return best
 
 
-## 这一格"**实际会用到的那条边界**"：3 格内、相向/相离里**最强**的一条
+## 这一块是**陆壳**还是**洋壳**（近似：种子落在地图范围内 → 陆壳，图外 → 洋壳，见 CRUST_RATIO）
+static func crust_of(plate: int, world_seed: int, plate_count: int = 8) -> int:
+	var fr := frame(world_seed, plate_count)
+	var mh := fr["map_half"] as Vector2
+	var s: Vector2 = (fr["seeds"] as Array)[plate]
+	var rr := Vector2(s.x / maxf(1.0, mh.x), s.y / maxf(1.0, mh.y)).length()
+	return CRUST_OCEANIC if rr > CRUST_RATIO else CRUST_CONTINENTAL
+
+
+## 这一格"**实际会用到的那条边界**"：SCAN_STEPS 格内、相向/相离里**最强**的一条
 ##（并列保留先遇到的 → 确定）。返回 `{kind, stress, dist}`；没有边界时 kind = `Kind.NONE`。
 ## 之所以要单独抽出来：自检要能问"函数到底按哪条边界算的"，否则测试只能靠猜（2026-10-13 踩过）。
 static func boundary_for(c: Vector2i, world_seed: int, plate_count: int = 8) -> Dictionary:
@@ -95,8 +126,8 @@ static func boundary_for(c: Vector2i, world_seed: int, plate_count: int = 8) -> 
 	var motions: Array = fr["motions"]
 	var p := Hex.axial_to_pixel(c.x, c.y, 1.0)
 	var mine := plate_at_point(p, seeds)
-	var best := {"kind": Kind.NONE, "stress": 0.0, "dist": 0}
-	for o: Vector2i in Hex.spiral(PLATE_FALLOFF_STEPS):
+	var best := {"kind": Kind.NONE, "stress": 0.0, "dist": 0, "mine": mine, "other": mine}
+	for o: Vector2i in Hex.spiral(SCAN_STEPS):
 		if o == Vector2i.ZERO:
 			continue
 		var q := c + o
@@ -110,31 +141,45 @@ static func boundary_for(c: Vector2i, world_seed: int, plate_count: int = 8) -> 
 			continue
 		var st := absf(rel.dot(normal))
 		if int(best["kind"]) == Kind.NONE or st > float(best["stress"]) + 0.000001:
-			best = {"kind": k, "stress": st, "dist": Hex.distance(c, q)}
+			best = {"kind": k, "stress": st, "dist": Hex.distance(c, q), "mine": mine, "other": their}
 	return best
 
 
 ## 板块对某一格高度的影响（**可正可负**，0 = 无影响）。
-## base 是该格"没有板块作用时"的高度 —— 用来判断这一侧是陆还是海：
-##   相向（碰撞/俯冲）：这一侧低（海）→ **海沟**（往下削）；这一侧高（陆）→ **山系**（往上抬）
-##   相离（裂谷/洋中脊）：这一侧低（海）→ **洋中脊**（微抬）；这一侧高（陆）→ **裂谷**（往下陷）
-##   错动：垂直方向基本不动 → 0
-## ⚠️ 振幅**钳在 `PLATE_AMPLITUDE` 以内** —— `stress` 是两块板的相对速度，可以大于 1，
-##    不钳的话"振幅上限"这个说法就是假的（2026-10-13 自检抓到过）。
-static func effect_at(c: Vector2i, base: float, world_seed: int, plate_count: int = 8) -> float:
+## **由两块板的"地壳类型 + 相遇方式"决定**（不再看逐格的噪声底高 —— 那会让同一条边界山沟交替）：
+##   陆-陆相向 → **山系**（喜马拉雅型）｜洋-陆相向 → 洋侧**海沟**、陆侧**沿岸山链**（科迪勒拉型）
+##   洋-洋相向 → 一侧海沟、另一侧**岛弧**（序号大的那块先俯冲 —— 用它代替"谁更老更密"，确定）
+##   陆-陆相离 → **裂谷**｜含洋相离 → 洋侧**洋中脊**、陆侧小裂谷｜错动 → 0
+## ⚠️ 振幅**按类型分级、且已按类型定上限**（见本文件顶部的 AMP_* 常量）。
+static func effect_at(c: Vector2i, world_seed: int, plate_count: int = 8) -> float:
 	var b := boundary_for(c, world_seed, plate_count)
 	if int(b["kind"]) == Kind.NONE:
 		return 0.0
-	var falloff := clampf(1.0 - float(int(b["dist"]) - 1) / float(PLATE_FALLOFF_STEPS), 0.0, 1.0)
-	var amp := PLATE_AMPLITUDE * minf(1.0, float(b["stress"])) * falloff
-	var is_sea := base < SEA_LEVEL_HINT
+	var d := int(b["dist"])
+	var mine := int(b["mine"])
+	var other := int(b["other"])
+	var my_land := crust_of(mine, world_seed, plate_count) == CRUST_CONTINENTAL
+	var their_land := crust_of(other, world_seed, plate_count) == CRUST_CONTINENTAL
 	match int(b["kind"]):
 		Kind.CONVERGENT:
-			return -amp if is_sea else amp
+			if my_land and their_land:
+				return _belt(AMP_COLLISION, d, W_COLLISION)
+			if not my_land and their_land:
+				return -_belt(AMP_TRENCH, d, W_NARROW)
+			if my_land and not their_land:
+				return _belt(AMP_ARC_LAND, d, W_SUBDUCT)
+			return -_belt(AMP_TRENCH, d, W_NARROW) if mine > other else _belt(AMP_ARC, d, W_NARROW)
 		Kind.DIVERGENT:
-			return amp * 0.5 if is_sea else -amp * 0.6
+			if my_land and their_land:
+				return -_belt(AMP_RIFT, d, W_NARROW)
+			return _belt(AMP_RIDGE, d, W_NARROW) if not my_land else -_belt(AMP_RIFT, d, W_NARROW)
 		_:
 			return 0.0
+
+
+## 条带衰减：边界上（d=1）取满 amp，到 w 格外衰减到 0
+static func _belt(amp: float, d: int, w: int) -> float:
+	return amp * clampf(1.0 - float(d - 1) / float(maxi(1, w)), 0.0, 1.0)
 
 
 ## ===========================================================================
