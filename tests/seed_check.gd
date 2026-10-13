@@ -165,6 +165,22 @@ func _ready() -> void:
 		if str((tiles8[nk9] as Dictionary).get("resource", "")) != "":
 			res9 += 1
 	print("  出生点：%s（离中心 %d 格 / 上限 %d；3 格内资源点 %d 个）" % [cap9, capd9, edge9, res9])
+
+	# ⑩ 资源必须长在"该长的地貌"上：木头←森林地物；煤/铜←山丘。资源分布也打出来看看丰不丰。
+	var res_count := {}
+	var mismatched := []
+	for k10 in tiles8.keys():
+		var t10: Dictionary = tiles8[k10]
+		var r10 := str(t10.get("resource", ""))
+		res_count[r10] = int(res_count.get(r10, 0)) + 1
+		if r10 == "wood" and str(t10.get("cover", "")) != "forest":
+			mismatched.append("%s(木头但cover=%s)" % [k10, str(t10.get("cover", ""))])
+		elif (r10 == "coal" or r10 == "copper") and str(t10.get("terrain", "")) != "hill":
+			mismatched.append("%s(%s但terrain=%s)" % [k10, r10, str(t10.get("terrain", ""))])
+	print("  资源分布：%s" % str(res_count))
+	print("  资源与地貌不符：%d 处" % mismatched.size())
+	_check(mismatched.is_empty(), "资源都长在对应地貌上（木头←森林、煤/铜←山丘）")
+
 	_check(capd9 <= edge9, "出生点不贴边境（离中心 %d ≤ %d）" % [capd9, edge9])
 	_check(res9 >= 3, "出生点附近不贫瘠（资源点 %d ≥ 3）" % res9)
 

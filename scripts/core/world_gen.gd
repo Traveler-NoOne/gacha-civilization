@@ -162,7 +162,6 @@ static func generate(state: Dictionary) -> void:
 	var cap_tile: Dictionary = tiles[key_of(cap)]
 	cap_tile["owner"] = OWNER_PLAYER
 	cap_tile["discovered"] = true
-	cap_tile["terrain"] = "plain"
 	cap_tile["is_capital"] = true
 	cap_tile["name"] = "首都·初始营地"
 	cap_tile["claimable"] = false
@@ -205,19 +204,14 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 
 	# 基础资源点
 	var rr := Hex.hash01(c, 31 + world_seed)
-
-	var dist := Hex.distance(c, Vector2i.ZERO)
 	if t["cover"] == "forest" and rr < 0.55:
-
 		t["resource"] = "wood"
 		t["amount"] = 4.0 + rr * 8.0
 	elif t["terrain"] == "hill" and rr < 0.45:
 		t["resource"] = "coal" if rr < 0.22 else "copper"
 		t["amount"] = 3.0 + rr * 8.0
-	elif dist > 4 and rr < 0.12:
-		t["resource"] = "wood"
-		t["amount"] = 5.0 + rr * 6.0
 	return t
+
 
 
 
