@@ -240,9 +240,12 @@ static func koppen_at(c: Vector2i, field: Dictionary) -> String:
 	if twarm < 10.0:
 		return "EF" if twarm <= 0.0 else "ET"
 	# ---- B 干旱：降水低于"随温度走的阈值"（柯本-桑斯韦特那套的简化）----
+	# ⚠️ 2026-10-13：沙漠/草原的分界从"阈值的一半"放宽到 **0.35** ——
+	#   原式下**草原带几乎不存在**（实测 BS=0 格）。用户明确要"草原必须看得见"，
+	#   而这是游戏不是气候学研究，所以把草原带放宽，让"沙漠→草原→森林"的过渡真的出现。
 	var thr := 20.0 * tmean + 140.0
 	if mm < thr:
-		return "BW" if mm < thr * 0.5 else "BS"
+		return "BW" if mm < thr * 0.35 else "BS"
 	# ---- A 热带：最冷月也 ≥ 18℃ ----
 	if tcold >= 18.0:
 		if driest_month_mm(c, field) >= 60.0:

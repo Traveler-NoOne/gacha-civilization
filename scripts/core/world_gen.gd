@@ -283,16 +283,23 @@ static func biome_of(e: float, m_in: float, koppen: String = "") -> Dictionary:
 			return {"terrain": "wasteland", "cover": ""}
 		return {"terrain": "mountain", "cover": ""}
 	var m := _moist_for_climate(m_in, koppen)
+	# BW 沙漠：低地一律显示成"沙"（dune）——
+	# 否则会变成"秃丘陵"，玩家根本看不出那是一片沙漠（实测 dune 0 格就是这么来的）。
+	if koppen == "BW" and e < 0.62:
+		return {"terrain": "dune", "cover": ""}
+	# ⚠️ 2026-10-13 重排**湿度分档**：原表把"草地"放在比"森林"更湿的一档（m>0.45→草、m>0.22→林），
+	#    结果**草原被挤成一条窄带**（实测只占 8%），而干旱区多半落在丘陵上成了秃地（沙地 0 格）。
+	#    常识顺序应当是：**干旱→沙 ／ 中湿→草原 ／ 较湿→森林 ／ 最湿→沼泽**。现在按这个排。
 	if e < 0.50:
-		if m > 0.70:
+		if m > 0.75:
 			return {"terrain": "plain", "cover": "swamp"}
-		if m > 0.45:
-			return {"terrain": "plain", "cover": "grass"}
-		if m > 0.22:
+		if m > 0.50:
 			return {"terrain": "plain", "cover": "forest"}
+		if m > 0.22:
+			return {"terrain": "plain", "cover": "grass"}
 		return {"terrain": "dune", "cover": ""}
 	if e < 0.62:
-		if m > 0.45:
+		if m > 0.50:
 			return {"terrain": "hill", "cover": "forest"}
 		if m > 0.22:
 			return {"terrain": "hill", "cover": "grass"}
@@ -300,7 +307,7 @@ static func biome_of(e: float, m_in: float, koppen: String = "") -> Dictionary:
 	if e < 0.72:
 		if m > 0.60:
 			return {"terrain": "hill", "cover": "forest"}
-		if m > 0.30:
+		if m > 0.22:
 			return {"terrain": "hill", "cover": "grass"}
 		return {"terrain": "wasteland", "cover": ""}
 	return {"terrain": "mountain", "cover": ""}
