@@ -15,7 +15,7 @@ const P := preload("res://scripts/core/plates.gd")
 
 const SEED := 20240607
 const SIZE := 96          # 自检用小图，快
-const PLATES := 8
+const PLATES := 5          # 跟 WorldGen.PLATE_COUNT 保持一致（板越少边界越长）
 
 var fails := 0
 
@@ -139,42 +139,45 @@ func _ready() -> void:
 		var m2 := WorldGen.moisture_of(cell2, SEED)
 		if str(WorldGen.biome_of(e2, m2)["terrain"]) == "mountain":
 			mountains[WorldGen.key_of(cell2)] = cell2
-	var seen := {}
-	var longest := 0
-	var widest := 0
-	for k2 in mountains.keys():
-		if seen.has(k2):
+	# ★ 形态（**第二版指标**）：**按"哪条边界"分组**再量 长度 × 宽度。
+	#   第一版用"面积/直径"，对**网**是错的：几条带相交会连成一个连通块，
+	#   于是把"网的跨度"当成"墙的厚度"（实测平均宽 6.1，其实是双带 + 交叉）。
+	var groups := {}
+	for kg in mountains.keys():
+		var cg: Vector2i = mountains[kg]
+		# ⚠️ 只统计"真的被板块效应顶过线"的山格 —— 否则**本来就自然很高的山格**也会被算进来，
+		#    它们离边界很远，会把"宽度"撑大（实测宽度被撑到 5，而带宽其实只有 2）。
+		if absf(P.effect_at(cg, SEED, crust, PLATES)) <= 0.000001:
 			continue
-		var stack: Array = [k2]
-		seen[k2] = true
-		var comp: Array = []
-		while not stack.is_empty():
-			var cur: String = stack.pop_back()
-			comp.append(cur)
-			var cc: Vector2i = mountains[cur]
-			for nb: Vector2i in Hex.neighbors(cc):
-				var nk := WorldGen.key_of(nb)
-				if mountains.has(nk) and not seen.has(nk):
-					seen[nk] = true
-					stack.append(nk)
-		longest = maxi(longest, comp.size())
-		# ★ 形态诊断（**不是断言**）：最长的这条到底是"长墙"还是"一团疙瘩"？
-		#   直径（成员间最大格距）远大于宽度才像墙；面积/直径 ≈ 平均宽度。
-		if comp.size() == longest:
-			var dia := 0
-			for i in comp.size():
-				for j in range(i + 1, comp.size()):
-					dia = maxi(dia, Hex.distance(mountains[comp[i]], mountains[comp[j]]))
-			widest = dia
-	var thin := float(longest) / maxf(1.0, float(widest))
-	print("  山脉格 %d 个；最长连通 %d 格、**直径 %d 格**、平均宽 ≈ %.1f 格"
-		% [mountains.size(), longest, widest, thin])
-	# ★ 形态：**又长又薄**才叫山墙。但 2026-10-13 实测发现"面积/直径"这个宽度指标**对"网"是错的**：
-	#   几条山带相交时会被连成一个连通块 → 面积/直径 会把"网的跨度"当成"墙的厚度"。
-	#   所以这里**只断言"确实存在一条较长的连通山带"**，"够不够薄/像不像墙"先当诊断 + 交人看。
-	_check(widest >= 15, "存在一条较长的连通山带（直径 %d 格 ≥ 15）" % widest)
-	if thin > 2.5:
-		print("  ⚠️ **未达标**：平均宽 ≈ %.1f > 2.5 —— 这条更像「带/网」而不是「山墙」；宽度指标本身也可能不适合「网」（见 世界生成-W2b.md）。" % thin)
+		var bg := P.boundary_for(cg, SEED, PLATES)
+		if int(bg["kind"]) == P.Kind.NONE:
+			continue
+		var pa := int(bg["mine"])
+		var pb := int(bg["other"])
+		var gkey := "%d-%d-%d" % [mini(pa, pb), maxi(pa, pb), int(bg["kind"])]
+		if not groups.has(gkey):
+			groups[gkey] = []
+		(groups[gkey] as Array).append({"c": cg, "d": int(bg["dist"])})
+	var best_len := 0
+	var best_w := 99
+	var best_key := ""
+	for gk in groups.keys():
+		var arr: Array = groups[gk]
+		var dmin := 99
+		var dmax := 0
+		for it in arr:
+			dmin = mini(dmin, int(it["d"]))
+			dmax = maxi(dmax, int(it["d"]))
+		var w := dmax - dmin + 1
+		var ln := int(round(float(arr.size()) / float(w)))
+		if ln > best_len:
+			best_len = ln
+			best_w = w
+			best_key = gk
+	print("  按边界分组：共 %d 组；最长一组（键 %s）= **长约 %d 格 × 宽 %d 格**"
+		% [groups.size(), best_key, best_len, best_w])
+	_check(best_len >= 25, "存在一条**沿某条边界的**长山带（长约 %d 格 ≥ 25）" % best_len)
+	_check(best_w <= 3, "该山带**够薄**（宽 %d 格 ≤ 3）" % best_w)
 
 	print("  各板块格数：%s" % str(owned))
 	print("== 结果：%s ==" % ("全部通过" if fails == 0 else "%d 项失败" % fails))

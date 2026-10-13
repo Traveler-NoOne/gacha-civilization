@@ -67,11 +67,13 @@ static func base_elevation_of(c: Vector2i, world_seed: int) -> float:
 ## ⚠️ 为什么不能用"种子离中心远近"猜：陆壳板会因此**覆盖着海**，
 ##    于是"陆-陆碰撞"发生在海中央 → 抬出一堆海上孤山，**长不出长墙**（第一版实测如此）。
 const CRUST_LAND_MEAN := 0.38
+## 板块数量（W2b）。**板越少 → 边界越长 → 山带越长**（8 块时最长山带只有 19 格，5 块应当更长）。
+const PLATE_COUNT := 5
 static var _crust_seed := -1
 static var _crust_arr := PackedByteArray()
 
 
-static func crust_for(world_seed: int, plate_count: int = 8) -> PackedByteArray:
+static func crust_for(world_seed: int, plate_count: int = PLATE_COUNT) -> PackedByteArray:
 	if _crust_seed == world_seed and _crust_arr.size() == plate_count:
 		return _crust_arr
 	var seeds: Array = (Plates.frame(world_seed, plate_count) as Dictionary)["seeds"]
@@ -97,7 +99,7 @@ static func crust_for(world_seed: int, plate_count: int = 8) -> PackedByteArray:
 ## ⚠️ 板块那一层由 `Plates.effect_at()` 提供，它**只按这一格的坐标 + 种子算**（逐格纯函数）——
 ## 所以 W1 定的"整图可复现"依然成立（见 docs/更新指导/世界生成-过程模拟.md 3.4）。
 static func elevation_of(c: Vector2i, world_seed: int) -> float:
-	var eff := Plates.effect_at(c, world_seed, crust_for(world_seed))
+	var eff := Plates.effect_at(c, world_seed, crust_for(world_seed), PLATE_COUNT)
 	return clampf(base_elevation_of(c, world_seed) + eff, 0.0, 1.0)
 
 
