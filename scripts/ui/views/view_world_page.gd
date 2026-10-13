@@ -426,6 +426,11 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 	var l := UIKit.dim(line, 11)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tile_info_box.add_child(l)
+	# v1.8.21：地物（覆盖物）单独一行 —— 裸地不显示（空串），免得每格都多一行废话
+	var cover_txt := str(t.get("cover", ""))
+	if cover_txt != "":
+		tile_info_box.add_child(UIKit.text_label("地物：%s" % Consts.cover_name(cover_txt), 11, UIKit.OK))
+
 	var res := str(t.get("resource", ""))
 	if res != "":
 		tile_info_box.add_child(UIKit.text_label("资源点：%s" % Consts.res_name(res), 11, UIKit.OK))
