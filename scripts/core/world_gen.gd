@@ -537,12 +537,71 @@ static func coord_of(key: String) -> Vector2i:
 # ===========================================================================
 # 生成
 # ===========================================================================
+## ===========================================================================
+## W5 配额 · 第 1 层：**水陆配额**（用户方案："配额不是算的、也不是随机的，
+## 而是从裁下来的那块世界图上读出来的；裁切时水陆比例已经知道，存下来就行"）
+## ===========================================================================
+
+## 这一局**裁切时测到的陆地占比**。已存进配方就直接用（不重算）——
+## 用户原话："裁的时候就知道，存下来就行"。
+static func land_ratio_for(world_seed: int, state: Dictionary = {}) -> float:
+	if state.has("worlds"):
+		var ws: Array = state["worlds"]
+		if ws.size() > 0:
+			var w0: Dictionary = ws[0]
+			if w0.has("land_ratio"):
+				return float(w0["land_ratio"])
+	var fn := func(cc: Vector2i) -> float:
+		return elevation_of(cc, world_seed)
+	return Climate.land_fraction(Climate.get_crop(), fn)
+
+
+## 把"任意水位线"映射成 `biome_of()` 认识的那条线（`SEA_LEVEL`）。
+## 这样**不用改 biome_of 的阈值**，陆地内部的地形比例（平原/丘陵/山地）也不会被挤压。
+static func remap_above_water(e: float, water_line: float) -> float:
+	if e < water_line:
+		return 0.0                      # 水下：任何 < SEAL_LEVEL 的值都一样
+	var span := maxf(0.0001, 1.0 - water_line)
+	return SEA_LEVEL + (e - water_line) * (1.0 - SEA_LEVEL) / span
+
+
+## 算出这一局的**水位线**（W5 水陆配额）。做法 = **取高程排名的那一档**（等价于取一条等值线）：
+##   · **海岸线形状天然保留**（等值线的形状就是原本海岸的形状）；
+##   · **水陆数量精确命中**目标（不是靠阈值碰运气）。
+## ⚠️ 本函数**只做排名、不改任何地块** —— 调用方必须"**先把水位线算好，再造地块**"，
+##    这样地形 / 地物 / **资源**一次算对。
+##    （我第一版是"先造地块、再回去改地形"，结果地块上的**资源**还是按旧地形放的 →
+##     木头长在非森林上，seed_check 当场报红。顺序不能反：资源是看地形地物放的。）
+static func land_quota_water_line(world_seed: int, state: Dictionary) -> float:
+	var ratio := land_ratio_for(world_seed, state)
+	var all_cells := Hex.spiral(Consts.MAP_START_RADIUS)
+	var total := all_cells.size()
+	if total <= 2:
+		return -1.0
+	var target_land := clampi(int(round(ratio * float(total))), 1, total - 1)
+	# 1) 收高度（用**侵蚀后**的高度 —— 那才是地形那一层真正用的）
+	var heights: Array = []
+	for c in all_cells:
+		heights.append(float(eroded_elevation_of(c, world_seed)))
+	heights.sort()
+	# 2) 水位线 = 从低往高数第 (总格数 - 目标陆地数) 个的高度
+	var wl := float(heights[total - target_land])
+	# 3) 存进世界配方（下次不用重测）
+	if state.has("worlds"):
+		var ws2: Array = state["worlds"]
+		if ws2.size() > 0:
+			(ws2[0] as Dictionary)["land_ratio"] = ratio
+			(ws2[0] as Dictionary)["water_line"] = wl
+	return wl
+
+
 static func generate(state: Dictionary) -> void:
 	# v1.8.20.9：不再自己造 rng —— 每一格的地形/资源由 _make_tile(c, 世界种子) 直接算出来
 	var world_seed := int(state["seed"])
 	var tiles := {}
+	var wl := land_quota_water_line(world_seed, state)
 	for c in Hex.spiral(Consts.MAP_START_RADIUS):
-		tiles[key_of(c)] = _make_tile(c, world_seed)
+		tiles[key_of(c)] = _make_tile(c, world_seed, wl)
 
 	state["tiles"] = tiles
 	# v1.8.21：出生点不再固定在世界中心，改成挑一处**资源相对丰富、又不贴边境**的地块
@@ -569,7 +628,9 @@ static func generate(state: Dictionary) -> void:
 ## 否则读档重算就等于换了一张图（见 docs/更新指导/世界生成-过程模拟.md 第 3.4 节）。
 ## 别改成用 rng 按顺序摇地形：那样同一格会随生成顺序变样。
 
-static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
+## `water_line` ≥ 0 时，用 W5 的**水陆配额水位线**（把高度按它重映射到 biome_of 认的那条线）；
+## 传 -1（默认）则按原来的固定水线走。
+static func _make_tile(c: Vector2i, world_seed: int, water_line: float = -1.0) -> Dictionary:
 
 	var t := {
 		"c": [c.x, c.y],
@@ -590,8 +651,11 @@ static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
 	}
 	# v1.8.21 第 2 段：地形（地貌）与地物（覆盖物）分两层，由高程 + 湿度查表得出
 	# W3c：多给一个**柯本气候类别**（由最冷月/最热月温度 + 年降水毫米判）→ 决定地物
-	var b := biome_of(eroded_elevation_of(c, world_seed), moisture_of(c, world_seed),
-		koppen_at(c, world_seed))
+	# W5：高程先按**配额水位线**重映射（水位线以下是水，以上按比例铺开）→ 水陆比例精确命中
+	var e_here := float(eroded_elevation_of(c, world_seed))
+	if water_line >= 0.0:
+		e_here = remap_above_water(e_here, water_line)
+	var b := biome_of(e_here, moisture_of(c, world_seed), koppen_at(c, world_seed))
 
 	t["terrain"] = b["terrain"]
 	t["cover"] = b["cover"]
