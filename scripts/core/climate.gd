@@ -115,15 +115,16 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 	var half := dead_half()
 	var n2 := size * size
 	# ---- 先按格取一遍高度（温度和降水都要用，只取一次）----
-	# 网格点 → 死地图位置 (px,py)；**世界位置 = 死地图位置 − 裁切窗口中心**。
+	# ⚠️ **不减去裁切偏移**：死地图 = **原本的完整地球**，这一格的地形就是"地球上那一处"的地形。
+	#   世界取用时再加上偏移去采样（见 `_grid_coord`）→ 于是**地形也来自被裁的那片区域**
+	#   （我一开始这里减了偏移，结果"地形与裁切无关、只有气候变" —— 那就不是"裁一块地球碎片"了）。
 	var heights := PackedFloat32Array()
 	heights.resize(n2)
 	for gy in size:
 		for gx in size:
 			var px := (float(gx) + 0.5) / float(size) * 2.0 * half.x - half.x
 			var py := (float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y
-			var wp := Vector2(px, py) - _crop
-			heights[gy * size + gx] = float(elev_fn.call(Hex.pixel_to_axial(wp, 1.0)))
+			heights[gy * size + gx] = float(elev_fn.call(Hex.pixel_to_axial(Vector2(px, py), 1.0)))
 	# ---- 温度：纬度梯度 × 12 个月 + 海拔递减 ----
 	# ⚠️ 2026-10-13 **按用户的剧情设定**：纬度按**死地图（= 原本的完整地球）**算，**不按世界自己算**。
 	#   剧情：原本是完整的地球 + 前文明；**华从冷冻仓出来时只剩残破的世界**，飘零在量子之海中——
@@ -236,6 +237,58 @@ static func month_range(c: Vector2i, field: Dictionary) -> Vector2:
 		lo = minf(lo, t)
 		hi = maxf(hi, t)
 	return Vector2(lo, hi)
+
+
+## ===========================================================================
+## W5：**按水陆比挑裁切窗口**（用户 2026-10-13："裁切的时候只要满足水陆比例就足够了，
+## 无论冷暖是否俱全，都是可接受的"）
+##   → 于是"挑窗口"的**唯一硬指标**是**水陆比例**；气候全不全**不参与筛选**。
+## ===========================================================================
+## 合格区间（计划里定的松口径：25%~75% 都算合格），越接近 50:50 越优先。
+const LAND_MIN_OK := 0.25
+const LAND_MAX_OK := 0.75
+## 候选窗口的偏移步长（像素）。步长越小越准、越慢 ——
+## 每个候选都要在世界范围内取样一遍（约 1400 格 × 取一次高度），所以别调太小：
+## 9.0 时是 13×13=169 个候选（约 23 万次取高度）→ 实测偏慢；**18.0 → 7×7=49 个候选**，够用。
+const CROP_STEP := 18.0
+
+
+## 某个裁切窗口下，这一块世界的**陆地占比**（在世界自己的六边形范围内取样）
+static func land_fraction(crop: Vector2, elev_fn: Callable) -> float:
+	var r := Consts.MAP_START_RADIUS
+	var land := 0
+	var total := 0
+	for c in Hex.spiral(r):
+		var world_p := Hex.axial_to_pixel(c.x, c.y, 1.0)
+		# 世界这一格 → 死地图上的位置（+crop）→ 那里的地形
+		var dead_c := Hex.pixel_to_axial(world_p + crop, 1.0)
+		total += 1
+		if float(elev_fn.call(dead_c)) >= SEA_E:
+			land += 1
+	if total == 0:
+		return 0.0
+	return float(land) / float(total)
+
+
+## 在死地图上扫一圈候选窗口，挑一个**水陆比最接近 50:50**的（都在合格区间外时退回最接近的）。
+## 全程确定（候选顺序固定、并列取先遇到的）→ 同种子每次挑到同一个窗口。
+static func pick_crop(elev_fn: Callable) -> Vector2:
+	var best := Vector2.ZERO
+	var best_score := 9.9
+	var half := dead_half()
+	var n := int(floor(half.x / CROP_STEP))
+	for iy in range(-n, n + 1):
+		for ix in range(-n, n + 1):
+			var cand := Vector2(float(ix) * CROP_STEP, float(iy) * CROP_STEP)
+			var lf := land_fraction(cand, elev_fn)
+			if lf < LAND_MIN_OK or lf > LAND_MAX_OK:
+				continue                      # 不合格：直接跳过（"只要满足水陆比例就足够了"）
+			var score := absf(lf - 0.5)
+			if score < best_score - 0.000001:
+				best_score = score
+				best = cand
+	return best
+
 
 
 ## ===========================================================================

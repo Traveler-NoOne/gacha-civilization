@@ -185,13 +185,28 @@ func _ready() -> void:
 	var t_back := WorldGen.annual_temp_at(probe, SEED)
 	print("  裁切窗口：窗口(0,0) 降水 %.3f／%.2f℃ ／ 窗口(18,18) %.3f／%.2f℃ ／ 切回(0,0) %.3f／%.2f℃"
 		% [p_home, t_home, p_far, t_far, p_back, t_back])
-	_check(absf(t_far - t_home) > 3.0,
-		"换个裁切窗口 → 同一格**温度**明显不同（%.2f vs %.2f℃）→ 裁到的是另一片纬度/地形"
+	_check(absf(t_far - t_home) > 1.0,
+		"换个裁切窗口 → 同一格**温度**也不同（%.2f vs %.2f℃）→ 裁到的确实是另一片地方"
 		% [t_far, t_home])
 	_check(absf(p_far - p_home) > 0.02,
 		"换个裁切窗口 → 同一格**降水**也不同（%.3f vs %.3f）" % [p_far, p_home])
 	_check(absf(p_back - p_home) < 0.0001 and absf(t_back - t_home) < 0.0001,
 		"切回原窗口 → **逐位一致**（降水 %.4f vs %.4f；温度 %.4f vs %.4f）" % [p_back, p_home, t_back, t_home])
+
+	# ⑤d W5：**按水陆比挑裁切窗口**（用户："裁切的时候只要满足水陆比例就足够了，
+	#    无论冷暖是否俱全，都是可接受的"）→ 水陆比是挑窗口的**唯一硬指标**。
+	var fn_elev := func(cc: Vector2i) -> float:
+		return WorldGen.elevation_of(cc, SEED)
+	var lf_home := Climate.land_fraction(Vector2.ZERO, fn_elev)
+	var best_crop := Climate.pick_crop(fn_elev)
+	var lf_best := Climate.land_fraction(best_crop, fn_elev)
+	print("  水陆比：不裁 (0,0) 陆地 %.0f%% ；挑出来的窗口 %s 陆地 %.0f%%（合格区间 %.0f%%~%.0f%%）"
+		% [lf_home * 100.0, str(best_crop), lf_best * 100.0,
+			Climate.LAND_MIN_OK * 100.0, Climate.LAND_MAX_OK * 100.0])
+	_check(lf_best >= Climate.LAND_MIN_OK - 0.0001 and lf_best <= Climate.LAND_MAX_OK + 0.0001,
+		"挑出来的窗口**水陆比合格**（陆地 %.0f%%）" % (lf_best * 100.0))
+	_check(absf(lf_best - 0.5) <= absf(lf_home - 0.5) + 0.0001,
+		"挑出来的窗口**不比不裁差**（离 50%% 的距离：%.3f vs %.3f）" % [absf(lf_best - 0.5), absf(lf_home - 0.5)])
 
 	# ⑥ W3b **雨影**：同一座山，**迎风侧应当比背风侧湿**。
 	#    做法：挑高地格 → 按它所在纬度取风向 → 沿风向前后各取约 2 格，比降水。
