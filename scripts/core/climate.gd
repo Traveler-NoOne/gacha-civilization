@@ -47,6 +47,13 @@ static func _grid_coord(p: Vector2) -> Vector2:
 		(q.y + half.y) / (2.0 * half.y) * size - 0.5)
 
 
+## **参考步长**：当前默认配置（`DEAD_SCALE` + `FIELD_GRID`）下一个栅格代表多少像素。
+## 降雨/补水那几个常数就是按**它**调出来的 —— 所以换分辨率时要按"实际步长 / 参考步长"缩放，
+## 才能做到"**每物理距离**下多少雨"而不是"每格下多少"（2026-10-13 修的尺度依赖，实测 2.18 倍）。
+static func ref_step_px() -> float:
+	return 2.0 * map_half().x * DEAD_SCALE / float(FIELD_GRID)
+
+
 ## ===========================================================================
 ## W3b：降水
 ##   做法是**推出来的**、不是画上去的：风把水汽从海上吹进来 → 经过陆地就下掉一些 →
@@ -174,6 +181,12 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 				var t := base + swing * phase * (1.0 if lat >= 0.0 else -1.0) + lapse
 				temp[m * n2 + gy * size + gx] = t
 	# ---- 降水：沿风向逐行推进水汽 ----
+	# ★ 尺度修正（2026-10-13）：本配置一个栅格代表 `step_px` 像素；降雨/补水都按
+	#   `kstep = step_px / 参考步长` 缩放 → 等价于"**每物理距离**下多少雨"，
+	#   于是**换分辨率时同一个物理点的降水稳定**（修前实测漂 2.18 倍）。
+	#   默认配置下 kstep = 1 → **数值与修前完全一致**（视觉零回归）。
+	var step_px := 2.0 * half.x / float(size)
+	var kstep := step_px / ref_step_px()
 	var precip := PackedFloat32Array()
 	precip.resize(MONTHS * n2)
 	for m in MONTHS:
@@ -189,12 +202,25 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 				var idx := gy * size + gx
 				var h := heights[idx]
 				if h < SEA_E:
-					moist = minf(1.0, moist + OCEAN_RECHARGE)
+					# ⚠️ 2026-10-13：这里**试过**改成"指数趋近饱和"（`+(1-m)*r`），
+					#    它的数学更漂亮、也确实能压掉一点尺度残差 —— **但它改了模型**：
+					#    会挪动 `rain_ref` → 归一化湿度整体上移 → **草原被挤到 0 格**
+					#    （用户明确要"草原必须看得见"）。
+					#    → 按"改风格要单独决策"的口径**退回原式**，只保留 `* kstep` 这个**纯一致性**折算。
+					moist = minf(1.0, moist + OCEAN_RECHARGE * kstep)
 				else:
 					var climb := maxf(0.0, h - prev_h)
 					var cold := clampf((temp[off + idx] + COLD_DRY_C) / 25.0, 0.0, 1.0)
-					var rain := moist * (RAIN_BASE + RAIN_ORO * climb) * cold
-					precip[off + idx] = rain
+					# ⚠️ 只有**平地那一项**乘 kstep：`climb`（这一格的爬升高度）**本身正比于步长**，
+					#    所以 `moist × ORO × climb` 已经是"每物理距离"的雨量 ——
+					#    再乘一次 kstep 就是重复折算（第一版修法就这么错的，实测比值反而从 2.18 涨到 2.60）。
+					var rain := moist * (RAIN_BASE * kstep + RAIN_ORO * climb) * cold
+					# ★ 存进场的必须是**单位距离的雨量**（= 每格雨量 ÷ kstep），不能是"每格雨量"：
+					#   后者在粗网格上天生就大 kstep 倍（一格代表更长的距离）→
+					#   同一个物理点换个分辨率读数就变（实测**平坦地形**上差 **2.99 倍** —— 2026-10-13 这么查出来的：
+					#   把速率按距离折算**还不够**，存的时候也得折算）。
+					#   ⚠️ 默认配置下 kstep = 1 → 数值与修前**完全一致**（视觉零回归）。
+					precip[off + idx] = rain / maxf(kstep, 0.0001)
 					moist = maxf(0.0, moist - rain)
 				prev_h = h
 	# ---- 归一化参考：按场自动定（年均降水的 85 分位）----

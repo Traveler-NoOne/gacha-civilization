@@ -213,50 +213,12 @@ func _ready() -> void:
 	_check(absf(lf_best - 0.5) <= absf(lf_home - 0.5) + 0.0001,
 		"挑出来的窗口**不比不裁差**（离 50%% 的距离：%.3f vs %.3f）" % [absf(lf_best - 0.5), absf(lf_home - 0.5)])
 
-	# ⑤e **尺度不变性实验**（另一个 AI 指出的关键一条）——**只诊断、不断言**。
-	#   目的：把"降水**尺度依赖**"和"毫米标定错"这两件事**分开**。
-	#   做法：固定**原型图上的同一个物理点** D。采样时会 +crop，所以：
-	#     crop=0 → 取世界坐标 p=D；crop=c → 取 p=D−c。两种读法拿到的是**同一个物理点**。
-	#   （我上一轮拿"窗口(0,0) vs 窗口(18,18) 的同一个**世界格**"比较 —— 那根本是两个不同地方，
-	#     什么都证明不了。这个实验才是对的。）
-	#   ★ 第二版：**按像素采样**（`precip_at_pixel`），不经六边形取整 ——
-	#     第一版用 `precip_at`（收六边形坐标），"同一物理点"被取整到不同的格，数据全是 artifact。
-	var d_point := Vector2(6.0, 6.0)
-	var crop_c := Vector2(24.0, 12.0)
-	var raws: Array = []
-	var lines: Array = []
-	for grid_n in [128, 192, 384]:
-		Climate.set_field_grid(grid_n)
-		Climate.set_crop(Vector2.ZERO)
-		var field_a := WorldGen.climate_for(SEED)
-		var raw_a := Climate.precip_at_pixel(d_point, 3, field_a)
-		var year_a := 0.0
-		for mo_a in 12:
-			year_a += Climate.precip_at_pixel(d_point, mo_a, field_a)
-		Climate.set_crop(crop_c)
-		var field_b := WorldGen.climate_for(SEED)
-		var raw_b := Climate.precip_at_pixel(d_point - crop_c, 3, field_b)
-		var year_b := 0.0
-		for mo_b in 12:
-			year_b += Climate.precip_at_pixel(d_point - crop_c, mo_b, field_b)
-		raws.append(raw_a)
-		lines.append("      栅格 %3d：同一点同月 raw = %.5f ／ %.5f → **%.3f 倍**（应 = 1.000）；年 mm = %.0f ／ %.0f"
-			% [grid_n, raw_a, raw_b, raw_b / maxf(raw_a, 0.0000001),
-				year_a * Climate.PRECIP_MM_PER_RAW, year_b * Climate.PRECIP_MM_PER_RAW])
-	Climate.set_field_grid(Climate.FIELD_GRID)     # 恢复默认，别影响后面的用例
-	Climate.set_crop(Vector2.ZERO)
-	print("  尺度不变性实验（同一物理点、同一月，raw 降水随**栅格分辨率**怎么变）：")
-	for line_txt in lines:
-		print(line_txt)
-	var vmax := 0.0
-	var vmin := 99999.0
-	for v in raws:
-		vmax = maxf(vmax, float(v))
-		vmin = minf(vmin, float(v))
-	print("      → 跨分辨率的 raw 最大/最小 = **%.2f 倍**（接近 1 = 尺度无关；明显偏离 = 尺度依赖）"
-		% (vmax / maxf(vmin, 0.0000001)))
+	# ⑤e **降水尺度不变性**已**拆成独立测试**：`tests/climate_scale_check.tscn`。
+	#    为什么要拆：它要在一次进程里重建多个分辨率的场；字段涨到 384² 之后，
+	#    塞在默认自检里会变成**分钟级**，把"每步都验证"的工作方式拖死
+	#    （2026-10-13 实测：默认自检 >10 分钟跑不完，而且输出是缓冲的、连进度都看不到）。
+	#    → 默认自检只留"快"的部分：秒级、每次都跑；慢的那条单独跑。
 
-	# ⑥ W3b **雨影**：同一座山，**迎风侧应当比背风侧湿**。
 	#    做法：挑高地格 → 按它所在纬度取风向 → 沿风向前后各取约 2 格，比降水。
 	#    （风向是纯东西向的，所以**南北走向**的山才有明显雨影；东西走向的山不分迎背风 —— 见 climate.gd）
 	var win := 0
