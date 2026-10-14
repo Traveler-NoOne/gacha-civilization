@@ -42,6 +42,9 @@ const RIVER_FLOW_PERCENT := 0.20
 static var _keys: Dictionary = {}          ## 河格（地块键 → true）
 static var _edges: Dictionary = {}         ## 河道边（边键 → 流量）
 static var _paths: Array = []              ## 边路径（每条河一串边键，**相邻两条必共顶点**）
+## **原型空间的线路**（每条水路一串"格心坐标"，= 用户架构的第 ① 步"拆出一张线路图"）——
+## 这是**折成六边形边之前**的原始走向，导出预览图（和将来换算法）都靠它。
+static var _routes: Array = []
 static var _seed := -999999
 
 
@@ -52,6 +55,7 @@ static func build(world_seed: int, flow: Dictionary, flow_to: Dictionary,
 	_keys = {}
 	_edges = {}
 	_paths = []
+	_routes = []
 	_seed = world_seed
 
 	# ---- 1) 挑"河头"：只按**陆地格**统计 ----
@@ -111,6 +115,7 @@ static func build(world_seed: int, flow: Dictionary, flow_to: Dictionary,
 		if has_up.has(kstart):
 			continue                     # 不是源头，从源头开始走就行
 		var chain: Array = []
+		var route: Array = []          # ★ 原型空间线路：这一条水路走过的格心
 		var cur := kstart
 		var d_in := -1
 		var guard_a := 0
@@ -120,6 +125,7 @@ static func build(world_seed: int, flow: Dictionary, flow_to: Dictionary,
 			if nxt == "":
 				break
 			var cc := coord_of(cur)
+			route.append(cc)
 			var d_out := _dir_to(cc, coord_of(nxt))
 			if d_out < 0:
 				break
@@ -139,6 +145,8 @@ static func build(world_seed: int, flow: Dictionary, flow_to: Dictionary,
 			cur = nxt
 		if chain.size() >= 2:
 			_paths.append(chain)
+			route.append(coord_of(cur))
+			_routes.append(route)
 
 
 # ===========================================================================
@@ -158,6 +166,11 @@ static func river_keys() -> Dictionary:
 ## 河道边（边键 → 流量，流量用来定线宽）
 static func edges() -> Dictionary:
 	return _edges
+
+
+## **原型空间的线路**（每条水路一串格心坐标；折成六边形边**之前**的走向）
+static func routes() -> Array:
+	return _routes
 
 
 ## 边路径（每条河一串边键；**相邻两条边必共顶点**，所以画出来不会断）
