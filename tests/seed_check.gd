@@ -206,9 +206,10 @@ func _ready() -> void:
 	if core_tiles > 0:
 		core_ratio = float(core_water) / float(core_tiles)
 	print("  大陆形状：边缘含水 %.0f%%（%d/%d）；中心含水 %.0f%%（%d/%d）" % [
+	# ⚠️ 2026-10-14 改：原来这里断言「边缘基本是海 / 中心基本是陆」—— 那两条守的是**手搓的大陆形状**
+	#   （`mainland_pull`）。它已按新设计**退休**：海陆现在**由板块决定**（地壳类型定高低）。
+	#   所以"中间陆、四周海"不再是要求 —— 这里保留打印只作参考；"陆地成片"由下面那条相邻格断言把关。
 		edge_ratio * 100.0, edge_water, edge_tiles, core_ratio * 100.0, core_water, core_tiles])
-	_check(edge_ratio >= 0.60, "边缘基本是海（含水 %.0f%% ≥ 60%%）" % (edge_ratio * 100.0))
-	_check(core_ratio <= 0.20, "中心基本是陆（含水 %.0f%% ≤ 20%%）" % (core_ratio * 100.0))
 
 	print("  资源与地貌不符：%d 处" % mismatched.size())
 	_check(mismatched.is_empty(), "资源都长在对应地貌上（木头←森林、煤/铜←山丘）")

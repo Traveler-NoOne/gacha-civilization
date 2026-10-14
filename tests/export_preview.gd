@@ -118,6 +118,51 @@ func _ready() -> void:
 	img1.save_png(OUT_DIR + "/01_prototype.png")
 	print("  01 原型图 %dx%d（白框=裁切窗口，也就是这一局用的那一块）" % [n, n])
 
+	# ---- 01b 只看**板块效应**（把"手工的大陆形状"和噪声都排除掉）----
+	# 为什么要单独一张：01 里最显眼的是 `mainland_pull` 那一层**手工形状**（径向：中间高、四周低）
+	# 以及我画的**裁切方框**（就是那四条直线）；而**板块效应只是窄窄一条带**，
+	# 在"按 min/max 归一化"的整图里被压平了 → 于是看起来"没有半点板块痕迹" ✗
+	var peff := PackedFloat32Array()
+	peff.resize(n * n)
+	var crust := WorldGen.crust_for(SEED)
+	for iy2 in n:
+		for ix2 in n:
+			var pp := Vector2((float(ix2) + 0.5) / float(n) * 2.0 * half.x - half.x,
+				(float(iy2) + 0.5) / float(n) * 2.0 * half.y - half.y)
+			peff[iy2 * n + ix2] = 0.5 + Plates.effect_at(Hex.pixel_to_axial(pp, 1.0), SEED, crust) * 1.5
+	_save_gray(peff, n, OUT_DIR + "/01b_plates.png", 0.0, 1.0)
+	print("  01b 板块效应单独一张（灰=没影响；亮=抬升、暗=下陷）")
+
+	# ---- 控制台 ASCII 版原型图（**文本**，避开图片管线带来的观感歧义）----
+	print("  原型图 ASCII（32×32；@=高，. =低）：")
+	var m := 32
+	var ramp := " .:-=+*#%@"
+	for ay in m:
+		var row := "    "
+		for ax in m:
+			var gx2 := int((float(ax) + 0.5) / float(m) * float(n))
+			var gy2 := int((float(ay) + 0.5) / float(m) * float(n))
+			var vv := (heights[gy2 * n + gx2] - hlo) / maxf(0.00001, hhi - hlo)
+			row += ramp[clampi(int(vv * 9.0), 0, 9)]
+		print(row)
+
+	# ---- 诊断：中心那行 / 那列是不是"特殊"的？（验证"四条线从中心连到图片边缘"）----
+	# 如果是真的四射线（十字/叉），那"过中心的那一行/那一列"的数值模式会和旁边不一样。
+	var mid := n / 2
+	var lr := "    中行(高度×100)："
+	var lc := "    中列(高度×100)："
+	var lr8 := "   偏8行(对照)：  "
+	var lr16 := "   偏16行(对照)： "
+	for s in range(0, n, 6):
+		lr += "%2d " % int(heights[mid * n + s] * 100.0)
+		lc += "%2d " % int(heights[s * n + mid] * 100.0)
+		lr8 += "%2d " % int(heights[(mid + 8) * n + s] * 100.0)
+		lr16 += "%2d " % int(heights[(mid + 16) * n + s] * 100.0)
+	print(lr)
+	print(lc)
+	print(lr8)
+	print(lr16)
+
 	# ---- 02 水路线路图（原型空间，折之前的走向）----
 	var img2 := _blank(n, 255)
 	var routes := River.routes()

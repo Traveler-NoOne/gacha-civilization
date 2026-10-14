@@ -43,31 +43,65 @@ static func _elevation_noise(world_seed: int) -> FastNoiseLite:
 	return n
 
 
-## v1.8.21 第 3 段：大陆形状。离世界中心越远 → 越往水拉，于是"中间大陆、四周海洋"。
-## ⚠️ 尺度必须用**固定常量**（起始半径 × 1.3），不能用"当前半径"——
-## 否则地图一扩张，老格子的地形就会变（1.8.20.9 那条纯函数约束）。
-## 1.3 这个系数决定"海岸线落在哪"：太小 → 初始图大半是海；太大 → 看不出海岸。
-static func mainland_pull(c: Vector2i) -> float:
-	var d := float(Hex.distance(c, Vector2i.ZERO)) / (float(Consts.MAP_START_RADIUS) * 1.3)
-	return clampf(d, 0.0, 1.0)
+## ===========================================================================
+## 基础高度（0~1，**不含板块边界作用**）= **地壳骨架 + 小细节**
+##
+## ⚠️ 2026-10-14 **重做**（用户指出要害）：以前这里是"噪声底子 + 手搓的『中间陆、四周海』"
+##   —— 那等于**先搓一个完整世界，再贴板块** ✗：
+##     · 陆海分布**由噪声和拐杖决定**，板块**完全没参与** ✗
+##     · 那根拐杖（`mainland_pull`）**没有任何过程含义**，而且按**世界半径**算 →
+##       原型图放大到 4 倍后，**九成区域被钳成一片平底** ✗
+##   现在改成：
+##     ① **每块板的地壳类型（陆壳/洋壳）决定高低** → **陆海由板块决定** ✓
+##     ② 边界附近做**斜坡过渡**（大陆架→陆坡的样子），不再一格之内跳变 ✓
+##     ③ 噪声**降级为小细节**（幅度很小，只做纹理）✓
+## ===========================================================================
+const CRUST_H := 0.52          ## 陆壳的基础高度（配细节噪声 → 平原/丘陵都有）
+const CRUST_L := 0.20          ## 洋壳的基础高度
+const SHELF_STEPS := 4         ## 海岸过渡跨几格（大陆架 → 陆坡）
+const DETAIL_AMP := 0.09       ## 细节噪声的幅度（陆壳内部靠它出"平原/丘陵"的变化）
 
 
-## 基础高度（0~1，**不含板块作用**）：多倍频采样 → 大陆形状 → 重塑（往下压，让平原多些）。
-## 单独拆出来，是因为 W2b 要用它算"**每块板的地壳类型**"（取均值）——
-## 那一步**不能**把板块作用算进去，否则是自己引用自己。
 static func base_elevation_of(c: Vector2i, world_seed: int) -> float:
+	var crust := crust_for(world_seed)
+	var seeds: Array = (Plates.frame(world_seed, PLATE_COUNT) as Dictionary)["seeds"]
+	var p := Hex.axial_to_pixel(c.x, c.y, 1.0)
+	var mine := Plates.plate_at_point(p, seeds)
+	var h := CRUST_H if int(crust[mine]) == Plates.CRUST_CONTINENTAL else CRUST_L
+
+	# 海岸过渡：离边界 SHELF_STEPS 格以内，把高度往"对面那块板的高度"混 ——
+	# 于是大陆边缘是**大陆架 → 陆坡**的斜坡，而不是一格跳下 0.36 的悬崖 ✗
+	var other := -1
+	var dmin := 99
+	for o in Hex.spiral(SHELF_STEPS):
+		if o == Vector2i.ZERO:
+			continue
+		var q := c + o
+		var their := Plates.plate_at_point(Hex.axial_to_pixel(q.x, q.y, 1.0), seeds)
+		if their == mine:
+			continue
+		var dd := Hex.distance(c, q)
+		if dd < dmin:
+			dmin = dd
+			other = their
+	if other >= 0:
+		var h_other := CRUST_H if int(crust[other]) == Plates.CRUST_CONTINENTAL else CRUST_L
+		var t := 1.0 - float(dmin - 1) / float(SHELF_STEPS)     # 贴边=1，渐远=0
+		h = lerpf(h, h_other, clampf(t, 0.0, 1.0) * 0.5)
+
+	# 细节（幅度很小）
 	var n := _elevation_noise(world_seed)
-	var e := (n.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5
-	e = lerp(e, 1.0 - mainland_pull(c), 0.55)
-	return pow(e, 1.25)
+	var det := (n.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5 - 0.5
+	return clampf(h + det * DETAIL_AMP * 2.0, 0.0, 1.0)
 
 
-## **每块板的地壳类型**（W2b）：看这块板**实际覆盖到的地块**的基础高程均值 ——
-## 均值 ≥ `CRUST_LAND_MEAN` → 陆壳，否则洋壳。全程确定，按种子缓存。
-## ⚠️ 为什么不能用"种子离中心远近"猜：陆壳板会因此**覆盖着海**，
-##    于是"陆-陆碰撞"发生在海中央 → 抬出一堆海上孤山，**长不出长墙**（第一版实测如此）。
-const CRUST_LAND_MEAN := 0.38
-## 板块数量（W2b）。**板越少 → 边界越长 → 山带越长**（8 块时最长山带只有 19 格，5 块应当更长）。
+## **每块板的地壳类型**（2026-10-14 重做）：**按这块板自己的面积判**（**与高度无关**）。
+## ⚠️ 旧版用"该板覆盖地块的**基础高程均值**"判 —— 而那个高度**就是噪声底子** ✗
+##   → **用地壳造高度、又用高度判地壳 = 循环依赖** ✗（用户点出来的）。
+## 现在：**面积大的板算陆壳**（现实里大陆就是又大又老的核心），全程确定、按种子缓存。
+const CRUST_AREA_PCT := 0.5    ## 面积排名前百分之多少的板算陆壳
+## 板块数量（W2b）。**板越少 → 边界越长 → 山带越长**；但**板数同时决定"有几个洲"** ——
+## 5 块板 ≈ 2 个陆壳洲 + 3 片洋壳海，正好是用户说的"裁下来剩一两个洲" ✓
 const PLATE_COUNT := 5
 static var _crust_seed := -1
 static var _crust_arr := PackedByteArray()
@@ -77,19 +111,31 @@ static func crust_for(world_seed: int, plate_count: int = PLATE_COUNT) -> Packed
 	if _crust_seed == world_seed and _crust_arr.size() == plate_count:
 		return _crust_arr
 	var seeds: Array = (Plates.frame(world_seed, plate_count) as Dictionary)["seeds"]
-	var sum := PackedFloat32Array()
+	# 1) 在**死地图尺度**上撒点，数每块板占多少格（板铺在死地图的盒子里）
+	var half := Climate.dead_half()
+	var n := 32
 	var cnt := PackedInt32Array()
-	sum.resize(plate_count)
 	cnt.resize(plate_count)
-	for c in Hex.spiral(Consts.MAP_START_RADIUS):
-		var p := Plates.plate_at_point(Hex.axial_to_pixel(c.x, c.y, 1.0), seeds)
-		sum[p] += base_elevation_of(c, world_seed)
-		cnt[p] += 1
+	for iy in n:
+		for ix in n:
+			var p := Vector2((float(ix) + 0.5) / float(n) * 2.0 * half.x - half.x,
+				(float(iy) + 0.5) / float(n) * 2.0 * half.y - half.y)
+			cnt[Plates.plate_at_point(p, seeds)] += 1
+	# 2) 按面积从大到小排（并列取编号小的 → 确定），前 CRUST_AREA_PCT 算陆壳
+	var order: Array = []
+	for i in plate_count:
+		order.append({"i": i, "c": cnt[i]})
+	order.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if int(a["c"]) != int(b["c"]):
+			return int(a["c"]) > int(b["c"])
+		return int(a["i"]) < int(b["i"]))
+	var land_n := clampi(int(round(float(plate_count) * CRUST_AREA_PCT)), 1, maxi(1, plate_count - 1))
 	var out := PackedByteArray()
 	out.resize(plate_count)
-	for p in plate_count:
-		var mean := sum[p] / maxf(1.0, float(cnt[p]))
-		out[p] = Plates.CRUST_CONTINENTAL if mean >= CRUST_LAND_MEAN else Plates.CRUST_OCEANIC
+	for i in plate_count:
+		out[i] = Plates.CRUST_OCEANIC
+	for idx in land_n:
+		out[int((order[idx] as Dictionary)["i"])] = Plates.CRUST_CONTINENTAL
 	_crust_seed = world_seed
 	_crust_arr = out
 	return out
@@ -340,6 +386,10 @@ static func biome_of(e: float, m_in: float, koppen: String = "", tier: String = 
 		temp_tier: String = "") -> Dictionary:
 	if e < 0.36:
 		return {"terrain": "water", "cover": ""}
+	# ★ 2026-10-14：**高山优先** —— 不管什么气候，够高就是山。
+	#   否则"山带落在干旱带/极地"就会被判成秃地（喜马拉雅在干旱区也仍然是山 ✓）。
+	if e >= 0.72:
+		return {"terrain": "mountain", "cover": ""}
 	# ---- W3c：极地（E）单独处理 —— 不长树，地面是"荒地"，**不是沙漠**（沙漠是 B 类的事）----
 	# W5 第 3 层（冷热档）：**冷档也走这一支** —— 档位是**排名**来的（最冷的那一批），
 	#   所以"这里没有植被"同样是**数据**决定的，不是我拍的阈值。
