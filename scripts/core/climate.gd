@@ -125,15 +125,16 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 			var wp := Vector2(px, py) - _crop
 			heights[gy * size + gx] = float(elev_fn.call(Hex.pixel_to_axial(wp, 1.0)))
 	# ---- 温度：纬度梯度 × 12 个月 + 海拔递减 ----
-	# ⚠️ 2026-10-13：纬度**按世界自己算**（= 死地图位置 − 裁切窗口中心），不按死地图算。
-	#   按死地图算的话，一块世界只占行星的一小截 → 世界内温差从 34℃ 缩到 21℃，
-	#   而且整体变暖把沙漠顶到 **41%** —— 那是**没要求过的视觉变化**，所以改回"每块世界冷暖俱全"。
-	#   （"裁到极地就是寒带世界"这个玩法将来若要做，再单独加一个"纬度偏移"选项，别动这里的默认。）
+	# ⚠️ 2026-10-13 **按用户的剧情设定**：纬度按**死地图（= 原本的完整地球）**算，**不按世界自己算**。
+	#   剧情：原本是完整的地球 + 前文明；**华从冷冻仓出来时只剩残破的世界**，飘零在量子之海中——
+	#   大部分土地在坠入量子之海时、以及之后丢失了。所以**游戏里的世界只是原本地球的一小块碎片**，
+	#   **"一块世界不冷暖俱全"是设定要求，不是缺陷**：裁到赤道附近就是热带碎片、裁到高纬就是寒带碎片。
+	#   （我曾因为"世界内温差变小 + 沙漠变多"把它改回"冷暖俱全"，用户指出这与剧情矛盾 → 改回来。）
 	var temp := PackedFloat32Array()
 	temp.resize(MONTHS * n2)
 	for gy in size:
-		var py2 := ((float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y) - _crop.y
-		var lat := clampf(py2 / maxf(1.0, map_half().y), -1.0, 1.0)
+		var py2 := (float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y
+		var lat := clampf(py2 / maxf(1.0, half.y), -1.0, 1.0)
 		for gx in size:
 			var h := heights[gy * size + gx]
 			var land_h := maxf(0.0, (h - SEA_E) / (1.0 - SEA_E))
@@ -150,8 +151,8 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 	for m in MONTHS:
 		var off := m * n2
 		for gy in size:
-			var py3 := ((float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y) - _crop.y
-			var lat3 := clampf(py3 / maxf(1.0, map_half().y), -1.0, 1.0)
+			var py3 := (float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y
+			var lat3 := clampf(py3 / maxf(1.0, half.y), -1.0, 1.0)
 			var eastward := wind_at(lat3).x > 0.0
 			var moist := MOIST_START
 			var prev_h := SEA_E        # 图外的上风侧当作海面

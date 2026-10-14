@@ -57,19 +57,21 @@ func _ready() -> void:
 		var t := WorldGen.annual_temp_at(c, SEED)
 		tmin = minf(tmin, t)
 		tmax = maxf(tmax, t)
-		# W5：纬度按**世界自己**算（每块世界冷暖俱全）→ 这里也用世界的半宽分桶。
-		var lat := absf(Hex.axial_to_pixel(c.x, c.y, 1.0).y) / maxf(1.0, Climate.map_half().y)
-		if lat <= 0.15:
+		# ⚠️ 剧情设定：纬度按**死地图（原本的完整地球）**算，游戏里的世界只是它的一块碎片，
+		#    所以**世界内部的温差本来就小** —— 分桶也跟着用死地图的尺度，阈值放宽。
+		var lat := absf(Hex.axial_to_pixel(c.x, c.y, 1.0).y) / maxf(1.0, Climate.dead_half().y)
+		if lat <= 0.10:
 			eq += t
 			n_eq += 1
-		elif lat >= 0.75:
+		elif lat >= 0.50:
 			pole += t
 			n_pole += 1
 	var eq_avg := eq / maxf(1.0, float(n_eq))
 	var pole_avg := pole / maxf(1.0, float(n_pole))
-	print("  年均温范围 %.1f ~ %.1f℃；赤道带（|纬度|≤0.15）均 %.1f℃ / 极地带（≥0.75）均 %.1f℃"
+	print("  年均温范围 %.1f ~ %.1f℃；赤道带（|纬度|≤0.10）均 %.1f℃ / 极地带（≥0.50）均 %.1f℃"
 		% [tmin, tmax, eq_avg, pole_avg])
-	_check(eq_avg > pole_avg + 25.0, "赤道带比极地带暖 25℃ 以上（差 %.1f℃）" % (eq_avg - pole_avg))
+	_check(eq_avg > pole_avg + 12.0,
+		"赤道带比极地带暖 12℃ 以上（差 %.1f℃；世界是「地球碎片」，纬度跨度天生较小）" % (eq_avg - pole_avg))
 
 	# ③ 海拔递减：赤道带里，最高的那格应当比最低的那格冷
 	var hi_e := -1.0
@@ -183,8 +185,11 @@ func _ready() -> void:
 	var t_back := WorldGen.annual_temp_at(probe, SEED)
 	print("  裁切窗口：窗口(0,0) 降水 %.3f／%.2f℃ ／ 窗口(18,18) %.3f／%.2f℃ ／ 切回(0,0) %.3f／%.2f℃"
 		% [p_home, t_home, p_far, t_far, p_back, t_back])
+	_check(absf(t_far - t_home) > 3.0,
+		"换个裁切窗口 → 同一格**温度**明显不同（%.2f vs %.2f℃）→ 裁到的是另一片纬度/地形"
+		% [t_far, t_home])
 	_check(absf(p_far - p_home) > 0.02,
-		"换个裁切窗口 → 同一格**降水**明显不同（%.3f vs %.3f）→ 确实是另一块世界" % [p_far, p_home])
+		"换个裁切窗口 → 同一格**降水**也不同（%.3f vs %.3f）" % [p_far, p_home])
 	_check(absf(p_back - p_home) < 0.0001 and absf(t_back - t_home) < 0.0001,
 		"切回原窗口 → **逐位一致**（降水 %.4f vs %.4f；温度 %.4f vs %.4f）" % [p_back, p_home, t_back, t_home])
 
