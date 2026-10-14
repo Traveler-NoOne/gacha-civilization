@@ -174,10 +174,10 @@ func _draw_tile_base(v: Dictionary) -> void:
 ## 图层在最底下 → **不会盖住资源/建筑图标**。
 func _draw_rivers() -> void:
 	var seed_v := int(GameState.state.get("seed", 0))
-	var rpaths := WorldGen.river_paths(seed_v)
+	var rpaths := River.paths()
 	if rpaths.is_empty():
 		return
-	var redges := WorldGen.river_edges(seed_v)
+	var redges := River.edges()
 	var drawn := {}
 	for chain in rpaths:
 		for ek in (chain as Array):

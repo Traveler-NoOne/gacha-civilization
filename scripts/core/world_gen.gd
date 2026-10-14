@@ -122,7 +122,7 @@ static func elevation_of(c: Vector2i, world_seed: int) -> float:
 ## 侵蚀系数：按真实感设的物理量，**不为平衡调**（用户定的原则）。
 const EROSION_RATE := 0.02
 ## 水线（= biome_of 里"水"的判据）。W4 的河流要用它区分"陆上"与"入海"。
-const SEA_LEVEL := 0.36
+const SEA_LEVEL := Consts.SEA_LEVEL   ## 水线；定义在 Consts（River 也认它）
 ## W4：**河头**的取法 —— 取**陆地格**汇流量的前百分之几当河头（再由河头顺流补到入海）。
 ## ⚠️ 这是"河多河少"的**唯一旋钮**，纯口味、可逆：
 ##   0.02 → 全图约 22 格河（2~4 条短河，用户 2026-10-13 觉得"太少太短"）；
@@ -132,15 +132,6 @@ const RIVER_FLOW_PERCENT := 0.20
 
 static var _eroded: Dictionary = {}
 static var _eroded_seed := -1
-static var _river_keys: Dictionary = {}
-## W4：每格"往哪流"（下游邻格的键）。河要画在**边**上，就得知道水从哪格流向哪格。
-static var _flow_to: Dictionary = {}
-## W4：**河道走的边** —— 键用 W1 定的格式 `"q,r,d"`（owner = 两端坐标字典序较小者，
-## d = 从 owner 指向另一端的六方向序号）。值 = 流量（画线时按它定粗细）。
-static var _river_edges: Dictionary = {}
-## W4（文明6式）：**河道边路径** —— 一个 Array，每个元素是一条河的**边键序列**，
-## 且**相邻两条边必然共顶点**（"折"好了）。渲染就按它一笔画。
-static var _river_paths: Array = []
 
 
 
@@ -207,102 +198,10 @@ static func _eroded_heights(world_seed: int) -> Dictionary:
 
 	_eroded = out
 	_eroded_seed = world_seed
-	# 顺手把"河流格"挑出来 —— 每次重建，换种子自然就换掉了。
-	# ⚠️ 2026-10-13 **只按"陆地格"统计**：海里也有"流量"（海盆会把大片区域的水汇到一起），
-	# 把海算进去的话，**"流量前 2%"几乎全是深海格** → 玩家实测"**大多数河流在海里**、
-	# 陆地上只有一两条、还离得很远"。而且分界线也会被海抬高，让陆地格根本够不着。
-	var flows: Array = []
-	for k4 in flow.keys():
-		if float(out.get(k4, 1.0)) >= SEA_LEVEL:
-			flows.append(int(flow[k4]))
-	_river_keys = {}
-	if flows.is_empty():
-		_flow_to = flow_to
-		_river_edges = {}
-		return out
-	flows.sort()
-	var river_want := maxi(1, int(float(flows.size()) * RIVER_FLOW_PERCENT))
-	var river_cut := int(flows[flows.size() - river_want])
-	for k5 in flow.keys():
-		if float(out.get(k5, 1.0)) >= SEA_LEVEL and int(flow[k5]) >= river_cut:
-			_river_keys[k5] = true
-
-	# W4：**把河从"高流量那一批"顺着流向一路补到入海**。
-	# 不补的话河会在半路断掉 —— 因为"河"只按"流量前 2%"挑，下游流量一旦掉出前 2% 就没了
-	# （实测只有 43% 的河格有相邻河格，看上去就是一小段一小段的弧，读不出流向）。
-	# 判据照计划：「流量 ≥ 阈值 **或** 终点是海/湖」——这里补的就是后半句。
-	for k0 in _river_keys.keys():
-		var cur := str(k0)
-		var guard := 0
-		while guard < 512:
-			guard += 1
-			var to := str(flow_to.get(cur, ""))
-			if to == "":
-				break                       # 没有下游（汇/图边）→ 到头了
-			var h_to := float(out.get(to, 1.0))
-			if h_to < SEA_LEVEL:
-				break                       # 到海就停 —— **入海口那格不标成河**（否则河边又跑到海里）
-			_river_keys[to] = true
-			cur = to
-
-	# W4：**把河道落到边上去** —— 每一条"河格 → 下游河格"就算一条河道边。
-	# 边键用 W1 定的格式：owner = 两端坐标字典序较小者，d = 从 owner 指向另一端的六方向序号。
-	# 这样渲染时**只画河道真正经过的那条边**，而不是把整个六边形描一圈（那是 W3 之前的旧画法）。
-	_flow_to = flow_to
-	_river_edges = {}
-	for kr in _river_keys.keys():
-		var to := str(flow_to.get(kr, ""))
-		if to == "":
-			continue
-		var ek := edge_key_of(str(kr), to)
-		if ek != "":
-			_river_edges[ek] = int(flow.get(kr, 1))
-
-	# ---- W4（文明6式）：把河道"**折**"成边路径 ----
-	# 每一步：水从"入边"进这一格、从"出边"出这一格；两条边若不相邻（不共顶点），
-	# 就**沿着这个六边形的边一条条走过去**把它们接起来 —— 走短的那一边。
-	# 于是整条河的边序列**每相邻两条必共顶点**，画出来不可能断（用户："按六边形的格式折好"）。
-	# ⚠️ 只认**河格之间**的上下游：一开始我用"全部格子"算 has_up，结果几乎每格都有上游
-	#    → **所有河头都被跳过**、一条链都建不出来（自检当场抓到 0 条）。
-	var has_up := {}
-	for ku in _river_keys.keys():
-		var tu := str(flow_to.get(ku, ""))
-		if tu != "" and _river_keys.has(tu):
-			has_up[tu] = true
-	_river_paths = []
-	for kh in _river_keys.keys():
-		var kstart := str(kh)
-		if has_up.has(kstart):
-			continue                     # 不是源头（有上游），从源头开始走就行
-		var chain: Array = []
-		var cur := kstart
-		var d_in := -1
-		var guard_a := 0
-		while guard_a < 512:
-			guard_a += 1
-			var nxt := str(flow_to.get(cur, ""))
-			if nxt == "":
-				break
-			var cc := coord_of(cur)
-			var d_out := _dir_to(cc, coord_of(nxt))
-			if d_out < 0:
-				break
-			if d_in < 0:
-				chain.append(_edge_key(cc, d_out))
-			else:
-				var step := 1 if _ring_delta(d_in, d_out) <= 3 else -1
-				var dcur := d_in
-				var guard_b := 0
-				while dcur != d_out and guard_b < 8:
-					guard_b += 1
-					dcur = ((dcur + step) % 6 + 6) % 6
-					chain.append(_edge_key(cc, dcur))
-			if not _river_keys.has(nxt):
-				break                    # 出了河网（应当就是到海了）
-			d_in = (d_out + 3) % 6       # 下一格的"入边"= 本格出边的反向
-			cur = nxt
-		if chain.size() >= 2:
-			_river_paths.append(chain)
+	# ---- 2026-10-14 **解耦**：河道不再由本模块算，交给**独立的水路图层** `River` ----
+	# 本模块只负责"水往哪流"（汇流 + 流向）；"路线怎么走、河道在哪条边上"都归 River。
+	# 好处（用户定的架构）：水路**不存进地块数据**，需要时**按坐标查那一层**。
+	River.build(world_seed, flow, flow_to, out)
 	return out
 
 
@@ -371,18 +270,6 @@ static func edges_adjacent(e1: String, e2: String) -> bool:
 		or a1.distance_to(b0) < 0.001 or a1.distance_to(b1) < 0.001
 
 
-## W4（文明6式）：**河道边路径** —— 每条河从源头一路走到入海，
-## 经过一格时"从入边折到出边"（沿着这个六边形的边一条条走过去），
-## 所以**每相邻两条边必然共顶点** → 画出来不可能断（这就是"按六边形格式折好"）。
-static func river_paths(world_seed: int) -> Array:
-	_eroded_heights(world_seed)
-	return _river_paths
-
-
-## W4：当前这一局**河道走的边**（键 `"q,r,d"` → 流量）。渲染直接用它。
-static func river_edges(world_seed: int) -> Dictionary:
-	_eroded_heights(world_seed)
-	return _river_edges
 
 
 
@@ -830,9 +717,6 @@ static func _make_tile(c: Vector2i, world_seed: int, water_line: float = -1.0,
 
 	t["terrain"] = b["terrain"]
 	t["cover"] = b["cover"]
-	# v1.8.21：河流格（上面那次侵蚀已经顺便挑好了，这里只是取用）
-	if _river_keys.has(key_of(c)):
-		t["river"] = true
 	# W5 配额：把**档位**记在地块上（不靠"从地物反推"——山地/极地/沙漠类都会显示成秃地，反推会数错）
 	if tier != "":
 		t["moist_tier"] = tier

@@ -180,57 +180,8 @@ func _ready() -> void:
 			max_drop = maxf(max_drop, raw12 - er12)
 	print("  侵蚀：被削低的格子 %d 个（最大削低 %.3f）" % [eroded_n, max_drop])
 
-	# ⑬ v1.8.21：河流（蓝色描边用的那批格子）—— 要有，而且大致连成链（不是散点）
-	var river_n := 0
-	var river_with_nb := 0
-	var river_in_water := 0        # ★ 用户 2026-10-13 报的 bug：河跑到海里去了
-	for k13 in tiles8.keys():
-		if not bool((tiles8[k13] as Dictionary).get("river", false)):
-			continue
-		river_n += 1
-		if str((tiles8[k13] as Dictionary).get("terrain", "")) == "water":
-			river_in_water += 1
-		var c13 := WorldGen.coord_of(str(k13))
-		for nb13: Vector2i in Hex.neighbors(c13):
-			var t13: Variant = tiles8.get(WorldGen.key_of(nb13))
-			if t13 != null and bool((t13 as Dictionary).get("river", false)):
-				river_with_nb += 1
-				break
-	var chain_ratio := 0.0
-	if river_n > 0:
-		chain_ratio = float(river_with_nb) / float(river_n)
-	print("  河流格：%d 个（其中 %.0f%% 有相邻河流格；**在海里的 %d 个**）"
-		% [river_n, chain_ratio * 100.0, river_in_water])
-	_check(river_n > 0, "存在河流格（要用来画蓝色描边）")
-	_check(river_in_water == 0, "**没有一格河在海里**（实际 %d 个）" % river_in_water)
-
-	# ⑭ W4（文明6式）：河道**折成边路径**后，**每相邻两条边必须共顶点**（= 用户"头尾编号"那句话）。
-	#    这条断言把"视觉上会不会断"变成可无头测的几何性质 —— 不靠眼睛、也不受镜头限制。
-	var rpaths: Array = WorldGen.river_paths(int(GameState.state.get("seed", 0)))
-	var path_edges := 0
-	var bad_pairs := 0
-	var longest_chain := 0
-	for chain in rpaths:
-		var ch: Array = chain
-		path_edges += ch.size()
-		longest_chain = maxi(longest_chain, ch.size())
-		for i in range(1, ch.size()):
-			if not WorldGen.edges_adjacent(str(ch[i - 1]), str(ch[i])):
-				bad_pairs += 1
-	print("  河道边路径：%d 条链、共 %d 条边、最长一条 %d 条边；**相邻边不共顶点 %d 处**"
-		% [rpaths.size(), path_edges, longest_chain, bad_pairs])
-	_check(rpaths.size() > 0, "存在河道边路径（%d 条链）" % rpaths.size())
-	_check(bad_pairs == 0, "**每相邻两条边都共顶点**（违例 %d）→ 折好了，视觉上不会断" % bad_pairs)
-	if river_n > 0:
-		# W4（2026-10-13）：**河已经顺着流向补到入海**，所以现在**可以**要求它连成链了。
-		# 原先不能要求，是因为河只按"流量前 2%"挑、下游掉出前 2% 就断（那时只有 ~43% 有邻居）。
-		_check(chain_ratio >= 0.25, "河格彼此相邻的比例明显高于随机（%.0f%% ≥ 25%%）" % (chain_ratio * 100.0))
-		_check(chain_ratio >= 0.80, "**河连成链**（有相邻河格的比例 %.0f%% ≥ 80%%）" % (chain_ratio * 100.0))
-
-
-	_check(eroded_n > 0, "侵蚀确实削低了部分格子（河谷）")
-	_check(max_drop > 0.001, "削低的幅度可见（最大 %.3f > 0.001）" % max_drop)
-
+	# ⑬⑭ 河流的断言**已搬到独立自检** tests/river_check.tscn —— 水路现在是**独立图层**(River)，
+	#    它的性质（边路径共顶点 / 不在海里 / 确定）由它自己的专项自检守着，不夹在世界生成自检里。
 
 	# ⑪ v1.8.21 第 3 段：大陆形状 —— 中心应当基本是陆，初始半径边缘应当基本是海
 	var edge_tiles := 0
