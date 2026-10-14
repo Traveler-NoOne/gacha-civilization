@@ -86,6 +86,25 @@ func _ready() -> void:
 			% [int(got["dry"]), int(got["medium"]), int(got["wet"])])
 		_check(wl >= -1.0, "水位线已算过（%.4f）" % wl)
 
+	# ---- 第 3 层：冷热三档（同法：名额读自原型图温度分布、按排名两端分配）----
+	print("  --- 第 3 层：冷热三档 ---")
+	for s3 in [SEED, SEED + 7]:
+		var g3 := _one_game(s3)
+		var wl3 := float((GameState.state["worlds"] as Array)[0].get("water_line", -1.0))
+		var land_n3 := int(g3["total"]) - _water_count()
+		var q3 := WorldGen.temp_quota_for(s3, land_n3)
+		var got3 := _count_temp_tiers()
+		print("  种子 %d：陆地 %d 格；名额 冷%d/中%d/热%d → 实际 冷%d/中%d/热%d"
+			% [s3, land_n3, q3["cold"], q3["medium"], q3["hot"],
+				got3["cold"], got3["medium"], got3["hot"]])
+		_check(absi(int(got3["cold"]) - int(q3["cold"])) <= 2,
+			"**冷档**实际 == 名额（差 %d ≤ 2）" % (int(got3["cold"]) - int(q3["cold"])))
+		_check(absi(int(got3["medium"]) - int(q3["medium"])) <= 2,
+			"**中档**实际 == 名额（差 %d ≤ 2）" % (int(got3["medium"]) - int(q3["medium"])))
+		_check(absi(int(got3["hot"]) - int(q3["hot"])) <= 2,
+			"**热档**实际 == 名额（差 %d ≤ 2）" % (int(got3["hot"]) - int(q3["hot"])))
+		_check(wl3 >= -1.0, "水位线已算过（%.4f）" % wl3)
+
 	print("== 结果：%s ==" % ("全部通过" if fails == 0 else "%d 项失败" % fails))
 	get_tree().quit(1 if fails > 0 else 0)
 
@@ -99,7 +118,15 @@ func _water_count() -> int:
 	return n
 
 
-## 现数三档：**直接读地块上记的档位**（W5 配额写进去的）——
+## 现数冷热三档：直接读地块上记的 temp_tier
+func _count_temp_tiers() -> Dictionary:
+	var out := {"cold": 0, "medium": 0, "hot": 0}
+	for k in (GameState.state["tiles"] as Dictionary).keys():
+		var t: Dictionary = GameState.state["tiles"][k]
+		var ti := str(t.get("temp_tier", ""))
+		if out.has(ti):
+			out[ti] = int(out[ti]) + 1
+	return out
 ## 不从地物反推：山地/极地/沙漠类都会显示成秃地，反推会把它们错算进"干"档（第一版就这么数错的）。
 func _count_tiers() -> Dictionary:
 	var out := {"dry": 0, "medium": 0, "wet": 0}

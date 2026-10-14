@@ -262,9 +262,25 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 	if land_annual.size() > 10:
 		m_lo = float(land_annual[int(float(land_annual.size()) * 0.25)])
 		m_hi = float(land_annual[int(float(land_annual.size()) * 0.70)])
+	# ---- 冷/中/热两档门槛：同法（取整张原型图**陆地**的年均温分位）----
+	#   温度是℃、不需要归一化，所以直接用年均温。
+	var land_tmean: Array = []
+	for i2 in n2:
+		if heights[i2] < SEA_E:
+			continue
+		var tm := 0.0
+		for mm3 in MONTHS:
+			tm += temp[mm3 * n2 + i2]
+		land_tmean.append(tm / float(MONTHS))
+	land_tmean.sort()
+	var t_lo := -5.0
+	var t_hi := 20.0
+	if land_tmean.size() > 10:
+		t_lo = float(land_tmean[int(float(land_tmean.size()) * 0.25)])
+		t_hi = float(land_tmean[int(float(land_tmean.size()) * 0.70)])
 	_cache = {"temp": temp, "precip": precip, "heights": heights, "size": size,
 		"seed": world_seed, "rain_ref": rain_ref, "crop": _crop,
-		"m_lo": m_lo, "m_hi": m_hi}
+		"m_lo": m_lo, "m_hi": m_hi, "t_lo": t_lo, "t_hi": t_hi}
 	_cache_seed = world_seed
 	_cache_crop = _crop
 	_cache_grid = _field_grid

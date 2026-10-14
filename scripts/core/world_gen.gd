@@ -449,11 +449,14 @@ static func _moist_for_climate(m: float, koppen: String) -> float:
 
 ## 地形 / 地物：由**高度 + 湿度 + 气候类别**决定。
 ## ⚠️ W3c 只换了"气候那一层"（`_moist_for_climate`），**下面的高度判断一字未改**。
-static func biome_of(e: float, m_in: float, koppen: String = "", tier: String = "") -> Dictionary:
+static func biome_of(e: float, m_in: float, koppen: String = "", tier: String = "",
+		temp_tier: String = "") -> Dictionary:
 	if e < 0.36:
 		return {"terrain": "water", "cover": ""}
 	# ---- W3c：极地（E）单独处理 —— 不长树，地面是"荒地"，**不是沙漠**（沙漠是 B 类的事）----
-	if koppen.substr(0, 1) == "E":
+	# W5 第 3 层（冷热档）：**冷档也走这一支** —— 档位是**排名**来的（最冷的那一批），
+	#   所以"这里没有植被"同样是**数据**决定的，不是我拍的阈值。
+	if temp_tier == "cold" or koppen.substr(0, 1) == "E":
 		if e < 0.50:
 			return {"terrain": "plain", "cover": ""}
 		if e < 0.72:
@@ -683,6 +686,78 @@ static func moisture_tiers_for(world_seed: int, water_line: float) -> Dictionary
 	return out
 
 
+## W5 配额 · 第 3 层：**冷热三档的名额** —— 同法，从原型图那一块的**温度分布**读出来。
+## 门槛取"整张原型图**陆地**年均温的 25 / 70 分位"（climate.gd 里算好、存在场里）。
+static func temp_quota_for(world_seed: int, land_total: int) -> Dictionary:
+	var f := climate_for(world_seed)
+	var size := int(f["size"])
+	var half := Climate.dead_half()
+	var crop := Climate.get_crop()
+	var scale := 1.0 / Climate.DEAD_SCALE
+	var lo := int(float(size) * (0.5 - 0.5 * scale))
+	var hi := int(float(size) * (0.5 + 0.5 * scale))
+	var heights: PackedFloat32Array = f["heights"]
+	var t_lo := float(f.get("t_lo", -5.0))
+	var t_hi := float(f.get("t_hi", 20.0))
+	var n_cold := 0
+	var n_mid := 0
+	var n_hot := 0
+	for gy in range(lo, hi):
+		for gx in range(lo, hi):
+			if float(heights[gy * size + gx]) < Climate.SEA_E:
+				continue
+			var p := Vector2((float(gx) + 0.5) / float(size) * 2.0 * half.x - half.x,
+				(float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y) - crop
+			var c := Hex.pixel_to_axial(p, 1.0)
+			if Hex.distance(c, Vector2i.ZERO) > Consts.MAP_START_RADIUS:
+				continue
+			var tv := Climate.annual_temp_at(c, f)
+			if tv <= t_lo:
+				n_cold += 1
+			elif tv <= t_hi:
+				n_mid += 1
+			else:
+				n_hot += 1
+	var tot := n_cold + n_mid + n_hot
+	if tot <= 0:
+		return {"cold": 0, "medium": 0, "hot": 0}
+	var k := float(land_total) / float(tot)
+	return {"cold": int(round(float(n_cold) * k)),
+		"medium": int(round(float(n_mid) * k)),
+		"hot": int(round(float(n_hot) * k))}
+
+
+## 冷热三档按排名**从两端往中间分配**：最冷的占冷名额、最热的占热名额，剩下全算中等。
+## 与干湿档同构（并列同样按坐标兜底，保证同配方逐位一致）。
+static func temp_tiers_for(world_seed: int, water_line: float) -> Dictionary:
+	var land: Array = []
+	for c in Hex.spiral(Consts.MAP_START_RADIUS):
+		var e := float(eroded_elevation_of(c, world_seed))
+		if water_line >= 0.0 and e < water_line:
+			continue
+		land.append({"k": key_of(c), "t": float(annual_temp_at(c, world_seed))})
+	if land.is_empty():
+		return {}
+	land.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var ta := float(a["t"])
+		var tb := float(b["t"])
+		if not is_equal_approx(ta, tb):
+			return ta < tb
+		return str(a["k"]) < str(b["k"]))
+	var q := temp_quota_for(world_seed, land.size())
+	var n_cold: int = mini(int(q["cold"]), land.size())
+	var n_hot: int = mini(int(q["hot"]), maxi(0, land.size() - n_cold))
+	var out := {}
+	for i in land.size():
+		var tier := "medium"
+		if i < n_cold:
+			tier = "cold"                     # 最冷的那一批
+		elif i >= land.size() - n_hot:
+			tier = "hot"                      # 最热的那一批
+		out[str((land[i] as Dictionary)["k"])] = tier
+	return out
+
+
 static func generate(state: Dictionary) -> void:
 	# v1.8.20.9：不再自己造 rng —— 每一格的地形/资源由 _make_tile(c, 世界种子) 直接算出来
 	var world_seed := int(state["seed"])
@@ -690,8 +765,11 @@ static func generate(state: Dictionary) -> void:
 	var wl := land_quota_water_line(world_seed, state)
 	# W5 配额（第 2 层：干湿三档）：名额从原型图那一块的分布读出来 → 按排名从两端分配
 	var tiers := moisture_tiers_for(world_seed, wl)
+	# W5 配额（第 3 层：冷热三档）：同法 —— 名额读自原型图那一块的温度分布
+	var ttiers := temp_tiers_for(world_seed, wl)
 	for c in Hex.spiral(Consts.MAP_START_RADIUS):
-		tiles[key_of(c)] = _make_tile(c, world_seed, wl, str(tiers.get(key_of(c), "")))
+		var kk := key_of(c)
+		tiles[kk] = _make_tile(c, world_seed, wl, str(tiers.get(kk, "")), str(ttiers.get(kk, "")))
 
 	state["tiles"] = tiles
 	# v1.8.21：出生点不再固定在世界中心，改成挑一处**资源相对丰富、又不贴边境**的地块
@@ -720,9 +798,10 @@ static func generate(state: Dictionary) -> void:
 
 ## `water_line` ≥ 0 时，用 W5 的**水陆配额水位线**（把高度按它重映射到 biome_of 认的那条线）；
 ## 传 -1（默认）则按原来的固定水线走。
-## `tier` 是 W5 第 2 层的**干湿三档**（"dry"/"medium"/"wet"，空串=不用配额）。
+## `tier` 是 W5 第 2 层的**干湿三档**（"dry"/"medium"/"wet"，空串=不用配额）；
+## `temp_tier` 是第 3 层的**冷热三档**（"cold"/"medium"/"hot"）。
 static func _make_tile(c: Vector2i, world_seed: int, water_line: float = -1.0,
-		tier: String = "") -> Dictionary:
+		tier: String = "", temp_tier: String = "") -> Dictionary:
 
 	var t := {
 		"c": [c.x, c.y],
@@ -747,7 +826,7 @@ static func _make_tile(c: Vector2i, world_seed: int, water_line: float = -1.0,
 	var e_here := float(eroded_elevation_of(c, world_seed))
 	if water_line >= 0.0:
 		e_here = remap_above_water(e_here, water_line)
-	var b := biome_of(e_here, moisture_of(c, world_seed), koppen_at(c, world_seed), tier)
+	var b := biome_of(e_here, moisture_of(c, world_seed), koppen_at(c, world_seed), tier, temp_tier)
 
 	t["terrain"] = b["terrain"]
 	t["cover"] = b["cover"]
@@ -757,6 +836,8 @@ static func _make_tile(c: Vector2i, world_seed: int, water_line: float = -1.0,
 	# W5 配额：把**档位**记在地块上（不靠"从地物反推"——山地/极地/沙漠类都会显示成秃地，反推会数错）
 	if tier != "":
 		t["moist_tier"] = tier
+	if temp_tier != "":
+		t["temp_tier"] = temp_tier
 
 
 
