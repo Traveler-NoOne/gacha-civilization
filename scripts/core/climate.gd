@@ -231,9 +231,19 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 		for mm in MONTHS:
 			acc += precip[mm * n2 + i]
 		annual[i] = acc / float(MONTHS)
-	var sorted := annual.duplicate()
-	sorted.sort()
-	var rain_ref := maxf(0.005, sorted[int(float(n2) * 0.85)])
+	# ---- 归一化参考：按**游戏地图那一块**的分布定（**不是**整张死地图）----
+	# ⚠️ 2026-10-13：原来取整张死地图的 85 分位。死地图比游戏图大 **16 倍面积**、
+	#   分布也完全不同 → 裁下来的碎片若比周围湿，归一化值就**整体顶到上限** →
+	#   干/中/湿三档被压平 → **草原和沙漠直接消失**（实测地物只剩 2 种、seed_check 报红）。
+	#   → 改成只统计"**游戏地图所占的那一小块**"（死地图中央 1/DEAD_SCALE 的方格范围）。
+	var lo := int(float(size) * (0.5 - 0.5 / DEAD_SCALE))
+	var hi := int(float(size) * (0.5 + 0.5 / DEAD_SCALE))
+	var window_vals: Array = []
+	for gy_r in range(lo, hi):
+		for gx_r in range(lo, hi):
+			window_vals.append(annual[gy_r * size + gx_r])
+	window_vals.sort()
+	var rain_ref := maxf(0.005, float(window_vals[int(float(window_vals.size()) * 0.85)]))
 	_cache = {"temp": temp, "precip": precip, "heights": heights, "size": size,
 		"seed": world_seed, "rain_ref": rain_ref, "crop": _crop}
 	_cache_seed = world_seed
