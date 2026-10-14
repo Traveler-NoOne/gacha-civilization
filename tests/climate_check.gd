@@ -219,6 +219,8 @@ func _ready() -> void:
 	#     crop=0 → 取世界坐标 p=D；crop=c → 取 p=D−c。两种读法拿到的是**同一个物理点**。
 	#   （我上一轮拿"窗口(0,0) vs 窗口(18,18) 的同一个**世界格**"比较 —— 那根本是两个不同地方，
 	#     什么都证明不了。这个实验才是对的。）
+	#   ★ 第二版：**按像素采样**（`precip_at_pixel`），不经六边形取整 ——
+	#     第一版用 `precip_at`（收六边形坐标），"同一物理点"被取整到不同的格，数据全是 artifact。
 	var d_point := Vector2(6.0, 6.0)
 	var crop_c := Vector2(24.0, 12.0)
 	var raws: Array = []
@@ -227,13 +229,20 @@ func _ready() -> void:
 		Climate.set_field_grid(grid_n)
 		Climate.set_crop(Vector2.ZERO)
 		var field_a := WorldGen.climate_for(SEED)
-		var raw_a := Climate.precip_at(Hex.pixel_to_axial(d_point, 1.0), 3, field_a)
+		var raw_a := Climate.precip_at_pixel(d_point, 3, field_a)
+		var year_a := 0.0
+		for mo_a in 12:
+			year_a += Climate.precip_at_pixel(d_point, mo_a, field_a)
 		Climate.set_crop(crop_c)
 		var field_b := WorldGen.climate_for(SEED)
-		var raw_b := Climate.precip_at(Hex.pixel_to_axial(d_point - crop_c, 1.0), 3, field_b)
+		var raw_b := Climate.precip_at_pixel(d_point - crop_c, 3, field_b)
+		var year_b := 0.0
+		for mo_b in 12:
+			year_b += Climate.precip_at_pixel(d_point - crop_c, mo_b, field_b)
 		raws.append(raw_a)
-		lines.append("      栅格 %3d：同一点同月 raw = %.5f（crop 0）／ %.5f（crop 24,12）→ %.2f 倍"
-			% [grid_n, raw_a, raw_b, raw_b / maxf(raw_a, 0.0000001)])
+		lines.append("      栅格 %3d：同一点同月 raw = %.5f ／ %.5f → **%.3f 倍**（应 = 1.000）；年 mm = %.0f ／ %.0f"
+			% [grid_n, raw_a, raw_b, raw_b / maxf(raw_a, 0.0000001),
+				year_a * Climate.PRECIP_MM_PER_RAW, year_b * Climate.PRECIP_MM_PER_RAW])
 	Climate.set_field_grid(Climate.FIELD_GRID)     # 恢复默认，别影响后面的用例
 	Climate.set_crop(Vector2.ZERO)
 	print("  尺度不变性实验（同一物理点、同一月，raw 降水随**栅格分辨率**怎么变）：")

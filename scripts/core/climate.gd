@@ -230,12 +230,20 @@ static func temp_at(c: Vector2i, month: int, field: Dictionary) -> float:
 	return temp_at_pixel(Hex.axial_to_pixel(c.x, c.y, 1.0), month, field)
 
 
-## 某格 × 某月的**降水**（原始量，未归一化）
-static func precip_at(c: Vector2i, month: int, field: Dictionary) -> float:
-	var g := _grid_coord(Hex.axial_to_pixel(c.x, c.y, 1.0))
+## 按**像素点**取某月降水（原始量，未归一化）。
+## ⚠️ 之所以必须要有这个入口：自检要验"**同一物理点**在不同窗口/分辨率下稳不稳"。
+##   若经过**六边形坐标**（`precip_at` 的入参）取整，"同一点"就落不到同一点 ——
+##   2026-10-13 第一版实验就栽在这上面（同一物理点读出 0.86~2.56 倍差异，全是取整artifact）。
+static func precip_at_pixel(p: Vector2, month: int, field: Dictionary) -> float:
+	var g := _grid_coord(p)
 	var size := int(field["size"])
 	var mm := ((month % MONTHS) + MONTHS) % MONTHS
 	return _bilinear(field["precip"] as PackedFloat32Array, size, mm * size * size, g.x, g.y)
+
+
+## 某格 × 某月的**降水**（原始量，未归一化）
+static func precip_at(c: Vector2i, month: int, field: Dictionary) -> float:
+	return precip_at_pixel(Hex.axial_to_pixel(c.x, c.y, 1.0), month, field)
 
 
 ## **年均降水**归一化到 0~1 —— 这才是 `world_gen.moisture_of()` 要的数
