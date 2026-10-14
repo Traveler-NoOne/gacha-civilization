@@ -26,8 +26,9 @@ const SEA_E := 0.36
 
 static var _cache_seed := -1
 static var _cache := {}
-## W5：缓存也要看**裁切窗口** —— 换了窗口就是另一块世界，必须重算。
+## W5：缓存也要看**裁切窗口**与**栅格分辨率** —— 换任何一个都是另一套数据，必须重算。
 static var _cache_crop := Vector2(-99999.0, -99999.0)
+static var _cache_grid := -1
 
 
 ## 地图的外接矩形半宽/半高（像素空间，size=1）——场的范围就是它
@@ -116,15 +117,26 @@ static func dead_half() -> Vector2:
 
 
 ## 气候栅格的分辨率（**固定**，不随 DEAD_SCALE 变 —— 见上面"解耦"的说明）
+## 气候栅格的分辨率**可以在运行时改**：
+##   ① 自检要验"尺度不变性"（一个进程里必须能跑多个分辨率才算得出来）；
+##   ② 这也是将来 W6「气候质量档」的挂钩。默认仍是 FIELD_GRID。
+static var _field_grid := FIELD_GRID
+
+
+static func set_field_grid(n: int) -> void:
+	_field_grid = maxi(32, n)
+
+
 static func grid_size() -> int:
-	return FIELD_GRID
+	return _field_grid
 
 
 ## 建（或取缓存）这一局种子的气候场。`elev_fn` 传"按格取高度"的函数，
 ## **用 Callable 传进来是为了避免 Climate ↔ WorldGen 互相引用**（那在 GDScript 里会很难看）。
 ## 返回 { temp: PackedFloat32Array(MONTHS*size*size), size: int, seed: int, rain_ref: float }
 static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
-	if _cache_seed == world_seed and _cache_crop == _crop and not _cache.is_empty():
+	if _cache_seed == world_seed and _cache_crop == _crop and _cache_grid == _field_grid \
+			and not _cache.is_empty():
 		return _cache
 	var size := grid_size()
 	var half := dead_half()
@@ -200,6 +212,7 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 		"seed": world_seed, "rain_ref": rain_ref, "crop": _crop}
 	_cache_seed = world_seed
 	_cache_crop = _crop
+	_cache_grid = _field_grid
 	return _cache
 
 
