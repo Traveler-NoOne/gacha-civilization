@@ -244,8 +244,27 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 			window_vals.append(annual[gy_r * size + gx_r])
 	window_vals.sort()
 	var rain_ref := maxf(0.005, float(window_vals[int(float(window_vals.size()) * 0.85)]))
+	# ---- 干/中/湿两档门槛：**按整张原型图自己排名定**（不是拍脑袋的绝对值）----
+	# ⚠️ 2026-10-14：原来让调用方用绝对值 0.22/0.50 分档 → 原型图那一块 **93% 都被判成"湿"**，
+	#   因为归一化值大多挤在 0.5~0.9（标尺被压缩），绝对阈值根本分不开。
+	#   改成"取整张原型图**陆地**年降水的分位"当门槛：
+	#     · 门槛天生有意义（原型图自己的干湿分布说了算）；
+	#     · **每块地区各自的混合比例仍然从它自己的分布读出来**（湿的地区照样湿）✓
+	var land_annual: Array = []
+	for i in n2:
+		if heights[i] >= SEA_E:
+			# ⚠️ 必须和 `annual_precip_at()` **同一把标尺**（那个是除以 rain_ref 的归一化值）——
+			#    我第一版直接拿原始降水取分位，门槛小了几个数量级 → **全被判成"湿"**（实测 838/838）。
+			land_annual.append(annual[i] / maxf(rain_ref, 0.000001))
+	land_annual.sort()
+	var m_lo := 0.22
+	var m_hi := 0.50
+	if land_annual.size() > 10:
+		m_lo = float(land_annual[int(float(land_annual.size()) * 0.25)])
+		m_hi = float(land_annual[int(float(land_annual.size()) * 0.70)])
 	_cache = {"temp": temp, "precip": precip, "heights": heights, "size": size,
-		"seed": world_seed, "rain_ref": rain_ref, "crop": _crop}
+		"seed": world_seed, "rain_ref": rain_ref, "crop": _crop,
+		"m_lo": m_lo, "m_hi": m_hi}
 	_cache_seed = world_seed
 	_cache_crop = _crop
 	_cache_grid = _field_grid

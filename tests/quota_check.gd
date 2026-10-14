@@ -59,5 +59,53 @@ func _ready() -> void:
 		_check(ratio > 0.10 and ratio < 0.90,
 			"测到的陆地占比落在合理区间（%.3f）" % ratio)
 
+	# ---- 第 2 层：干湿三档（名额从原型图读、按排名从两端分配）----
+	print("  --- 第 2 层：干湿三档 ---")
+	for s2 in [SEED, SEED + 7]:
+		var g2 := _one_game(s2)
+		var wl := float((GameState.state["worlds"] as Array)[0].get("water_line", -1.0))
+		var land_n := int(g2["total"]) - _water_count()
+		var q := WorldGen.moisture_quota_for(s2, land_n)
+		var got := _count_tiers()          # 直接读地块上记的档位
+		print("  种子 %d：陆地 %d 格；名额 干%d/中%d/湿%d（合计 %d）→ 实际 干%d/中%d/湿%d"
+			% [s2, land_n, q["dry"], q["medium"], q["wet"],
+				int(q["dry"]) + int(q["medium"]) + int(q["wet"]),
+				got["dry"], got["medium"], got["wet"]])
+		_check(absi(int(got["dry"]) - int(q["dry"])) <= 2,
+			"**干档**实际 == 名额（差 %d ≤ 2）" % (int(got["dry"]) - int(q["dry"])))
+		_check(absi(int(got["medium"]) - int(q["medium"])) <= 2,
+			"**中档**实际 == 名额（差 %d ≤ 2）" % (int(got["medium"]) - int(q["medium"])))
+		_check(absi(int(got["wet"]) - int(q["wet"])) <= 2,
+			"**湿档**实际 == 名额（差 %d ≤ 2）" % (int(got["wet"]) - int(q["wet"])))
+		_check(int(got["medium"]) > 0,
+			"**中档不为空**（草原可见：%d 格）" % int(got["medium"]))
+		# ⚠️ 这里**故意不断言**"三档俱全"：那等于要求"气候必须完整"——
+		#    用户明确否定过（"如果一定要具有沙漠草原和雨林，那不就是另一种非得冷暖俱全嘛"）。
+		#    配额的本分是**忠实搬运**：这块地方没有雨林，世界上就不该有雨林。
+		print("      （干 %d / 中 %d / 湿 %d —— 三档是否都有，取决于那块地方自己，不做要求）"
+			% [int(got["dry"]), int(got["medium"]), int(got["wet"])])
+		_check(wl >= -1.0, "水位线已算过（%.4f）" % wl)
+
 	print("== 结果：%s ==" % ("全部通过" if fails == 0 else "%d 项失败" % fails))
 	get_tree().quit(1 if fails > 0 else 0)
+
+
+## 现数水格
+func _water_count() -> int:
+	var n := 0
+	for k in (GameState.state["tiles"] as Dictionary).keys():
+		if str((GameState.state["tiles"][k] as Dictionary).get("terrain", "")) == "water":
+			n += 1
+	return n
+
+
+## 现数三档：**直接读地块上记的档位**（W5 配额写进去的）——
+## 不从地物反推：山地/极地/沙漠类都会显示成秃地，反推会把它们错算进"干"档（第一版就这么数错的）。
+func _count_tiers() -> Dictionary:
+	var out := {"dry": 0, "medium": 0, "wet": 0}
+	for k in (GameState.state["tiles"] as Dictionary).keys():
+		var t: Dictionary = GameState.state["tiles"][k]
+		var ti := str(t.get("moist_tier", ""))
+		if out.has(ti):
+			out[ti] = int(out[ti]) + 1
+	return out

@@ -128,7 +128,18 @@ func _ready() -> void:
 	for key_c in cover_count.keys():
 		if str(key_c) != "":
 			covers_seen += 1
-	_check(covers_seen >= 3, "地物至少出现 3 种（实际 %d 种）" % covers_seen)
+	# ⚠️ 2026-10-14 改：原来断言"地物至少 3 种"。但 W5 配额上线后，**地物种类取决于这块地方自己的气候**
+	#   （忠实搬运：这块地没有雨林，世界上就不该有森林）—— 本局就只有"草原"一种非空地物。
+	#   用户明确否定过"必须种类齐全"（"如果一定要具有沙漠草原和雨林，那不就是另一种非得冷暖俱全嘛"）。
+	#   → 所以这里只验**地物系统没坏**：至少 1 种非空地物，且**覆盖率**（非空格子占比）不太低。
+	var covered := 0
+	for key_c in cover_count.keys():
+		if str(key_c) != "":
+			covered += int(cover_count[key_c])
+	var cover_rate := float(covered) / maxf(1.0, float(tiles8.size()))
+	print("  地物覆盖：%d 格带地物（%.0f%%）；非空地物种类 %d" % [covered, cover_rate * 100.0, covers_seen])
+	_check(covers_seen >= 1, "至少出现 1 种地物（实际 %d 种）" % covers_seen)
+	_check(cover_rate > 0.05, "地物覆盖率不太低（%.0f%% > 5%%）" % (cover_rate * 100.0))
 
 	# ⑨ 出生点：应当是"资源相对丰富且不贴边境"，而不是固定在世界中心
 	var cap9 := str(GameState.state["capital"])
