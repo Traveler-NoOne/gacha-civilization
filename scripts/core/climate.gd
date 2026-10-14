@@ -75,13 +75,23 @@ static func wind_at(lat: float) -> Vector2:
 
 
 ## ===========================================================================
-## W5：**死地图 + 裁切窗口**
-##   参数图先在**比世界大**的"死地图"上生成，再用一个**裁切窗口**（`set_crop`）扣出一块世界。
-##   于是"同一颗种子可以长出很多块不一样的世界"（W6 的开局选项、W7 的拼接都靠它）。
-##   ⚠️ **网格分辨率按同一个倍数放大**（128 → 192），保持每格像素尺寸不变 →
-##      裁切偏移为 0 时，采样位置与原来**逐位一致**（可以用老截图基线验证"没弄坏东西"）。
+## W5：**死地图（原型地形图）+ 裁切窗口**
+##   用户 2026-10-13 的比喻："**地形图相当于七大洲四大洋俱全的完整世界**，
+##   而裁切下来的游戏地图相当于**只剩下一两个洲、或者干脆就是半个洲**，
+##   大洋也只有靠近海岸线的那部分；**或者是某个大洋上的群岛**。"
+##   → 所以两者的**比例差距要大**（不是 1.5 倍这种"半个地球"），默认取 **4 倍**。
+##
+## ⚠️ **关键：分辨率与比例必须解耦**（否则一放大就卡）
+##   地形（高程/板块）是**纯函数**，任何坐标都能直接算 → **不需要**跟着死地图放大；
+##   只有**降水**必须在一张栅格上沿风向推进。
+##   所以：`FIELD_GRID` 固定（只管成本），`DEAD_SCALE` 只管"原型世界多大"。
+##   代价：死地图越大，**气候在游戏地图里的采样越粗**（每格覆盖更大范围）。
+##   将来 W6 可以把它做成"气候质量档"。
 ## ===========================================================================
-const DEAD_SCALE := 1.5
+const DEAD_SCALE := 4.0
+## 气候栅格的分辨率（固定，不随 DEAD_SCALE 变）——**这是生成耗时的唯一旋钮**。
+## 160² 时约 2.5 秒；128² 约 1.5 秒（细一点更准，但开新游戏更久）。
+const FIELD_GRID := 160
 
 ## 当前裁切窗口的中心（死地图坐标，像素空间 size=1）。**Vector2.ZERO = 不裁（= 现状）**。
 static var _crop := Vector2.ZERO
@@ -100,9 +110,9 @@ static func dead_half() -> Vector2:
 	return map_half() * DEAD_SCALE
 
 
-## 死地图这一边的网格分辨率（按同一个倍数放大 → 每格像素尺寸不变）
+## 气候栅格的分辨率（**固定**，不随 DEAD_SCALE 变 —— 见上面"解耦"的说明）
 static func grid_size() -> int:
-	return int(round(float(GRID) * DEAD_SCALE))
+	return FIELD_GRID
 
 
 ## 建（或取缓存）这一局种子的气候场。`elev_fn` 传"按格取高度"的函数，
@@ -250,21 +260,28 @@ const LAND_MAX_OK := 0.75
 ## 候选窗口的偏移步长（像素）。步长越小越准、越慢 ——
 ## 每个候选都要在世界范围内取样一遍（约 1400 格 × 取一次高度），所以别调太小：
 ## 9.0 时是 13×13=169 个候选（约 23 万次取高度）→ 实测偏慢；**18.0 → 7×7=49 个候选**，够用。
-const CROP_STEP := 18.0
+const CROP_STEP := 27.0
 
 
-## 某个裁切窗口下，这一块世界的**陆地占比**（在世界自己的六边形范围内取样）
+## 某个裁切窗口下，这一块世界的**陆地占比**。
+## ⚠️ 用**粗格点阵**取样（不是逐格扫全世界）——`pick_crop` 要试上百个候选窗口，
+##    逐格扫会慢到不可用（实测：4 倍死地图 × 逐格扫 = 十几秒）。
 static func land_fraction(crop: Vector2, elev_fn: Callable) -> float:
-	var r := Consts.MAP_START_RADIUS
+	var half := map_half()
+	var n := 17                      # 17×17 = 289 个取样点，够判水陆比
 	var land := 0
 	var total := 0
-	for c in Hex.spiral(r):
-		var world_p := Hex.axial_to_pixel(c.x, c.y, 1.0)
-		# 世界这一格 → 死地图上的位置（+crop）→ 那里的地形
-		var dead_c := Hex.pixel_to_axial(world_p + crop, 1.0)
-		total += 1
-		if float(elev_fn.call(dead_c)) >= SEA_E:
-			land += 1
+	for iy in n:
+		for ix in n:
+			var p := Vector2(
+				(float(ix) + 0.5) / float(n) * 2.0 * half.x - half.x,
+				(float(iy) + 0.5) / float(n) * 2.0 * half.y - half.y)
+			var c := Hex.pixel_to_axial(p, 1.0)
+			if Hex.distance(c, Vector2i.ZERO) > Consts.MAP_START_RADIUS:
+				continue             # 地图是圆盘：外接矩形的四角不算
+			total += 1
+			if float(elev_fn.call(Hex.pixel_to_axial(p + crop, 1.0))) >= SEA_E:
+				land += 1
 	if total == 0:
 		return 0.0
 	return float(land) / float(total)

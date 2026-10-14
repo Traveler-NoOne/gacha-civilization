@@ -57,21 +57,22 @@ func _ready() -> void:
 		var t := WorldGen.annual_temp_at(c, SEED)
 		tmin = minf(tmin, t)
 		tmax = maxf(tmax, t)
-		# ⚠️ 剧情设定：纬度按**死地图（原本的完整地球）**算，游戏里的世界只是它的一块碎片，
-		#    所以**世界内部的温差本来就小** —— 分桶也跟着用死地图的尺度，阈值放宽。
-		var lat := absf(Hex.axial_to_pixel(c.x, c.y, 1.0).y) / maxf(1.0, Climate.dead_half().y)
-		if lat <= 0.10:
+		# ⚠️ 世界只是**原本地球的一块碎片**（死地图 4 倍大 → 世界只占 ±1/4 的纬度），
+		#    所以世界内部温差**天生就小**：这里只要求**方向对**（赤道带比极地带暖）。
+		#    "这块碎片落在哪个气候带"由**裁切窗口**决定 —— 见下面 ⑤c 的断言。
+		var lat := absf(Hex.axial_to_pixel(c.x, c.y, 1.0).y) / maxf(1.0, Climate.map_half().y)
+		if lat <= 0.15:
 			eq += t
 			n_eq += 1
-		elif lat >= 0.50:
+		elif lat >= 0.75:
 			pole += t
 			n_pole += 1
 	var eq_avg := eq / maxf(1.0, float(n_eq))
 	var pole_avg := pole / maxf(1.0, float(n_pole))
-	print("  年均温范围 %.1f ~ %.1f℃；赤道带（|纬度|≤0.10）均 %.1f℃ / 极地带（≥0.50）均 %.1f℃"
+	print("  年均温范围 %.1f ~ %.1f℃；赤道带（|纬度|≤0.15）均 %.1f℃ / 极地带（≥0.75）均 %.1f℃"
 		% [tmin, tmax, eq_avg, pole_avg])
-	_check(eq_avg > pole_avg + 12.0,
-		"赤道带比极地带暖 12℃ 以上（差 %.1f℃；世界是「地球碎片」，纬度跨度天生较小）" % (eq_avg - pole_avg))
+	_check(eq_avg > pole_avg + 4.0,
+		"赤道带比极地带暖 4℃ 以上（差 %.1f℃；世界是「地球碎片」，跨度天生小）" % (eq_avg - pole_avg))
 
 	# ③ 海拔递减：赤道带里，最高的那格应当比最低的那格冷
 	var hi_e := -1.0
@@ -175,23 +176,27 @@ func _ready() -> void:
 	#   ⚠️ 断言的量要选对：纬度是"按世界自己"算的，所以**裁切不改变同纬度处的温度**，
 	#   它改变的是**那里的地形与降水**（同一个世界坐标，采样到死地图上的另一处）。
 	var probe := Vector2i(0, 0)
-	var p_home := WorldGen.annual_precip_at(probe, SEED)
+	var field0 := WorldGen.climate_for(SEED)
+	var mm_home := Climate.annual_precip_mm(probe, field0)
 	var t_home := WorldGen.annual_temp_at(probe, SEED)
 	Climate.set_crop(Vector2(18.0, 18.0))
-	var p_far := WorldGen.annual_precip_at(probe, SEED)
+	var mm_far := Climate.annual_precip_mm(probe, WorldGen.climate_for(SEED))
 	var t_far := WorldGen.annual_temp_at(probe, SEED)
 	Climate.set_crop(Vector2.ZERO)
-	var p_back := WorldGen.annual_precip_at(probe, SEED)
+	var mm_back := Climate.annual_precip_mm(probe, WorldGen.climate_for(SEED))
 	var t_back := WorldGen.annual_temp_at(probe, SEED)
-	print("  裁切窗口：窗口(0,0) 降水 %.3f／%.2f℃ ／ 窗口(18,18) %.3f／%.2f℃ ／ 切回(0,0) %.3f／%.2f℃"
-		% [p_home, t_home, p_far, t_far, p_back, t_back])
+	print("  裁切窗口：窗口(0,0) 降水 %.0fmm／%.2f℃ ／ 窗口(18,18) %.0fmm／%.2f℃ ／ 切回(0,0) %.0fmm／%.2f℃"
+		% [mm_home, t_home, mm_far, t_far, mm_back, t_back])
 	_check(absf(t_far - t_home) > 1.0,
 		"换个裁切窗口 → 同一格**温度**也不同（%.2f vs %.2f℃）→ 裁到的确实是另一片地方"
 		% [t_far, t_home])
-	_check(absf(p_far - p_home) > 0.02,
-		"换个裁切窗口 → 同一格**降水**也不同（%.3f vs %.3f）" % [p_far, p_home])
-	_check(absf(p_back - p_home) < 0.0001 and absf(t_back - t_home) < 0.0001,
-		"切回原窗口 → **逐位一致**（降水 %.4f vs %.4f；温度 %.4f vs %.4f）" % [p_back, p_home, t_back, t_home])
+	# ⚠️ 比**绝对降水（毫米）**，不要比"归一化 0~1"的那个 —— 后者会被钳在上限（实测 1.000/1.000），
+	#    拿被钳过的值判"有没有变化"是没有意义的。
+	_check(absf(mm_far - mm_home) > 1.0,
+		"换个裁切窗口 → 同一格**降水**也不同（%.0f vs %.0f mm）" % [mm_far, mm_home])
+	_check(absf(mm_back - mm_home) < 0.001 and absf(t_back - t_home) < 0.0001,
+		"切回原窗口 → **逐位一致**（降水 %.4f vs %.4f mm；温度 %.4f vs %.4f℃）"
+		% [mm_back, mm_home, t_back, t_home])
 
 	# ⑤d W5：**按水陆比挑裁切窗口**（用户："裁切的时候只要满足水陆比例就足够了，
 	#    无论冷暖是否俱全，都是可接受的"）→ 水陆比是挑窗口的**唯一硬指标**。
