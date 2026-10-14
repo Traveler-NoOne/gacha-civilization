@@ -26,6 +26,8 @@ const SEA_E := 0.36
 
 static var _cache_seed := -1
 static var _cache := {}
+## W5：缓存也要看**裁切窗口** —— 换了窗口就是另一块世界，必须重算。
+static var _cache_crop := Vector2(-99999.0, -99999.0)
 
 
 ## 地图的外接矩形半宽/半高（像素空间，size=1）——场的范围就是它
@@ -34,12 +36,14 @@ static func map_half() -> Vector2:
 	return Vector2(Hex.SQRT3 * r, 1.5 * r)
 
 
-## 像素点 → 网格坐标（含 0.5 偏移，供双线性用）
+## 像素点 → 网格坐标（含 0.5 偏移，供双线性用）。
+## ⚠️ W5：先加**裁切偏移**（世界坐标 → 死地图坐标），再按**死地图**的范围归一化。
 static func _grid_coord(p: Vector2) -> Vector2:
-	var size := float(GRID)
-	var half := map_half()
-	return Vector2((p.x + half.x) / (2.0 * half.x) * size - 0.5,
-		(p.y + half.y) / (2.0 * half.y) * size - 0.5)
+	var size := float(grid_size())
+	var half := dead_half()
+	var q := p + _crop
+	return Vector2((q.x + half.x) / (2.0 * half.x) * size - 0.5,
+		(q.y + half.y) / (2.0 * half.y) * size - 0.5)
 
 
 ## ===========================================================================
@@ -70,29 +74,66 @@ static func wind_at(lat: float) -> Vector2:
 	return Vector2(-1.0, 0.2 * signf(lat)).normalized()
 
 
+## ===========================================================================
+## W5：**死地图 + 裁切窗口**
+##   参数图先在**比世界大**的"死地图"上生成，再用一个**裁切窗口**（`set_crop`）扣出一块世界。
+##   于是"同一颗种子可以长出很多块不一样的世界"（W6 的开局选项、W7 的拼接都靠它）。
+##   ⚠️ **网格分辨率按同一个倍数放大**（128 → 192），保持每格像素尺寸不变 →
+##      裁切偏移为 0 时，采样位置与原来**逐位一致**（可以用老截图基线验证"没弄坏东西"）。
+## ===========================================================================
+const DEAD_SCALE := 1.5
+
+## 当前裁切窗口的中心（死地图坐标，像素空间 size=1）。**Vector2.ZERO = 不裁（= 现状）**。
+static var _crop := Vector2.ZERO
+
+
+static func set_crop(v: Vector2) -> void:
+	_crop = v
+
+
+static func get_crop() -> Vector2:
+	return _crop
+
+
+## 死地图的半宽/半高（= 地图外接矩形 × `DEAD_SCALE`）
+static func dead_half() -> Vector2:
+	return map_half() * DEAD_SCALE
+
+
+## 死地图这一边的网格分辨率（按同一个倍数放大 → 每格像素尺寸不变）
+static func grid_size() -> int:
+	return int(round(float(GRID) * DEAD_SCALE))
+
+
 ## 建（或取缓存）这一局种子的气候场。`elev_fn` 传"按格取高度"的函数，
 ## **用 Callable 传进来是为了避免 Climate ↔ WorldGen 互相引用**（那在 GDScript 里会很难看）。
-## 返回 { temp: PackedFloat32Array(MONTHS*GRID*GRID), size: int, seed: int }
+## 返回 { temp: PackedFloat32Array(MONTHS*size*size), size: int, seed: int, rain_ref: float }
 static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
-	if _cache_seed == world_seed and not _cache.is_empty():
+	if _cache_seed == world_seed and _cache_crop == _crop and not _cache.is_empty():
 		return _cache
-	var size := GRID
-	var half := map_half()
+	var size := grid_size()
+	var half := dead_half()
 	var n2 := size * size
 	# ---- 先按格取一遍高度（温度和降水都要用，只取一次）----
+	# 网格点 → 死地图位置 (px,py)；**世界位置 = 死地图位置 − 裁切窗口中心**。
 	var heights := PackedFloat32Array()
 	heights.resize(n2)
 	for gy in size:
 		for gx in size:
 			var px := (float(gx) + 0.5) / float(size) * 2.0 * half.x - half.x
 			var py := (float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y
-			heights[gy * size + gx] = float(elev_fn.call(Hex.pixel_to_axial(Vector2(px, py), 1.0)))
+			var wp := Vector2(px, py) - _crop
+			heights[gy * size + gx] = float(elev_fn.call(Hex.pixel_to_axial(wp, 1.0)))
 	# ---- 温度：纬度梯度 × 12 个月 + 海拔递减 ----
+	# ⚠️ 2026-10-13：纬度**按世界自己算**（= 死地图位置 − 裁切窗口中心），不按死地图算。
+	#   按死地图算的话，一块世界只占行星的一小截 → 世界内温差从 34℃ 缩到 21℃，
+	#   而且整体变暖把沙漠顶到 **41%** —— 那是**没要求过的视觉变化**，所以改回"每块世界冷暖俱全"。
+	#   （"裁到极地就是寒带世界"这个玩法将来若要做，再单独加一个"纬度偏移"选项，别动这里的默认。）
 	var temp := PackedFloat32Array()
 	temp.resize(MONTHS * n2)
 	for gy in size:
-		var py2 := (float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y
-		var lat := clampf(py2 / maxf(1.0, half.y), -1.0, 1.0)
+		var py2 := ((float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y) - _crop.y
+		var lat := clampf(py2 / maxf(1.0, map_half().y), -1.0, 1.0)
 		for gx in size:
 			var h := heights[gy * size + gx]
 			var land_h := maxf(0.0, (h - SEA_E) / (1.0 - SEA_E))
@@ -109,8 +150,8 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 	for m in MONTHS:
 		var off := m * n2
 		for gy in size:
-			var py3 := (float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y
-			var lat3 := clampf(py3 / maxf(1.0, half.y), -1.0, 1.0)
+			var py3 := ((float(gy) + 0.5) / float(size) * 2.0 * half.y - half.y) - _crop.y
+			var lat3 := clampf(py3 / maxf(1.0, map_half().y), -1.0, 1.0)
 			var eastward := wind_at(lat3).x > 0.0
 			var moist := MOIST_START
 			var prev_h := SEA_E        # 图外的上风侧当作海面
@@ -139,8 +180,9 @@ static func build(world_seed: int, elev_fn: Callable) -> Dictionary:
 	sorted.sort()
 	var rain_ref := maxf(0.005, sorted[int(float(n2) * 0.85)])
 	_cache = {"temp": temp, "precip": precip, "heights": heights, "size": size,
-		"seed": world_seed, "rain_ref": rain_ref}
+		"seed": world_seed, "rain_ref": rain_ref, "crop": _crop}
 	_cache_seed = world_seed
+	_cache_crop = _crop
 	return _cache
 
 
@@ -204,6 +246,10 @@ static func month_range(c: Vector2i, field: Dictionary) -> Vector2:
 ## 于是沙漠（<250mm）／草原（~500mm）／雨林（>2000mm）都能落进合理区间。
 ## ⚠️ 这是**近似标尺**（不是真实物理量），只为让柯本阈值有意义；可逆。
 const PRECIP_MM_PER_RAW := 530000.0
+## ⚠️ 2026-10-13 试过把它放大一倍以压沙漠占比（41%），**完全没效果**（572 格 → 572 格）——
+## 说明"沙漠太多"的根因**不是标尺**，而是**降水分布太偏**：空气在第一个迎风坡上就把水汽放光，
+## 内陆几乎零降水 → 大片内陆被判成沙漠。真正的修法是 W3b 的水汽模型（例如调大 `RAIN_BASE`，
+## 让空气**沿途慢慢下**而不是一次下光），不是动这里。
 
 
 ## 原始年均降水（未归一化）

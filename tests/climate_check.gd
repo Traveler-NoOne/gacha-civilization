@@ -57,7 +57,8 @@ func _ready() -> void:
 		var t := WorldGen.annual_temp_at(c, SEED)
 		tmin = minf(tmin, t)
 		tmax = maxf(tmax, t)
-		var lat := absf(Hex.axial_to_pixel(c.x, c.y, 1.0).y) / maxf(1.0, half.y)
+		# W5：纬度按**世界自己**算（每块世界冷暖俱全）→ 这里也用世界的半宽分桶。
+		var lat := absf(Hex.axial_to_pixel(c.x, c.y, 1.0).y) / maxf(1.0, Climate.map_half().y)
 		if lat <= 0.15:
 			eq += t
 			n_eq += 1
@@ -167,6 +168,25 @@ func _ready() -> void:
 		kinds[kk] = int(kinds.get(kk, 0)) + 1
 	print("  柯本类别分布：%s" % str(kinds))
 	_check(kinds.size() >= 4, "柯本类别数 ≥ 4（实际 %d 类）→ 气候分带出来了" % kinds.size())
+
+	# ⑤c W5：**裁切窗口** —— 换个窗口 = 另一块世界；而且**能切回来、逐位一致**。
+	#   ⚠️ 断言的量要选对：纬度是"按世界自己"算的，所以**裁切不改变同纬度处的温度**，
+	#   它改变的是**那里的地形与降水**（同一个世界坐标，采样到死地图上的另一处）。
+	var probe := Vector2i(0, 0)
+	var p_home := WorldGen.annual_precip_at(probe, SEED)
+	var t_home := WorldGen.annual_temp_at(probe, SEED)
+	Climate.set_crop(Vector2(18.0, 18.0))
+	var p_far := WorldGen.annual_precip_at(probe, SEED)
+	var t_far := WorldGen.annual_temp_at(probe, SEED)
+	Climate.set_crop(Vector2.ZERO)
+	var p_back := WorldGen.annual_precip_at(probe, SEED)
+	var t_back := WorldGen.annual_temp_at(probe, SEED)
+	print("  裁切窗口：窗口(0,0) 降水 %.3f／%.2f℃ ／ 窗口(18,18) %.3f／%.2f℃ ／ 切回(0,0) %.3f／%.2f℃"
+		% [p_home, t_home, p_far, t_far, p_back, t_back])
+	_check(absf(p_far - p_home) > 0.02,
+		"换个裁切窗口 → 同一格**降水**明显不同（%.3f vs %.3f）→ 确实是另一块世界" % [p_far, p_home])
+	_check(absf(p_back - p_home) < 0.0001 and absf(t_back - t_home) < 0.0001,
+		"切回原窗口 → **逐位一致**（降水 %.4f vs %.4f；温度 %.4f vs %.4f）" % [p_back, p_home, t_back, t_home])
 
 	# ⑥ W3b **雨影**：同一座山，**迎风侧应当比背风侧湿**。
 	#    做法：挑高地格 → 按它所在纬度取风向 → 沿风向前后各取约 2 格，比降水。
