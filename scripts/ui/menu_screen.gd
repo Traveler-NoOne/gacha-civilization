@@ -432,7 +432,7 @@ func _open_feedback() -> void:
 	v.add_child(rule)
 	v.add_child(UIKit.spacer(4.0))
 
-	var cheat_box := UIKit.toggle_checkbox("作弊功能", GameState.cheat_enabled())
+	var cheat_box := UIKit.toggle_checkbox("作弊功能", AppSettings.cheat_enabled())
 	cheat_box.tooltip_text = "点击切换作弊功能（开启前会二次确认）"
 	v.add_child(cheat_box)
 	var cl := UIKit.dim("勾选后顶部资源栏会出现「作弊」按钮。", 11)
@@ -446,11 +446,13 @@ func _open_feedback() -> void:
 			var confirm := UIKit.confirm("开启作弊功能",
 				"你确定开启作弊功能吗？这也许会摧毁你的游戏体验。",
 				func() -> void:
-					GameState.set_cheat_enabled(true)
+					Cheat.set_enabled(true)
+					GameState.toast.emit("作弊功能已开启")
 					cheat_box.set_pressed_no_signal(true))
 			add_child(confirm)
 		else:
-			GameState.set_cheat_enabled(false))
+			Cheat.set_enabled(false)
+			GameState.toast.emit("作弊功能已关闭"))
 
 	d.set_content(v)
 	add_child(d)

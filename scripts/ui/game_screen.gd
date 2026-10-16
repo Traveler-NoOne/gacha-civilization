@@ -107,7 +107,7 @@ func _build() -> void:
 	UIKit.style_button(cheat_button, false, true)
 	cheat_button.tooltip_text = "作弊功能已开启（在主页面的「反馈」窗口里关闭）"
 	cheat_button.pressed.connect(_open_cheat_menu)
-	cheat_button.visible = GameState.cheat_enabled()
+	cheat_button.visible = AppSettings.cheat_enabled()
 	head.add_child(cheat_button)
 
 	var btn_save := UIKit.small("快速保存")
@@ -432,8 +432,6 @@ func _refresh() -> void:
 	# 资源栏重建前先收起收支悬浮窗（避免内容过期）
 	_close_res_popup()
 	# 作弊按钮的显隐跟随全局设置里的「作弊功能」勾选状态
-	if is_instance_valid(cheat_button):
-		cheat_button.visible = AppSettings.cheat_enabled()
 	for c in abstract_box.get_children():
 		c.queue_free()
 	for c in concrete_box.get_children():
@@ -638,132 +636,9 @@ func _build_exit_dialog() -> DialogLayer:
 	d.set_content(v)
 	return d
 
-
-# ---------------------------------------------------------------------------
 # v1.2 作弊菜单
-# ---------------------------------------------------------------------------
-const CHEAT_RESOURCES := [
-	["food", "食物"],
-	["production", "生产力"],
-	["currency", "货币"],
-	["research", "科研点"],
-	["order_crystal", "秩序结晶"],
-	["cohesion", "凝聚力"],
-	["admin", "行政点数"],
-	["wood", "木材"],
-	["pop_total", "人力"],
-]
-
-
 func _open_cheat_menu() -> void:
-	if not GameState.cheat_enabled():
-		GameState.toast.emit("作弊功能未开启：请在主页面的「反馈」窗口里勾选")
-		return
-	var d := UIKit.dialog("作弊菜单", 560.0)
-	var v := UIKit.vbox(8)
-	v.add_child(UIKit.text_label("注意：作弊会直接修改存档数据，仅用于调试。", 12, UIKit.WARN))
-
-	# ---- 添加资源 ----
-	v.add_child(UIKit.title("添加资源", 15))
-	v.add_child(UIKit.dim("填写每个资源想增加的数量（可填空或 0），然后点最下面的「一次性添加」。"))
-	var grid := UIKit.grid(4, 10, 6)
-	v.add_child(grid)
-	var spins: Dictionary = {}
-	for pair in CHEAT_RESOURCES:
-		var key: String = pair[0]
-		var nm: String = pair[1]
-		grid.add_child(UIKit.text_label(nm, 12, UIKit.TEXT_DIM))
-		var sb := SpinBox.new()
-		sb.min_value = -999999
-		sb.max_value = 999999
-		sb.step = 1
-		sb.value = 0
-		sb.custom_minimum_size = Vector2(UI.px(110), UI.px(0))
-		grid.add_child(sb)
-		spins[key] = sb
-
-	var quick := UIKit.hbox(6)
-	var b1 := UIKit.small("快捷：全部 +100", 11)
-	b1.pressed.connect(func() -> void:
-		for k in spins.keys():
-			(spins[k] as SpinBox).value = 100)
-	quick.add_child(b1)
-	var b2 := UIKit.small("快捷：全部 +1000", 11)
-	b2.pressed.connect(func() -> void:
-		for k in spins.keys():
-			(spins[k] as SpinBox).value = 1000)
-	quick.add_child(b2)
-	var b0 := UIKit.small("清零", 11)
-	b0.pressed.connect(func() -> void:
-		for k in spins.keys():
-			(spins[k] as SpinBox).value = 0)
-	quick.add_child(b0)
-	v.add_child(quick)
-
-	var apply := UIKit.primary("一次性添加", 15)
-	apply.pressed.connect(func() -> void:
-		var amounts := {}
-		for k in spins.keys():
-			var v2 := int((spins[k] as SpinBox).value)
-			if v2 != 0:
-				amounts[k] = v2
-		GameState.cheat_add_resources(amounts)
-		close_dialog())
-	v.add_child(apply)
-
-	# ---- 摧毁敌对单位 ----
-	v.add_child(UIKit.spacer(6.0))
-	v.add_child(UIKit.title("摧毁敌对单位", 15))
-	v.add_child(UIKit.dim("可以选中大世界中的任何敌对单位直接摧毁。"))
-	var enemies := GameState.enemy_tiles()
-	v.add_child(UIKit.dim("当前大世界敌对单位：%d 个" % enemies.size()))
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", UI.fs(3))
-	for t in enemies:
-		var key := GameState.tile_key(t)
-		var label := GameState.enemy_label(t)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", UI.fs(6))
-		list.add_child(row)
-		var l := UIKit.text_label("%s　[%s]　战力 %.0f" % [label, key, float(t.get("force", 0.0))],
-			12, UIKit.BAD)
-		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(l)
-		var rb := UIKit.tiny("摧毁", 11, true)
-		rb.pressed.connect(func() -> void:
-			var r := GameState.cheat_destroy_tile(key)
-			if not r["ok"]:
-				GameState.toast.emit(str(r["why"]))
-			else:
-				GameState.toast.emit("已摧毁 %s 的%s" % [key, str(r["label"])])
-			close_dialog())
-		row.add_child(rb)
-	if enemies.is_empty():
-		list.add_child(UIKit.dim("（当前没有敌对单位）"))
-	# 敌人列表：(0,0) 最小尺寸 —— 由 ScrollContainer 自己裁剪，不参与弹窗高度撑开
-	var lsc := UIKit.scroll(list)
-	lsc.custom_minimum_size = Vector2(0, 0)
-	lsc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(lsc)
-
-	var all_btn := UIKit.normal("摧毁全部敌对单位", 13)
-	UIKit.style_button(all_btn, false, true)
-	all_btn.pressed.connect(func() -> void:
-		GameState.cheat_destroy_all_enemies()
-		close_dialog())
-	v.add_child(all_btn)
-
-	v.add_child(UIKit.dim("关闭作弊：回到主页面 → 反馈 → 取消勾选「作弊功能」。", 11))
-
-	# 外层滚动容器：(0,0) 最小尺寸 + 撑满剩余高度。
-	# 关键点：一定不能给它写死的最小高度（或累加出超过视口的高度），
-	# 否则 VBoxContainer 的最小高度会把弹窗顶出屏幕，底部按钮就点不到了。
-	var sc := UIKit.scroll(v)
-	sc.custom_minimum_size = Vector2(0, 0)
-	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	d.set_content(sc)
-	open_dialog(d)
-
+	open_dialog(CheatMenu.build())
 
 func open_dialog(d: DialogLayer) -> void:
 	close_dialog()

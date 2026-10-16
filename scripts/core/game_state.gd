@@ -521,11 +521,6 @@ func withdraw_unit(uid: String) -> Dictionary:
 # ---------------------------------------------------------------------------
 # v1.5：客人 / 公民、部署（掌控力门槛）、移动与攻击
 # ---------------------------------------------------------------------------
-static func tile_key(t: Dictionary) -> String:
-	var c: Array = t.get("c", [])
-	if c.size() < 2:
-		return ""
-	return WorldGen.key_of(Vector2i(int(c[0]), int(c[1])))
 
 
 func units_by_status(s: String) -> Array:
@@ -538,15 +533,6 @@ func units_by_status(s: String) -> Array:
 
 func guest_units() -> Array:
 	return units_by_status(UnitDB.STATUS_GUEST)
-
-
-## v1.7：单单位的客人 / 公民判断（视图里此前各自内联同一串 get + 比较）
-static func is_citizen(u: Dictionary) -> bool:
-	return str(u.get("status", UnitDB.STATUS_CITIZEN)) == UnitDB.STATUS_CITIZEN
-
-
-static func is_guest(u: Dictionary) -> bool:
-	return str(u.get("status", UnitDB.STATUS_CITIZEN)) == UnitDB.STATUS_GUEST
 
 
 func citizen_units() -> Array:
@@ -573,7 +559,7 @@ func control_ok(key: String) -> bool:
 func deployable_keys() -> Array[String]:
 	var out: Array[String] = []
 	for t in owned_tiles():
-		var k := tile_key(t)
+		var k := WorldGen.tile_key(t)
 		if k == "" or not control_ok(k):
 			continue
 		if units_on_tile(k).size() >= UnitDB.UNITS_PER_TILE:
@@ -684,15 +670,6 @@ func tile_passable(key: String) -> bool:
 	return bool(t.get("discovered", false))
 
 
-
-## 距离 2 时的中间格（轴向坐标下取两点之差的一半）
-static func _middle_key(a: Vector2i, b: Vector2i) -> String:
-	var diff := b - a
-	if diff.x % 2 != 0 or diff.y % 2 != 0:
-		return ""
-	return WorldGen.key_of(a + Vector2i(diff.x / 2, diff.y / 2))
-
-
 ## 移动：相邻格耗 1、间隔一格耗 2（中间格须可通行）
 ## 移动合法性校验：move_unit 与 UI 高亮**共用同一份规则**，
 ## 避免出现"界面高亮可走、实际点下去被拒绝"的不一致（v1.7 修）。
@@ -718,7 +695,7 @@ func can_move_to(uid: String, key: String) -> Dictionary:
 	if not tile_passable(key):
 		return {"ok": false, "why": "目标地块无法通行（敌方或未点亮）"}
 	if d == 2:
-		var mid := _middle_key(a, b)
+		var mid := WorldGen.middle_key(a, b)
 		if mid != "" and not tile_passable(mid):
 			return {"ok": false, "why": "中间的地块无法通行"}
 	if units_on_tile(key).size() >= UnitDB.UNITS_PER_TILE:
@@ -784,14 +761,14 @@ func unit_attack(uid: String, key: String) -> Dictionary:
 		return {"ok": false, "why": "该单位本周期已行动"}
 	var lines: Array[String] = []
 	var force := float(t.get("force", Consts.WANDER_FORCE))
-	var enemy_prof := _enemy_profession(t)
+	var enemy_prof := UnitDB.enemy_profession(t)
 	var enemy := {"profession": enemy_prof, "attr": {"atk": force * Consts.ENEMY_ATK_MUL, "def": force * Consts.ENEMY_DEF_MUL}}
 	var r := UnitDB.resolve_damage(u, enemy)
 	var dmg := float(r["damage"])
 	var adv := int(r["advantage"])
 	var tag := "（克制！）" if adv > 0 else ("（被克制）" if adv < 0 else "")
 	force -= dmg
-	lines.append("%s 对 %s 造成 %.1f 伤害%s" % [str(u["name"]), enemy_label(t), dmg, tag])
+	lines.append("%s 对 %s 造成 %.1f 伤害%s" % [str(u["name"]), UnitDB.enemy_label(t), dmg, tag])
 	gain_exp(uid, 12, "combat")
 
 	var won := force <= 0.0
@@ -805,7 +782,7 @@ func unit_attack(uid: String, key: String) -> Dictionary:
 		var cr := UnitDB.resolve_damage(enemy, u)
 		var back := float(cr["damage"])
 		u["hp"] = int(u.get("hp", 1)) - int(round(back))
-		lines.append("%s 反击 %s，造成 %.1f 伤害" % [enemy_label(t), str(u["name"]), back])
+		lines.append("%s 反击 %s，造成 %.1f 伤害" % [UnitDB.enemy_label(t), str(u["name"]), back])
 		if int(u.get("hp", 1)) <= 0:
 			lines.append("%s 阵亡。" % str(u["name"]))
 			add_log("%s 在进攻 %s 时阵亡。" % [str(u["name"]), key], "combat")
@@ -945,7 +922,7 @@ func grow_unit_exp(report: Dictionary) -> void:
 # ---------------------------------------------------------------------------
 ## 单个单位的周期维护费（客人只吃食物；公民吃食物 + 货币，驻守我方领地 −60%、领地外 −10%）
 func unit_upkeep_of(u: Dictionary) -> Dictionary:
-	if is_guest(u):
+	if UnitDB.is_guest(u):
 		return {"food": Consts.GUEST_FOOD_PER_CYCLE, "currency": 0.0}
 	var t := tile_at(str(u.get("tile", "")))
 	var own: bool = (not t.is_empty()) and str(t.get("owner", "")) == "player"
@@ -1067,7 +1044,7 @@ func simulate_battle(key: String) -> Dictionary:
 
 	# 敌方也要选目标：高危以上才会考虑克制，否则随机（v1.1 第 30 条）
 	var is_high_risk: bool = tile.get("danger", false) or tile.get("threat", false)
-	var enemy_profession := _enemy_profession(tile)
+	var enemy_profession := UnitDB.enemy_profession(tile)
 
 	for u in attackers:
 		if enemy_hp <= 0.0:
@@ -1087,7 +1064,7 @@ func simulate_battle(key: String) -> Dictionary:
 			tag = "（被克制）"
 		log_lines.append("%s[%s] 对 %s 造成 %.1f 伤害%s" % [
 			str(u["name"]), UnitDB.profession_name(my_prof),
-			enemy_label(tile), float(r["damage"]), tag])
+			UnitDB.enemy_label(tile), float(r["damage"]), tag])
 		gain_exp(str(u["uid"]), 12, "combat")
 
 	# 敌人反击：随机挑一个攻击单位（高危才会优先针对克制目标）
@@ -1105,14 +1082,14 @@ func simulate_battle(key: String) -> Dictionary:
 			{"profession": enemy_profession, "attr": {"atk": enemy_force * Consts.ENEMY_ATK_MUL_LOW}},
 			counter_target)
 		log_lines.append("%s 反击 %s，造成 %.1f 伤害" % [
-			enemy_label(tile), str(counter_target["name"]), float(cr["damage"])])
+			UnitDB.enemy_label(tile), str(counter_target["name"]), float(cr["damage"])])
 
 	var won := enemy_hp <= 0.0
 	if won:
 		on_enemy_killed(tile)   # 依据击杀时的敌人类型给行政产出 buff（须在清空标记前）
 		clear_enemy_tile(key)
 		log_lines.append("战斗胜利：%s 被清剿。" % key)
-		add_log("战斗胜利：%s 的%s被消灭。" % [key, enemy_label(tile)], "combat")
+		add_log("战斗胜利：%s 的%s被消灭。" % [key, UnitDB.enemy_label(tile)], "combat")
 	else:
 		log_lines.append("战斗未决：敌方剩余战力 %.0f。" % (enemy_hp * 0.5))
 		add_log("战斗未决：%s 的敌人仍在顽抗。" % key, "combat")
@@ -1159,25 +1136,6 @@ func clear_enemy_tile(key: String) -> bool:
 				keep.append(th)
 		state["threats"] = keep
 	return was_threat
-
-
-## v1.7：地块 -> 敌人显示名（唯一出口；词表在 Consts.ENEMY_LABELS）
-static func enemy_label(tile: Dictionary) -> String:
-	if tile.get("threat", false):
-		return str(Consts.ENEMY_LABELS["threat"])
-	if tile.get("danger", false):
-		return str(Consts.ENEMY_LABELS["danger"])
-	return str(Consts.ENEMY_LABELS["wander"])
-
-
-## 敌人也有职业：高危据点/威胁是防御型，游荡敌人随机
-static func _enemy_profession(tile: Dictionary) -> String:
-	if tile.get("threat", false):
-		return UnitDB.PROJECTILE
-	if tile.get("danger", false):
-		return UnitDB.DEFENDER
-	var h := int(absf(float(tile.get("force", 5.0)) * 7.0)) % UnitDB.PROFESSION_ORDER.size()
-	return UnitDB.PROFESSION_ORDER[h]
 
 
 # ===========================================================================
@@ -1783,11 +1741,11 @@ func settle_admin(report: Dictionary) -> void:
 func on_enemy_killed(tile: Dictionary) -> void:
 	if tile.is_empty():
 		return
-	var kind := _enemy_admin_kind(tile)
+	var kind := UnitDB.enemy_admin_kind(tile)
 	if kind == "" or not Consts.ADMIN_KILL_BUFFS.has(kind):
 		return
 	var b: Dictionary = Consts.ADMIN_KILL_BUFFS[kind]
-	_add_admin_effect(float(b["delta"]), int(b["duration"]), "击杀%s" % _enemy_admin_label(kind))
+	_add_admin_effect(float(b["delta"]), int(b["duration"]), "击杀%s" % UnitDB.enemy_admin_label(kind))
 
 
 ## 友军阵亡后的行政产出 debuff（预留：当前 Demo 无单位阵亡机制）
@@ -1806,20 +1764,6 @@ func _add_admin_effect(delta: float, duration: int, label: String) -> void:
 		"source": "kill" if delta > 0.0 else "death", "label": label,
 	})
 	_add_log("行政影响：%s，每周期 %+.1f（持续 %d 周期）。" % [label, delta, duration], "world")
-
-
-static func _enemy_admin_kind(tile: Dictionary) -> String:
-	if tile.get("threat", false):
-		return "threat"
-	if tile.get("danger", false):
-		return "fortress" if float(tile.get("force", 0.0)) >= Consts.EXTREME_HAZARD_FORCE else "danger"
-	if tile.get("wander", false):
-		return "high" if float(tile.get("force", 0.0)) >= Consts.HIGH_WANDER_FORCE else "danger"
-	return ""
-
-
-static func _enemy_admin_label(kind: String) -> String:
-	return str(Consts.ENEMY_LABELS.get(kind, Consts.ENEMY_LABELS["unknown"]))
 
 
 ## 某项资源的「每周期收支明细」（供顶部资源栏点击悬浮窗使用，v1.4.1）
@@ -2128,9 +2072,9 @@ func autosave() -> void:
 
 
 # ===========================================================================
-# 自动存档周期数 + 作弊功能
+# 自动存档周期数
 #
-# 注意：这两项是**全局设置**，存在 AppSettings 里（user://settings.cfg），
+# 注意：这项是**全局设置**，存在 AppSettings 里（user://settings.cfg），
 # 不放进 state。放进来会被 new_game() / 读档 一起重建，开关就丢了 ——
 # 之前的 bug 就是这么来的（勾了作弊，一开始新游戏又变回没勾）。
 # 下面这些函数保留，只是转发到 AppSettings，方便调用方不用改。
@@ -2138,78 +2082,10 @@ func autosave() -> void:
 func autosave_interval() -> int:
 	return AppSettings.autosave_interval()
 
-
 func set_autosave_interval(n: int) -> void:
 	AppSettings.set_autosave_interval(n)
 	toast.emit("自动存档已设为每 %d 个周期一次" % autosave_interval())
 	state_changed.emit()
-
-
-func cheat_enabled() -> bool:
-	return AppSettings.cheat_enabled()
-
-
-func set_cheat_enabled(on: bool) -> void:
-	AppSettings.set_cheat_enabled(on)
-	if on:
-		_add_log("作弊功能已开启。", "cheat")
-		toast.emit("作弊功能已开启")
-	else:
-		_add_log("作弊功能已关闭。", "cheat")
-		toast.emit("作弊功能已关闭")
-	state_changed.emit()
-
-
-## 作弊：批量增加资源
-func cheat_add_resources(amounts: Dictionary) -> void:
-	var parts: Array[String] = []
-	for k in amounts.keys():
-		var v := float(amounts[k])
-		if v == 0.0:
-			continue
-		if k == "pop_total":
-			state["pop_total"] = clampi(int(state["pop_total"]) + int(v), 1, Consts.POP_HARD_CAP)
-			parts.append("人力 %+d" % int(v))
-		else:
-			add_res(str(k), v)
-			parts.append("%s %+d" % [Consts.res_name(str(k)), int(v)])
-	if parts.is_empty():
-		toast.emit("没有填写任何数量")
-		return
-	_add_log("【作弊】获得 %s。" % "、".join(parts), "cheat")
-	toast.emit("作弊生效：" + "、".join(parts))
-	state_changed.emit()
-
-
-## 作弊：直接摧毁地块上的敌对单位
-func cheat_destroy_tile(key: String) -> Dictionary:
-	var tiles: Dictionary = state["tiles"]
-	if not tiles.has(key):
-		return {"ok": false, "why": "地块不存在"}
-	var t: Dictionary = tiles[key]
-	var owner: String = t.get("owner", "")
-	if owner == "" or owner == "player":
-		return {"ok": false, "why": "该地块没有敌对单位"}
-	var label := enemy_label(t)
-	clear_enemy_tile(key)
-	_add_log("【作弊】直接摧毁了 %s 的%s。" % [key, label], "cheat")
-	state_changed.emit()
-	return {"ok": true, "why": "", "label": label}
-
-
-## 作弊：一键清空大世界里所有敌对单位
-func cheat_destroy_all_enemies() -> int:
-	var keys: Array[String] = []
-	for k in (state["tiles"] as Dictionary).keys():
-		var t: Dictionary = state["tiles"][k]
-		var o: String = t.get("owner", "")
-		if o != "" and o != "player":
-			keys.append(str(k))
-	for k in keys:
-		cheat_destroy_tile(k)
-	toast.emit("已摧毁 %d 个敌对单位" % keys.size())
-	return keys.size()
-
 
 func has_continue() -> bool:
 	return slot_exists(Consts.AUTOSAVE_SLOT)
