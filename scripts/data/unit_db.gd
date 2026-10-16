@@ -16,6 +16,41 @@ const STATUS_CITIZEN := "citizen"
 static func status_name(s: String) -> String:
 	return "客人" if s == STATUS_GUEST else "公民"
 
+## v1.7：单单位的客人 / 公民判断（视图里此前各自内联同一串 get + 比较）
+static func is_citizen(u: Dictionary) -> bool:
+	return str(u.get("status", STATUS_CITIZEN)) == STATUS_CITIZEN
+
+static func is_guest(u: Dictionary) -> bool:
+	return str(u.get("status", STATUS_CITIZEN)) == STATUS_GUEST
+
+## v1.7：地块 -> 敌人显示名（唯一出口；词表在 Consts.ENEMY_LABELS）
+static func enemy_label(tile: Dictionary) -> String:
+	if tile.get("threat", false):
+		return str(Consts.ENEMY_LABELS["threat"])
+	if tile.get("danger", false):
+		return str(Consts.ENEMY_LABELS["danger"])
+	return str(Consts.ENEMY_LABELS["wander"])
+
+## 敌人也有职业：高危据点/威胁是防御型，游荡敌人随机
+static func enemy_profession(tile: Dictionary) -> String:
+	if tile.get("threat", false):
+		return PROJECTILE
+	if tile.get("danger", false):
+		return DEFENDER
+	var h := int(absf(float(tile.get("force", 5.0)) * 7.0)) % PROFESSION_ORDER.size()
+	return PROFESSION_ORDER[h]
+
+static func enemy_admin_kind(tile: Dictionary) -> String:
+	if tile.get("threat", false):
+		return "threat"
+	if tile.get("danger", false):
+		return "fortress" if float(tile.get("force", 0.0)) >= Consts.EXTREME_HAZARD_FORCE else "danger"
+	if tile.get("wander", false):
+		return "high" if float(tile.get("force", 0.0)) >= Consts.HIGH_WANDER_FORCE else "danger"
+	return ""
+
+static func enemy_admin_label(kind: String) -> String:
+	return str(Consts.ENEMY_LABELS.get(kind, Consts.ENEMY_LABELS["unknown"]))
 
 # ---------------------------------------------------------------------------
 # v1.7：单位立绘

@@ -13,10 +13,23 @@ const OWNER_NONE := ""
 const OWNER_PLAYER := "player"
 const OWNER_ENEMY := "enemy"
 
-
+## 将v2i坐标转换为str
 static func key_of(c: Vector2i) -> String:
 	return "%d,%d" % [c.x, c.y]
 
+## 获取目标地块的qr坐标
+static func tile_key(t: Dictionary) -> String:
+	var c: Array = t.get("c", [])
+	if c.size() < 2:
+		return ""
+	return key_of(Vector2i(int(c[0]), int(c[1])))
+	
+## 距离 2 时的中间格（轴向坐标下取两点之差的一半）
+static func middle_key(a: Vector2i, b: Vector2i) -> String:
+	var diff := b - a
+	if diff.x % 2 != 0 or diff.y % 2 != 0:
+		return ""
+	return key_of(a + Vector2i(diff.x / 2, diff.y / 2)) # 将v2i坐标转换为str坐标
 
 # ===========================================================================
 # v1.8.21（更真实的地图生成·第 1 段）：高程噪声
@@ -361,6 +374,16 @@ static func discover_radius(state: Dictionary, center: Vector2i, radius: int) ->
 			n += 1
 	return n
 
+## 揭开所有迷雾
+static func discover_all(state: Dictionary) -> int:
+	var tiles: Dictionary = state["tiles"]
+	var n := 0
+	for k in tiles.keys():
+		var t: Dictionary = tiles[k]
+		if not t.get("discovered", false):
+			t["discovered"] = true
+			n += 1
+	return n
 
 # ===========================================================================
 # 扩张
