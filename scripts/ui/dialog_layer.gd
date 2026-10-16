@@ -14,32 +14,30 @@ var _fit_done := false
 
 
 func _init() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	set_anchors_preset(Control.PRESET_FULL_RECT) # 让 DialogLayer 铺满全屏，作为遮罩和居中容器。
+	mouse_filter = Control.MOUSE_FILTER_STOP # 让 DialogLayer 拦截鼠标，防止点击穿透到底层 UI。
 
 
 func _ready() -> void:
-	# 遮罩
-	var veil := ColorRect.new()
+
+	var veil := ColorRect.new() # 底层遮罩
 	veil.color = Color(0, 0, 0, 0.62)
 	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
 	veil.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(veil)
 
-	var center := CenterContainer.new()
+	var center := CenterContainer.new() # 用于居中子控件
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(center)
 
-	_panel = PanelContainer.new()
+	_panel = PanelContainer.new() # 创建面板容器
 	_panel.custom_minimum_size = Vector2(dialog_width, 0)
+	_panel.clip_contents = true
 	UIKit.apply_panel(_panel, UIKit.BG_PANEL, UIKit.GOLD, 8)
 	center.add_child(_panel)
-	# 弹窗整体不得超出视口：内容再多也只能在内部滚动，
-	# 否则底部的按钮会被挤出屏幕、玩家点不到（作弊菜单就踩过这个坑）
-	_panel.clip_contents = true
 
-	_body = VBoxContainer.new()
+	_body = VBoxContainer.new() 
 	_body.add_theme_constant_override("separation", UI.fs(10))
 	_panel.add_child(_body)
 
@@ -57,16 +55,16 @@ func _ready() -> void:
 		head.add_child(x)
 	_body.add_child(head)
 
-	var rule := ColorRect.new()
+	var rule := ColorRect.new() # 分割线
 	rule.color = UIKit.LINE_SOFT
 	rule.custom_minimum_size = Vector2(UI.px(0), UI.px(1))
 	_body.add_child(rule)
 
-	var content_slot := MarginContainer.new()
+	var content_slot := MarginContainer.new() # 内容槽
 	content_slot.name = "ContentSlot"
 	_body.add_child(content_slot)
 
-	if is_instance_valid(_content):
+	if is_instance_valid(_content): # 检测暂存	
 		content_slot.add_child(_content)
 		_content = null
 
@@ -81,7 +79,7 @@ func _ready() -> void:
 	tw.tween_property(self, "modulate:a", 1.0, 0.15)
 
 
-## 设置内容（必须在 add_child 之前或之后都可以）
+## 设置内容
 func set_content(c: Control) -> void:
 	if _body == null:
 		_content = c
@@ -125,6 +123,7 @@ func fit_now() -> void:
 	# 除内容槽以外的固定高度（标题栏等）
 	slot_c.custom_minimum_size = Vector2(UI.px(0), UI.px(0))
 	slot_c.size_flags_vertical = Control.SIZE_FILL
+	_panel.custom_minimum_size = Vector2(dialog_width, 0)
 	var panel_min := _panel.get_combined_minimum_size().y
 	var slot_min := slot_c.get_combined_minimum_size().y
 	var chrome := maxf(0.0, panel_min - slot_min)
