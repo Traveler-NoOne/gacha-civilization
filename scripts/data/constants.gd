@@ -379,4 +379,3 @@ static func cover_color(c: String) -> Color:
 
 static func cover_name(c: String) -> String:
 	return COVER_NAMES.get(c, c)
-

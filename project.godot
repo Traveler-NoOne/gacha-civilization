@@ -20,18 +20,14 @@ config/icon="res://icon.svg"
 
 AppSettings="*res://scripts/core/app_settings.gd"
 GameState="*res://scripts/core/game_state.gd"
-UI="*res://scripts/core/ui_scale.gd"
+UI="*res://scripts/ui/ui_scale.gd"
 
 [display]
 
 window/size/viewport_width=1600
 window/size/viewport_height=900
 window/stretch/aspect="expand"
-; ⚠️ 1.8.20 备忘（都别踩）：窗口锁定（不许拖边）**不写在这里** ——
-; 改由 main.gd 运行期设 DisplayServer.window_set_flag(WINDOW_FLAG_RESIZE_DISABLED)，写这儿会「改了没生效」。
-;
-; 1.8.21.2：上面这段原本是两行**被写坏的键**（备忘文字被当成键名，还把 [editor_plugins] 段头吞进了引号里）。
-; 原文已双重编码且丢过字节、无法逐字还原，所以只保留它能表达的信息，并把段头建回来。
+
 [editor_plugins]
 
 enabled=PackedStringArray()

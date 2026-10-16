@@ -3,9 +3,9 @@ extends Control
 ## 对应设计文档「2至宝」章节。
 
 const SUB_TABS := [
-	{"id": "character", "name": "角色", "script": "res://scripts/ui/views/parts/character_page.gd"},
-	{"id": "gear", "name": "装备", "script": "res://scripts/ui/views/parts/gear_page.gd"},
-	{"id": "item", "name": "道具", "script": "res://scripts/ui/views/parts/item_page.gd"},
+	{"id": "character", "name": "角色", "script": "res://scripts/ui/views/parts/treasure_character.gd"},
+	{"id": "gear", "name": "装备", "script": "res://scripts/ui/views/parts/treasure_gear.gd"},
+	{"id": "item", "name": "道具", "script": "res://scripts/ui/views/parts/treasure_item.gd"},
 ]
 
 var sub_bar: HBoxContainer

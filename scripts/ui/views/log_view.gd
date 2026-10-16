@@ -3,10 +3,10 @@ extends Control
 ## 对应设计文档「4日志」章节。
 
 const SUB_TABS := [
-	{"id": "task", "name": "任务", "script": "res://scripts/ui/views/parts/task_page.gd"},
-	{"id": "record", "name": "记录", "script": "res://scripts/ui/views/parts/record_page.gd"},
-	{"id": "codex", "name": "图鉴", "script": "res://scripts/ui/views/parts/codex_page.gd"},
-	{"id": "manual", "name": "手册", "script": "res://scripts/ui/views/parts/manual_page.gd"},
+	{"id": "task", "name": "任务", "script": "res://scripts/ui/views/parts/log_task.gd"},
+	{"id": "record", "name": "记录", "script": "res://scripts/ui/views/parts/log_record.gd"},
+	{"id": "codex", "name": "图鉴", "script": "res://scripts/ui/views/parts/log_codex.gd"},
+	{"id": "manual", "name": "手册", "script": "res://scripts/ui/views/parts/log_manual.gd"},
 ]
 
 var sub_bar: HBoxContainer

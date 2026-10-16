@@ -565,7 +565,7 @@ func _refresh_unit_strip() -> void:
 	var units: Array = []
 	if selected != "":
 		for u in GameState.units_on_tile(selected):
-			if GameState.is_citizen(u):
+			if UnitDB.is_citizen(u):
 				units.append(u)
 	unit_strip.visible = units.size() >= 2
 	if not unit_strip.visible:
