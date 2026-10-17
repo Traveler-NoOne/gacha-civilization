@@ -1,328 +1,147 @@
 
-## 【待做·队首】提交这一轮（2026-10-15 ✓ 调试已通过 ✓）
+## ✅ 已完成（2026-10-15 ✓ 用户验收通过 ✓ **本条可删**）：新档设置面板 ＋「生成并出图」工具
 
-**当前状态（查过 ✓）**：改动 **15 个文件（+404 / −814）** ✓ 新文件 **2 个**（`threats.gd` ✓ `tile_manager.gd` ✓ 各含 `.uid` ✓）✓
-未跟踪里有一个 **`.mnemon/`** ✗（工具目录 ✓ 不该提交 ✓）
+> 实际落地 ✓：`AppSettings.new_worldgen()`（默认 true ✓ 持久化 ✓）✓
+> `menu_screen`：「新游戏设置」面板 ✓（勾选框默认勾选但灰着 ✓ ＋ 世界种子 ✓ ＋ **只出图看看** ✓）✓
+> `main`：`_on_start_game(mode, opts)` 把种子传进 `GameState.new_game()` ✓
+> 新增工具 `scripts/worldgen/preview.gd` ✓（出图到项目 `preview/` ✓ 复用 `HexMapView` ✓
+> 出图前 `TileManager.discover_all()` 揭开迷雾 ✓ 画完还原 `GameState.state` ✓）
+> `.gitignore` 加了 `/preview/` ✓
+> **遗留待办**：出图工具还没做"**分轮显示**"（`pass = plates/edges/…` ✓ 总纲 §五）—— 等新生成器有中间表再补 ✓
 
-- [ ] ① `.gitignore` 末尾加一行 `.mnemon/` ✓
-- [ ] ② `git status --short` 看一眼（确认没意外文件 ✓）
-- [ ] ③ `git add scripts docs` ✓ 然后 **`git status --short` 再看一眼**（养成"提交前看一眼"的习惯 ✓）
-- [ ] ④ **第一笔：代码**（解耦 + enum）✓
-- [ ] ⑤ **第二笔：文档**（`temp.md` / `ui结构.md` / `README.md`）✓
-- [ ] ⑥ `git log --oneline -3` 确认 ✓
-- [ ] ⑦ （可选）`git push origin main` ✓ —— 需**完全权限 + 代理（TUN）** ✓ 失败重试一次 ✓
+## 【计划·队首】新档设置面板 ＋「**生成并出图**」工具（2026-10-15 立 ✓ 已读代码 ✓ **第 3 步按用户新方案改版** ✓）
 
-> 两笔的 `-m` 文案我已经写好，见聊天里的那两段 ✓（直接复制 ✓）
+### ⭐ 改版（2026-10-15 用户提出 ✓ **比原方案省很多** ✓）
 
----
+> **用户原话**："勾选了之后不开始游戏，而是直接只构建一次地图，然后把地图的样子输出为图片，之后返回主菜单。这样代码量少一点。"
 
-### ✅ 进度勾选（2026-10-15 ✓ **代码 11 步全做完** ✓ 只差你手测）
+**✅ 这个方案更好** ✓ —— 原来那版（游戏内"只看地图"模式）是**半个游戏** ✗：
 
-- [x] ① `constants.gd` 插入 `enum Owner`（文件头之后 ✓）
-- [x] ② `WorldGen.OWNER_*` → `Consts.Owner.*`（**36 处** ✓ 2 个文件 ✓）
-- [x] ③ `.get("owner", "")` → `.get("owner", Consts.Owner.NONE)`（**45 处** ✓ 7 个文件 ✓）
-- [x] ④ `"player"` → `Consts.Owner.PLAYER`（**17 处** ✓）
-- [x] ⑤ `"enemy"` → `Consts.Owner.ENEMY`（**9 处** ✓）
-- [x] ⑥ 类型声明 `: String` → `: int`（**8 处** ✓）
-- [x] ⑦ 去掉 `str(…)` 包裹（**6 处** ✓）
-- [x] ⑧ `t["owner"] = ""` → `Consts.Owner.NONE`（`game_state:1126` ✓）
-- [x] ⑨ `== ""` ／ `!= ""` 形态的 owner 判定（**7 处** ✓ 含 `o != ""` 那 3 处 ✓）
-- [x] ⑩ 删掉 `world_gen.gd` 的三行定义 ✓ + `"owner": Consts.Owner.NONE` ✓
-- [x] ⑪ 自检 + `--import` ✓ **通过**（中途报过 2 个 `int/String` 解析错 ✗ 已修 ✓）
-- [ ] ⑫ **你手测**（开新局看"无主格子" ✓）
-
-> **两个顺手结论** ✓：① Godot **接受** `match` 用类常量当分支（`Consts.Owner.PLAYER:` ✓）→ 不用改 `if/elif` ✓
-> ② 改成 enum 之后，**写错比较会被解析器当场抓住** ✓（这次就是 `--import` 抓到 `o != ""` 的 ✗ → 以前用字符串时这种错会**静默通过** ✗✓）
-
----
-
-## 【计划·队首】`owner` 改成 **enum**（2026-10-15 重建 ✓ 依据："1.0 不考虑旧存档" → 选最干净的表达 ✓）
-
-**决定**：**不用字符串** ✗ → 在 `Consts` 里定义 enum ✓
-
-```gdscript
-enum Owner {
-	NONE = 0,     # 无主
-	PLAYER = 1,   # 我方
-	ENEMY = 2,    # 敌方
-}
-```
-
-访问写法：`Consts.Owner.PLAYER` ✓
-
-> **为什么放 `Consts` 而不是 `TileManager`** ✗：`WorldGen._make_tile()` 里也在用 `NONE` ✓
-> 放 `TileManager` 就变成 `WorldGen ⇄ TileManager` **互相引用** ✗（Godot 可能报 Cyclic ✓）
-
-> ⚠️ **这是一次性批次** ✗ —— 60 处要**同批改完**才可测 ✓（中途是"字符串 vs 整数"混合 ✗ 行为会错 ✓）
-> 所以：**改完立刻** `--import` + 开新局瞄一眼 ✓
-
-### 影响面（已逐条查全 ✓）
-
-| 类别 | 处数 | 在哪 |
+| | 原方案（作废 ✗） | **新方案（采用 ✓）** |
 | --- | --- | --- |
-| **定义** | 3 | `world_gen.gd:12–14` → **删** ✓ 换成 `Consts` 的 enum ✓ |
-| **读** `.get("owner", …)` | **45** | `threats` 14 ✓ `game_state` 12 ✓ `tile_manager` 9 ✓ `hex_map_view` 5 ✓ `view_world_page` 4 ✓ `cheat` 2 ✓ `build_panel` 1 ✓ |
-| **写** `t["owner"] = …` | **15** | `threats` 11 ✓ `tile_manager` 2 ✓ `game_state:1126`（写的是 `""` ✗）✓ `world_gen:277` ✓ |
-| **类型声明 `String` → `int`** ✗ | **8** | `cheat:42/56` ✓ `hex_map_view:208/315` ✓ `game_state:318/1034` ✓ `tile_manager:81/179` ✓ |
-| **`str(…)` 包裹要去掉** ✗ | **6** | `hex_map_view:228/251` ✓ `build_panel:78` ✓ `game_state:929` ✓ `view_world_page:175/410` ✓ |
+| `game_screen` | 要按模式**决定建不建**十几个控件 ✗ ＋ `_refresh`/`_refresh_nav`/`_switch_view`/`_update_dim`/`_place_floating_ui` 全要加"提前 return" ✗ | **一个字都不用改** ✓✓ |
+| 正常玩法 | 多一个"只看地图"的怪模式 ✗ | **完全不受影响** ✓✓ |
+| 反复迭代 | 每次都要开一局看 ✗ | **改一次算法 → 出一张图** ✓✓ 迭代闭环 ✓ |
+| 分轮调试 | 要另做 ✗ | ⭐ **天生就是"每轮一张图"** ✓（总纲 §五 那个"比算法更重要"的要求 ✓ 直接由它满足 ✓） |
+| 等价性验收 | ✗ | ⭐ **同种子出两张图对比** ✓✓ —— 这补上了"没有自检"这个痛点的**一半** ✓ |
 
-### 做法
+**流程**（全在主菜单里完成 ✓ **连界面切换都不用** ✓✓）
+1. 菜单点「生成并出图」→ 跑一次生成（现在先跑**旧**生成器 ✓）→ 得到 `tiles`
+2. 临时塞进 `GameState.state` ✓ → `SubViewport` ＋ 现有的 **`HexMapView`** 渲染 ✓ → `save_png(...)`
+3. `print` **绝对路径** ✓（`ProjectSettings.globalize_path()` ✓ —— 不然你找不到那张图 ✗）＋ 一个 toast ✓
+4. **留在主菜单** ✓（不进 game ✓ 不碰存档 ✓）
 
-**① `constants.gd` 第 5 行之后**（`RARITY_NAMES` **之前** ✓）插入上面的 `enum Owner` ✓
+**参数：留三个口子**（以后省大事 ✓）
+- `gen`：`classic` ✓ ／ `new`（新生成器接进来后 ✓）→ **现在只有 classic** ✓
+- `pass`：出**哪一轮** ✓（`plates` / `edges` / `height` / `climate` / `final` ✓）
+  → 新生成器只要肯交出中间表 ✓ 分轮图就白送 ✓✓
+- `seed`：**可指定** ✓（面板上给个输入框 ✓ 留空 = 随机 ✓ 随机时**打印种子** ✓✓）
+  → 这就是以后"同种子一格不差"的验收手段 ✓✓
 
-**② 批量替换（能吃掉约 55 处 ✓）**
+**新文件** ✓：`scripts/worldgen/preview.gd`（跟着新系统走 ✓ 想删连目录一起删 ✓）
 
-- `WorldGen.OWNER_NONE` → `Consts.Owner.NONE` ✓ ／ `...OWNER_PLAYER` → `Consts.Owner.PLAYER` ✓ ／ `...OWNER_ENEMY` → `Consts.Owner.ENEMY` ✓
-- ⭐ **`.get("owner", "")` → `.get("owner", Consts.Owner.NONE)`** ✓ ← **一条吃掉全部 45 处默认值** ✓✓
-  （**这条绝不能漏** ✗ 漏了就是"字符串默认值 vs 枚举"→ 一开局满地图判定错 ✗）
-- owner 语境里的 `"player"` → `Consts.Owner.PLAYER` ✓、`"enemy"` → `Consts.Owner.ENEMY` ✓
+**⚠️ 实现前必须先读两处** ✗
+1. **`hex_map_view` 到底读哪些 `GameState` 字段** ✗（它画时会用 `GameState.state` / 首都 ✓）
+   → 预览时要么**临时把生成的 tiles 塞进 `GameState.state`** ✓ 要么给它一个"只看这张图"的入口 ✓
+2. **渲染必须带窗口** ✗ —— `--headless` 下 `SubViewport` 拿不到纹理 ✓
+   → 这个工具**不能无头跑** ✓（你本来就开窗口 ✓ 无妨 ✓ 但记在计划里 ✓）
 
-**③ 手动清"变形处"（约 14 处 ✗ 必须逐个改 ✓）**
+**第一阶段的小妥协** ✓：面板上「采用新世界生成器」勾选框**先灰着** ✓（`disabled = true` ＋ 一行"新生成器还没接进来" ✓）
+—— 这不是"守卫" ✗ 而是**当前阶段真实的界面状态** ✓✓（第 1 轮做出来再点亮 ✓）
 
-- `var xxx: String = …get("owner", …)` → **改成 `int`** ✗→✓
-- `str(t.get("owner", …))` → **去掉 `str(...)`** ✗（不然是"整数转字符串再比" ✗）
-- `game_state:1126` 的 `t["owner"] = ""` → `= Consts.Owner.NONE` ✓
-- `view_world_page:410` 的 `match str(t.get("owner", "")):` → `match t.get("owner", Consts.Owner.NONE):` ✓
-  两个分支 `"player":` ／ `"enemy":` → `Consts.Owner.PLAYER:` ／ `Consts.Owner.ENEMY:` ✓
-  （⚠️ 若编辑器**不接受** `match` 用类常量当分支 ✗ → 那两行改写成 `if/elif` ✓）
-- `world_gen._make_tile()` 里 `"owner": OWNER_NONE,` → `"owner": Consts.Owner.NONE,` ✓
+**验收** ✓
+- 点「生成并出图」→ 控制台打印 `.png` 绝对路径 ✓ → 打开：**就是一张六边形世界地图** ✓
+  （地形色 / 河流 / 首都 ✓ 与游戏里一致 ✓ —— 因为**复用同一个 `HexMapView`** ✓✓）
+- **同一个种子出两次 → 两张图应当逐格一致** ✓✓
+- 出完图**回主菜单** ✓（没进游戏 ✓ 没改存档 ✓）
 
-**④ 删掉 `world_gen.gd:12–14` 那三行定义** ✓
+### ⚠️ 要你拍板的两点（原三点里的前两点**自动作废** ✓ 因为不再进游戏了 ✓）
 
-### 自检（人工 ✓）
-
-- 搜 `WorldGen.OWNER_` → **0** ✓
-- 搜 `const OWNER_` → **0** ✓（定义全没了 ✓ 只剩 `Consts` 里的 `enum Owner` ✓）
-- 搜 `.get("owner", "")` → **0** ✓✓（**最能说明问题的一条** ✓）
-- 搜 `"player"` ／ `"enemy"` → **0** ✓
-- 搜同行含 `owner` 的 `: String = ` → **0** ✓
-
-### 手测（6 项）
-
-- ⭐ **开新局 → 未占领的格子必须都是"无主"** ✓✓
-  若一开局满地图都像"被占" ✗ → 就是**默认值那条批量替换漏了** ✗（`""` vs `0` ✓）
-- **地图颜色**：我方 / 敌方格子颜色正常 ✓（`hex_map_view` ✓）
-- **占一块地** ✓（归属变我方 ✓ 迷雾散开 ✓）
-- **清剿**一处敌人 ✓
-- **据点面板** ✓ ／ **建造面板**（`build_panel` 那处 ✓）／ **统计面板** ✓
-- **存一次 + 读一次新档** ✓（不用管旧档 ✓）
-
-**风险**：中 ✓（60 处 ✓ 且没有"中间可测"状态 ✗）→ 同一批改完立刻 `--import` ✓ 然后你开新局瞄"无主格子" ✓✓
+1. **种子输入框**：现在就加 ✓ 还是先随机但打印种子 ✓？（我建议**现在就加** ✓ 它是以后唯一的验收手段 ✓）
+2. **图片放哪**：`user://preview/` ✓ 还是**项目目录里**（如 `抽卡文明\preview\` ✓ 你能直接双击看 ✓）？
 
 ---
 
-## ❌ 作废（2026-10-15 ✗ 下面这版把 `owner` 保持字符串 ✗ 与"1.0 不考虑旧存档"矛盾 ✓）
+### （旧版留档 ✗ 已被上面替代 ✓ 只在需要看"当初为什么不这么做"时翻）
 
-### 原计划：把 `OWNER_*` 三个常量搬到 `Consts`（2026-10-15 用户定 ✓ "现在不搬，以后更难办"）
+## 【计划·队首】新档设置面板 ＋「只看地图」模式（2026-10-15 立 ✓ 已读代码 ✓）
 
-**为什么放 `Consts`**（**不能**放 `TileManager` ✗）：
-- `WorldGen._make_tile()` 里也在用 `OWNER_NONE` ✓ → 放 `TileManager` 就变成 `WorldGen ⇄ TileManager` **互相引用** ✗（Godot 可能报 Cyclic ✓）
-- `Consts` 是**谁都能用、自己谁都不依赖**的常量层 ✓ → 放它最稳 ✓✓
+### 用户口径（原话）
 
-**⚠️ 值必须还是这三个字符串，不许改成 enum** ✗ —— `""` / `"player"` / `"enemy"` **就存在存档里** ✓
-改成枚举 = **所有旧存档读不了** ✗✓
+1. 新档时弹一个**设置面板** ✓ 第一项 = **世界生成器** ✓ 用**勾选框 ✓ 默认勾选**（= 采用新世界生成器）✓
+2. 勾选新生成器时 → **禁用几乎所有现有功能** ✓（单位 / 抽卡 / 至宝…）→ **只能看地图** ✓
 
-### 现状（已查全 ✓）
+### 已读代码（事实 ✓ 不是猜的）
 
-| 用法 | 处数 | 在哪 |
-| --- | --- | --- |
-| **定义** | 3 | `world_gen.gd:12–14` ✓ |
-| `WorldGen.OWNER_*` | **39** | `threats.gd` 25 ✓ ／ `tile_manager.gd` 11 ✓ ／ 其它 ✓ |
-| **裸 `OWNER_NONE`**（只有 world_gen 自己 ✓） | 1 | `world_gen.gd:277`（`"owner": OWNER_NONE,` ✓） |
-| **裸字符串 owner 比较** ✗（这次顺手收掉 ✓） | **~24** | `game_state.gd` 11 ✓ ／ `hex_map_view.gd` 6 ✓ ／ `view_world_page.gd` 3 ✓（含 `match` 两行 ✓）／ `cheat.gd` 2 ✓ ／ `build_panel.gd` 1 ✓ |
+| 事实 | 位置 |
+| --- | --- |
+| **新档流程**：菜单发信号 → `main` 接过 → 跑 loading → 进 game | `menu_screen.gd:5` `signal start_game_requested(mode)` ✓ → `main._on_start_game(mode)` ✓（`continue` / `load` / 其它 = 新档 ✓）→ 新档那支调 `GameState.new_game()` ✓（`main.gd:138` ✓） |
+| ⚠️ **信号只带一个 String** ✗ | 想把"用哪个生成器"传下去 → 得**扩信号** ✓ 或加个成员 ✓ |
+| ✅ **全局偏好已有成熟范式可抄** | `AppSettings`（`user://settings.cfg` ✓ 每条 = `_变量 + getter + setter + save_settings + changed` ✓✓ 照抄就对 ✓） |
+| ✅ **菜单里已有弹窗范式可抄** | `menu_screen._open_settings()` ✓ `_open_load_dialog()` ✓ `_row(label, node)` ✓（**直接抄骨架** ✓） |
+| 游戏界面"要藏的东西"都在 `game_screen` 里 | 资源栏 `resource_bar` / `abstract_box` / `concrete_box` ✓；按钮 `cheat_button` `stats_btn` `corner_tech_btn` `corner_log_btn` `end_btn` ✓；导航 `nav_buttons` ＋ `VIEWS`（至宝/世界泡/日志/大世界 ✓）；浮窗 `panels` / `stats_panel` / `tech_panel` / `log_panel` ✓ |
 
-### 做法（四步 ✓ 每步都能跑 ✓）
+### 三步计划（每步可独立验 ✓）
 
-**① `constants.gd` 第 5 行之后**（`RARITY_NAMES` **之前** ✓）插入：
+### ✅ 进度（2026-10-15）：第 1 步 ＋ 第 2 步 **已做完** ✓ 待你手测 ✓
 
-```gdscript
-# ---------------------------------------------------------------------------
-# 地块归属（**这三个字符串就存在存档里** ✓ 别改成 enum ✗ 否则旧档读不了）
-# ---------------------------------------------------------------------------
-const OWNER_NONE := ""
-const OWNER_PLAYER := "player"
-const OWNER_ENEMY := "enemy"
-```
+> - `app_settings.gd`：加 `_new_worldgen`（**默认 true** ✓ 用户要的默认）＋ `new_worldgen()` ✓ `set_new_worldgen()` ✓
+>   ＋ `save_settings` / `load_settings` 各加一行（`world/new_gen` ✓ 持久化 ✓）
+> - `menu_screen.gd`：信号扩成 `start_game_requested(mode: String, opts: Dictionary = {})` ✓
+>   ⚠️ **信号参数不许写默认值** ✗ —— Godot 报 "Signal parameters cannot have a default value"
+>   （2026-10-15 踩到 ✓ 而且 **`--import` 没抓到** ✗ 是用户在编辑器里看出来的 ✓✓）
+>   → 所以三处 emit **全部显式传第二个参数** ✓（`continue` → `{}` ✓ `load` → `{}` ✓ `new` → `{"seed": s}` ✓）
+>   ＋ 「新游戏」按钮改成打开 **「新游戏设置面板」** ✓ ＋ 新函数 `_open_new_game_dialog()` ✓
+>   面板内容：勾选框「采用新世界生成器」（**默认勾选 ✓ 但灰着** ✓）＋ 世界种子输入框 ✓
+>   ＋ 两行说明 ✓ ＋ 「取消」/「开始游戏」✓
+> - `main.gd`：`_on_start_game(mode: String, opts: Dictionary = {})` ✓ 把 `opts["seed"]` 传给
+>   `GameState.new_game(seed)` ✓（**0 = 随机** ✓ `new_game` 里会自己取时钟 ✓）
+> - ⚠️ 第 2 步的按钮**暂时还是「开始游戏」** ✓ —— 等第 3 步出图工具做好，再改成「生成并出图」✓
+>
+> **验收（手检）** ✓
+> - 主菜单 → 开始游戏 → 新游戏 → **弹出「新游戏设置」面板** ✓ 勾选框**默认已勾、灰色不可点** ✓
+> - 种子留空 → 开一局（老样子随机 ✓）
+> - ⭐ 种子填 `12345` → 开一局 → 退出 → 再填 `12345` → 再开一局 → **两张地图应当一模一样** ✓✓
+> - 「继续游戏 / 读取游戏」**不弹**这个面板 ✓ ＋ 面板里点「取消」回主菜单 ✓
 
-**② 全项目把 `WorldGen.OWNER_` → `Consts.OWNER_`**（39 处 ✓ 纯机械 ✓）
+**第 1 步：一个全局开关**（最小改动 ✓ 先让它存得住 ✓）
+- `AppSettings` 里**照抄范式**加一对 ✓：
+  `var _new_worldgen := true`（**默认勾选** ✓ 用户要的 ✓）＋ `new_worldgen()` ✓ `set_new_worldgen(on)` ✓
+  ＋ `save_settings` / `load_settings` 各加一行（`cfg.set_value("world", "new_gen", _new_worldgen)` ✓）
+- **验收**：改一次 → 重启游戏 → 值还在 ✓
 
-**③ 把裸字符串的 owner 比较换成常量**（~24 处 ✗ **逐条看** ✓ 因为 `"player"` 这种字符串别处也可能有 ✓）
+**第 2 步：新档设置面板**（UI ✓）
+- 在 `menu_screen` 加 `_open_new_game_dialog()` ✓ **照抄** `_open_settings()` 的骨架 ✓
+- 内容：标题「新档设置」✓ ＋ 勾选框「采用新世界生成器」（默认取 `AppSettings.new_worldgen()` ✓）
+  ＋ 一行 `UIKit.dim` 说明："实验性：只生成世界，其余系统暂不可用，目前只能用来看地图" ✓
+  ＋ 底部「开始」/「取消」✓
+- 传参二选一 ✓（**我推荐 ①**）：
+  ① **扩信号** `start_game_requested(mode, opts)` ✓ → `main` 存成员 → 传给 `GameState.new_game(...)` ✓（改 2 处 ✓ 显式 ✓）
+  ② 直接存进 `AppSettings` ✓ 后面读 ✓（改动更少 ✗ 但"这次的新档"和"全局偏好"混在一起 ✗）
+- ⚠️ 「**继续 / 读取**」**不弹**这个面板 ✓（读既有档 ✓ 生成器早已定了 ✓）
+- **验收**：点「新游戏」→ 面板出现 ✓ 默认**已勾选** ✓ 「开始」能进游戏 ✓ 「取消」回菜单 ✓
 
-- `== "player"` → `== Consts.OWNER_PLAYER` ✓ ／ `!= "player"` → `!= Consts.OWNER_PLAYER` ✓
-- `== "enemy"` → `== Consts.OWNER_ENEMY` ✓ ／ 同理 ✓
-- `view_world_page.gd:411/414` 那两行 `match` 分支 → `Consts.OWNER_PLAYER:` ／ `Consts.OWNER_ENEMY:` ✓
-  （⚠️ 若编辑器**不接受** `match` 用类常量当分支 ✗ → 那两行改回字符串 ✓ 或改写成 `if/elif` ✓）
-- **别动**：`.get("owner", "")` 里的 `""` 默认值 ✓（`OWNER_NONE` 就是 `""` ✓ 等价 ✓ 改了只是噪音 ✗）
+**第 3 步：「只看地图」模式**（禁用入口 ✓）
+- `GameState` 加一个判定 ✓ ＋ 新档时写一个字段：`state["worldgen"] = "new"` / `"classic"` ✓
+  （好处 ✓：**存档自带来源标记** ✓ 调试和界面都能用 ✓ 一个字段很便宜 ✓）
+- **藏入口，不写守卫** ✓✓（你的口径：「不可见就点不到」✓）
+  → 在 `game_screen._build()` 里**按模式决定"建不建"**那些控件 ✓（**不建**比"建了再隐藏"干净 ✓✓）
+  要藏：资源栏 ✓ 至宝/世界泡/日志 三个导航 ✓ 结束周期 ✓ 作弊 ✓ 统计 ✓ 科技 ✓ 日志浮窗 ✓ 据点浮窗 ✓ 建造浮窗 ✓
+- **保留**（"看"的能力 ✓）：地图本身 ✓ 平移 / 缩放 ✓ **点格子看详情** ✓
+- **禁掉**（"改"的能力 ✓）：占地 ✓ 清剿 ✓ 派驻/出兵 ✓ 结束周期 ✓（`view_world_page` 的球菜单 / 右键菜单同理**别建** ✓）
+- ⚠️ **最容易踩的坑** ✗：这些函数会**引用被藏掉的控件** ✗
+  `_refresh()` ✓ `_refresh_nav()` ✓ `_switch_view()` ✓ `_update_dim()` ✓ `_place_floating_ui()` ✓
+  → 做法 (a)：**按模式提前 return** ✓（这不是"守卫" ✗ 而是"这个模式下这条路径本来就不该走" ✓✓）
+  → 做法 (b)：控件照建但不入树 ✗ → 引用会变 null ✗ **别用** ✓
+- **验收（正）**：勾选 → 开新档 → **界面只剩地图** ✓（无资源栏 ✓ 无导航 ✓ 无结束周期 ✓）
+  ＋ 点格子能看详情 ✓ ＋ 平移缩放不报错 ✓ ＋ 退出回主菜单正常 ✓
+- **验收（反 · 同样重要）**：**不勾** → 开新档 → 一切**和现在完全一样** ✓✓
 
-**④ 删掉 `world_gen.gd:12–14` 那三行定义** ✓ 并把 `world_gen.gd:277` 的 `OWNER_NONE` → `Consts.OWNER_NONE` ✓
+### ⚠️ 三个要你拍板的点
 
-> ⚠️ **顺序**：先做 ① ② ③、**最后才删定义** ✓（不然中间态会"常量不存在" ✗）
-
-### 自检（人工 ✓）
-
-- `scripts/` 里搜 `WorldGen.OWNER_` → **0** ✓
-- 搜 `const OWNER_` → **只有 `constants.gd` 那 3 行** ✓
-- 搜 `"player"` ／ `"enemy"` → **只剩 `constants.gd` 里的定义** ✓（还有 ✗ = 漏了 ✓）
-
-### 手测（5 项）
-
-- ⭐ **读一个旧存档** ✓✓（**这条最重要** ✗ —— 值没变，旧档必须照常读 ✓）
-- 大世界：**占一块地** ✓（归属变我方 ✓）
-- **清剿**一处敌人 ✓
-- **地图颜色**正常 ✓（我方/敌方格子色 ✓ `hex_map_view` 用的就是 `"player"/"enemy"` ✓）
-- **据点面板** ✓ ／ **建造面板**（`build_panel` 那处 owner 判断 ✓）
-
-**风险**：低-中 ✓（都是机械替换 ✓ 唯一真风险是第 ③ 步**误改非 owner 的 `"player"`** ✗ → 所以逐条看 ✓）
-
----
-
-## ✅ 代码已完成（2026-10-15 ✓ **待你手检**）：纯度优化 —— `generate()` 末尾 10 行搬进 `TileManager.setup_new_world()`
-
-> **改动** ✓：`tile_manager.gd` 新增 `setup_new_world()` ✓ ／ `game_state.new_game()` **第 100 行**加调用 ✓
-> ／ `world_gen.generate()` 末尾那 10 行（标记首都 + 初始点亮）已删 ✓ → `world_gen` **344 → 333 行** ✓
-> **手检**：开一次**新游戏** → 首都那一格：归属我方 ✓ 已点亮 ✓ 名字「首都·初始营地」✓ 不能被当扩张目标 ✓
-> 初始点亮一圈 ✓；然后**占一块地** ✓ ／ **清剿** ✓ 仍正常 ✓
-
-## 【小修】`game_state.new_game()` 第 103 行有一句**过时的日志文案** ✗
-
-```gdscript
-	_add_log("建立部落，营地落在世界中央。", "info")   # ✗ 现在不在中央了
-```
-
-v1.8.21 起首都是由 `choose_capital()` 挑出来的（**资源较好、不贴边境**的一格 ✓）
-→ 改成类似：`_add_log("建立部落，营地落在 %s。" % str(state["capital"]), "info")` ✓
-（第 104 行的"初始点亮营地周围 %d 格"**是准确的** ✓ 不用动 ✓）
-
----
-
-## 【计划】纯度优化：把 `generate()` 末尾那 10 行搬进 `TileManager.setup_new_world()`
-
-**为什么**：`generate()` 现在同时管两件事 ✗ —— 前半段"**造**格子"（生成 ✓）后半段"标记首都 + 初始点亮"（**改**格子 ✗）
-→ 搬完之后 `WorldGen` 就**真的只造不改** ✓；`TileManager` 也补上了"新世界初始化"这一环 ✓
-
-### 现状（已读 ✓ 行号准 ✓）
-
-- `scripts/core/world_gen.gd` · `generate()`（253–274 行）
-  - **253–263 行**：造格子 + `state["capital"] = choose_capital(tiles)` ✓ → **留下** ✓
-  - **265–274 行**：标记首都 + 初始点亮 ✓ → **要搬** ✗
-    - 起点 `265: var cap := coord_of(str(state["capital"]))`
-    - 终点 `274: TileManager.discover_radius(state, cap, Consts.CAMP_START_RADIUS)`
-- **调用者只有 1 处** ✓：`game_state.gd:99`（`new_game()` 里的 `WorldGen.generate(state)` ✓）
-
-### 做法（顺序别颠倒 ✗：**先加函数 → 再加调用 → 最后删旧码** ✓）
-
-**① `tile_manager.gd` 末尾加：**
-
-```gdscript
-## 新世界落成后的地块初始化：标记首都 + 初始点亮
-## （从 WorldGen.generate() 搬出来的 ✓ 生成层只管"造" ✗ "改格子"归这里 ✓）
-static func setup_new_world(state: Dictionary) -> void:
-	var tiles: Dictionary = state["tiles"]
-	var cap := WorldGen.coord_of(str(state["capital"]))
-	var cap_tile: Dictionary = tiles[key_of(cap)]
-	cap_tile["owner"] = WorldGen.OWNER_PLAYER
-	cap_tile["discovered"] = true
-	cap_tile["is_capital"] = true
-	cap_tile["name"] = "首都·初始营地"
-	cap_tile["claimable"] = false
-	cap_tile["buildings"] = []
-	discover_radius(state, cap, Consts.CAMP_START_RADIUS)
-```
-
-> ⚠️ 注意：`key_of` 和 `discover_radius` 现在**都是 `tile_manager` 自己的** ✓ → **不要加前缀** ✓
-> 只有 `WorldGen.coord_of` / `WorldGen.OWNER_PLAYER` 要前缀 ✓（方向仍是 `TileManager → WorldGen` 单向 ✓）
-> 而且 `state["capital"]` 在 `generate()` 里**已经设好了** ✓ → 所以这个函数只要传 `state` 就够 ✓
-
-**② `game_state.gd:99` 之后补一行：**
-
-```gdscript
-	TileManager.setup_new_world(state)
-```
-
-**③ 删掉 `world_gen.gd` 的 265–274 行**（`var cap := …` 到 `TileManager.discover_radius(…)` ✓）
-→ 删完 `generate()` 应当**以** `state["capital"] = choose_capital(tiles)` **结束** ✓
-
-**④ 自检**：`world_gen.gd` 里应当**再也搜不到** `OWNER_PLAYER` ／ `is_capital` ／ `首都·初始营地` ／ `CAMP_START_RADIUS` ✗
-（`OWNER_NONE` 还在 ✓ 那是 `_make_tile` 用的 ✓）
-
-### 验收（手检 ✓）
-
-开一次**新游戏** → 看首都那一格：
-- 归属我方 ✓ ＋ 已点亮 ✓ ＋ 名字是「首都·初始营地」✓ ＋ 是首都（不能被当扩张目标 ✓）
-- **初始点亮是一圈**（`Consts.CAMP_START_RADIUS` ✓）
-- 然后**占一块地** ✓ ／ **清剿一处敌人** ✓ 仍正常（`is_capital` / `claimable` 会影响占地判断 ✓）
-
-**行数**：`world_gen` **344 → ≈334** ✓
-
----
-
-## 【计划】`world_gen.gd` 解耦：**一分为三**（2026-10-15 立 ✓）
-
-> ✅ **2026-10-15 状态：拆完了 ✓ 验收通过 ✓**
-> `world_gen.gd` **933 → 344 行** ✓ ／ `tile_manager.gd` **265 行** ✓ ／ `threats.gd` **355 行** ✓
-> 旧引用残留 **0** ✓ ／ 新旧两边的"被调名"都对得上定义 ✓ ／ `--import` 无解析错 ✓
-> **剩下两件可选**（都在文件末尾 ▸「第 3 步」与「暂留」两条）：① `setup_new_world()` 纯度优化 ✓
-> ② `OWNER_*` 三个常量还在 `WorldGen` ✓（全项目都用 `WorldGen.OWNER_*` ✓ 搬它影响面大 ✗ 以后再说 ✓）
-
-**目标**：`world_gen` **只负责"造格子"** ✓；"改格子"归 `tile_manager` ✓；敌人/威胁另立 `threats` ✓
-
-**判据（一句话）**：**造**格子 → `WorldGen` ✓ ／ **改**格子（归属·迷雾·资源·敌人）→ `TileManager` ✓ ／ **只跟敌人有关**（刷怪·演化·破坏）→ `Threats` ✓
-
-### 现状清点（933 行 / 51 个条目 ✓ 已逐个归类）
-
-| 归谁 | 装什么 | 原行号 |
-| --- | --- | --- |
-| **`WorldGen`（留下）** | 噪声 / 大陆形状 / 高程 / 侵蚀 / 河格 / 湿度 / 地形地物表 / 挑首都 / `generate` / `_make_tile` / `expand_map` / `map_radius` / `coord_of` / `OWNER_*`（**注**：`key_of` 后来也搬进了 `TileManager` ✓ 全项目 31 处已改 ✓） | 40–56, 63–74, 90–175, 180–185, 192–207, 212–235, 242–273, 285–354, 908–932 |
-| **`TileManager`（新）** | 地块键工具（`tile_key` / `middle_key`）/ 迷雾（`discover_radius` / `discover_all`）/ 领地（`claim_base_cost` `claim_cost` `claimable_keys` `claim` `_stronghold_for_claim`）/ 清剿（`clear_requirement` `can_clear` `clear_tile` `_adjacent_to_player`）/ 资源点（`spawn_resource_node`）/ 计数（`owned_tile_count` `enemy_tile_count` `_enemy_tile_count`）/ `amount_cap` | 17–28, 275, 364–488, 618–680, 681–700, 853–857 |
-| **`Threats`（新）** | 危险据点 / 游荡敌人 / 终极威胁 / 候选格 / 敌人上限 / **`evolve`（151 行）** / `_damage_tile` | 490–628, 702–851 |
-| **暂留** | `OWNER_NONE/PLAYER/ENEMY`（全项目都用 `WorldGen.OWNER_*` ✓ 搬它影响面太大 ✗ 以后再说 ✓） | 12–14 |
-
-### 依赖方向（已确认**不会成环** ✓）
-
-```
-TileManager → WorldGen.make_tile()     ← 扩张/新世界要"造一格" ✓
-Threats     → 谁都不依赖 ✓
-WorldGen    → 谁都不依赖 ✓✓           ← 因为 expand_map 留在 WorldGen ✓
-```
-
-> `_make_tile` 要**转公开 → `make_tile`** ✓（跨模块用 ✓）
-> `expand_map` **留在 `WorldGen`** ✓ —— 它本质是 `generate` 的增量版 ✓ 也是唯一需要 `make_tile` 的外部入口 ✓
-
-### 可选但建议：把"造完之后那 5 行"也挪走
-
-`generate()` 末尾那几行（首都标记 `owner/discovered/is_capital/name/claimable` + `discover_radius` 初始点亮 ✓）
-**其实都是"改格子"** ✗ → 建议挪成 `TileManager.setup_new_world(state)` ✓
-→ `game_state.new_game()` 里 `WorldGen.generate(state)` 之后补一句 ✓
-（**不是必须** ✓ 不做也不会成环 ✓ 只是让生成层更纯 ✓）
-
-### 调用点：21 处 / 9 个文件（已查全 ✓）
-
-| 文件 | 处 | 用到的 |
-| --- | --- | --- |
-| `ui/views/view_world_page.gd` | 5 | `claimable_keys` ×2 ✓ `claim_cost` ✓ `claim` ✓ `expand_map` |
-| `core/game_state.gd` | 4 | `tile_key` ✓ `middle_key` ✓ `discover_radius` ✓ `evolve` |
-| `core/gacha.gd` | 5 | `maybe_spawn_wanderer` ✓ `maybe_spawn_hazard` ✓ `spawn_ultimate_threat` ✓ `spawn_resource_node` ✓ `expand_map` |
-| `ui/panels/stats_panel.gd` | 2 | `claim_cost` ✓ `claimable_keys` |
-| `ui/panels/stronghold_panel.gd` | 2 | `tile_key` |
-| `ui/views/parts/treasure_character/team.gd` | 1 | `tile_key` |
-| `ui/cheat_menu.gd` | 1 | `tile_key` |
-| `core/cheat.gd` | 1 | `discover_all` |
-
-> 替换时**按函数名搜** ✓ 别按行号 ✗（会漂 ✓）
-
-### 做法（三步 ✓ 每步都能跑 ✓ 每步都要**真的开一局玩一遍** ✗ 因为没有自检了 ✓）
-
-1. **先建 `threats.gd`**（最独立 ✓ 零外部依赖 ✓）
-   把 490–628 + 702–851 整段剪过去 ✓ → 改 `game_state.gd` 里 `evolve` 那处 ✓ + `gacha.gd` 里刷怪那三处 ✓
-   **手玩**：抽卡触发游荡敌人 / 高危据点 ✓ 周期结算里敌人演化正常 ✓
-2. **再建 `tile_manager.gd`**：搬上表那一堆 ✓ + `_make_tile` → **`make_tile`**（public ✓）
-   把 7 个文件的 `WorldGen.X` → `TileManager.X` ✓（`view_world_page` / `stats_panel` / `stronghold_panel` / `team` / `cheat_menu` / `cheat` / `game_state` ✓）
-   **手玩**：占领 ✓ 迷雾 ✓ 统计面板（扩张消耗/相邻无主格 ✓）据点面板 ✓ 角色页队伍 ✓ 作弊菜单揭迷雾 ✓
-3. **（可选）解纯度**：把"首都标记 + 初始点亮"挪成 `TileManager.setup_new_world(state)` ✓
-   **手玩**：开新局 ✓ 首都位置/名字/初始点亮范围都对 ✓
-
-**验收（人工 ✓）**：全项目搜 `WorldGen.` ✓ 剩下的应当**只有生成相关**
-（噪声/高程/侵蚀/湿度/地物表/`generate`/`make_tile`/`choose_capital`/`expand_map`/`map_radius`/`key_of`/`coord_of`/`OWNER_*` ✓）
+1. **"只能看地图"里，"看"包不包括"推进"** ✗？我按**只读**设计 ✓（能点格看详情 ✓ 但不能占地/出兵/结束周期 ✓）
+2. **要不要保留「结束周期」** ✗？留了能验证"生成的地图跑起来正常" ✓ 但也给其余系统留了入口 ✗ → **我倾向暂时藏掉** ✓
+3. **开关算"全局偏好"还是"每次单独选"** ✗？我按**全局偏好**设计 ✓（记住上次选择 ✓ 默认勾选 ✓）
 
 ---
 
@@ -344,3 +163,108 @@ WorldGen    → 谁都不依赖 ✓✓           ← 因为 expand_map 留在 Wo
 > → 那时 `_ready` 还没跑 ✓ → 内容先存进 `_content` ✓ 由 `_ready` 里补挂 ✓
 
 **验收**：删掉那两行 ✓ 开一次游戏 ✓ 弹窗内容照常显示 ✓
+
+---
+
+## 【计划】地块解耦：把"地块长什么样"从四处收拢到一处（2026-10-15 立 ✓ 追加在尾部 ✓）
+
+### 要解决的现状（已查实 ✓）
+
+| 现状 | 问题 |
+| 地块的**字段与默认值**住在 `WorldGen._make_tile()`（`world_gen.gd` ≈265–301 ✓） | ✗ "世界生成"**不该定义**"地块长什么样" ✓ 生成只该**造**它 ✓ |
+| **地形 / 地物的值**硬编码在 `WorldGen.biome_of()` 的一串 `if`（179–202 ✓），**连水位线 `0.36` 都是裸数字** ✗ | ✗ 加/调一种地形要**翻代码** ✓ 而它们的**名字与颜色**却在 `Consts.TERRAIN_NAMES/COLORS` ✓ → **一件事分两处** ✗ |
+| 字段的**运行期追加**散在 `Threats`（`force` `threat` `danger` `wander` `spawned_cycle` `threat_timer`）／`TileManager`（`river` `claimable` `stronghold` `land_cap`）／`GameState`（`buildings` `land_cap`） | ✗ **没人能一眼说全"一个地块有哪些字段"** ✗ |
+
+**目标（一句话）**：**"长相"集中定义 ✓ ／ "改动"集中到 `TileManager` ✓ ／ 生成层与敌人层只调用它们 ✓**
+
+### ① 放哪个文件夹 + ② 拆成几个文件（结论先给 ✓）
+
+**不新建文件夹** ✓（沿用现有分层 ✓）：
+
+| # | 文件 | 位置 | 装什么 |
+| --- | --- | --- | --- |
+| **1** | **`tile_def.gd`**（`class_name TileDef`）**新建** ✓ | **`scripts/data/`** ✓ | 地块的**默认形状 + `make(c, seed)`**（从 `_make_tile` 搬 ✓）＋ **`biome_of` 与地形地物表**（从 `WorldGen` 搬 ✓）＋ 水位线等**有名常量** ✓ |
+| **2** | **`tile_manager.gd`**（**已存在** ✓ 不新建 ✓） | `scripts/core/` ✓ | 地块的**读 / 改操作**（已有 ✓）→ 解耦后它是**唯一"改地块"的地方** ✓ |
+| 3 | （不建议 ✗）再拆一个 `tile_query.gd` | — | 查询（`is_water` / `owner_of`）就近放 `TileDef` 或 `TileManager` 就够 ✓ 多一个文件只是多一跳 ✗ |
+
+> ✅ **净新增 1 个文件**：`scripts/data/tile_def.gd` ✓（放在 `data/` 的理由 ✓：`Consts` / `UnitDB` / `BuildingDef` 都在那儿 ✓
+> 它是"数据与定义"层 ✓ 而"操作"在 `core/` ✓ 与现有分层一致 ✓）
+>
+> ⚠️ **明确不做**：**不要**把地块改成"每格一个 `Resource` / 对象" ✗
+> —— 虽然项目里 `BuildingDef` 就是 `Resource` ✓ 但那是**几十个建筑** ✓ 而地块是 **1387+ 格** ✓
+> → 保持**纯 Dictionary** ✓（更省 ✓ 存档直接能写 ✓）
+>
+> ⚠️ **不保留转发层** ✗（按项目规矩 ✓）：`WorldGen._make_tile` 搬走后就**删掉** ✓ 两处调用点直接改指 `TileDef.make(...)` ✓
+
+### ③ 怎么解耦（三步 ✓ 每步都能独立跑 + 手测 ✓ 顺序别颠倒 ✗）
+
+**P1 —— 搬"定义"**（风险 低 ✓）✅ **代码已完成（2026-10-15 ✓ 待你手测）**
+
+> **结果** ✓：新建 `scripts/data/tile_def.gd`（80 行 ✓ 装 `biome_of()` + `make()` ✓）；
+> `world_gen.gd` **329 → 265 行** ✓（两个函数删净 ✓ 不留转发层 ✓）；
+> 2 处调用点已改指 `TileDef.make()` ✓；顺手加了 **`WorldGen.is_river(c)`** ✓
+> （这样 `TileDef` 不必跨模块读 `WorldGen` 的私有 `_river_keys` ✗ → 只剩"单向依赖 WorldGen" ✓）；
+> `--import` **无解析错** ✓✓
+1. 新建 `scripts/data/tile_def.gd` ✓ 把 **`_make_tile` 整段 + `biome_of` 整段**搬进去 ✓
+   （`biome_of` 一起搬 ✓ 因为它就是"地形怎么定" ✓ 同属"定义" ✓）
+2. 段内要**回指生成层**的地方加前缀 ✓：
+   - `eroded_elevation_of(...)` → **`WorldGen.eroded_elevation_of(...)`** ✓
+   - `moisture_of(...)` → **`WorldGen.moisture_of(...)`** ✓
+   - `_river_keys` ✗ 是 `WorldGen` 的**私有静态** ✓ → 顺手在 `WorldGen` 加一个公开询问
+     **`static func is_river(c: Vector2i) -> bool`** ✓✓（比跨模块读私有变量干净 ✓）
+   - `TileManager.key_of(...)` ✓ 不变 ✓
+3. `WorldGen` 里删掉 `_make_tile` 与 `biome_of` ✓ 把两处调用改掉 ✓：
+   `generate()` 里 `_make_tile(c, world_seed)` → **`TileDef.make(c, world_seed)`** ✓
+   `expand_map()` 里同理 ✓
+4. **手测** ✓：**开新局 → 地形 / 资源 / 河 与改动前逐格一致** ✓（同种子地图必须一模一样 ✓✓）
+
+**P2 —— 搬"种类表"**（风险 低-中 ✓）✅ **代码已完成（2026-10-15 ✓ 待你手测）**
+
+> **结果** ✓：`tile_def.gd` 里新增 4 个阈值常量（`WATER_LEVEL` / `PLAIN_LEVEL` / `HILL_LEVEL` / `MOUNTAIN_LEVEL` ✓）
+> ＋ 一张 `BIOME_TABLE`（12 行 ✓ 每行 `[高度上限, 湿度下限, 地形, 地物]` ✓）；
+> `biome_of()` 从 **24 行的 if 串**变成 **8 行循环** ✓；`tile_def.gd` 80 → **92 行** ✓；
+> `--import` 无解析错 ✓ ／ 全项目已**没有**裸写的 `0.36/0.50/0.62/0.72`（剩下同数字的都是颜色 ✓ 无关 ✓）
+1. 把 `biome_of` 那串 `if` 改成**一张表** ✓（5 个高度档 × 每档各自的湿度阈值 ✓）
+   ＋ 把 `0.36 / 0.50 / 0.62 / 0.72` 变成**有名常量** ✓（`WATER_LEVEL` 等 ✓）
+2. **验收杀手锏** ✓：**同一种子**生成的地图必须与改动前**一格不差** ✓✓
+   —— 手检法：开新局看 **首都位置**（它由地形打分决定 ✓）＋ 海岸线形状 ＋ 河的位置 ✓
+   **首都变了 = 表改错了** ✓（一眼可判 ✓）
+
+**P3 —— 收拢"改地块"**（可选 ✓ 渐进 ✓ 可随时停 ✓）✅ **代码已完成（2026-10-15 ✓ 待你手测）**
+
+> **做了什么** ✓
+> ① **`TileDef.is_water(t)` 收口** ✓：原先散在 **5 处**的 `t.get("terrain","") == "water"`
+>    （`world_gen` 2 ✓ `threats` 2 ✓ `tile_manager` 1 ✓）全部换掉 ✓
+>    → 现在全项目只有 `tile_def.gd` 里**一处**在比较 `"water"` ✓（其余同字面量只剩名字表 / 颜色表 / 表里的值 ✓）
+> ② **首都格的 `stronghold` / `land_cap`** 从 `GameState._setup_capital_stronghold()` 挪进
+>    `TileManager.setup_new_world()` ✓ —— 那本来就是"首都格初始化" ✓
+>    → 至此 **"改地块字段"全在 `TileManager`** ✓（`tile_manager.gd` 285 → 290 行 ✓ `game_state` 2213 → 2209 ✓）
+>
+> **没做，而且有理由** ✓
+> - ✗ **45 处 `t.get("owner", …)` 不收** —— 枚举之后**写错会被解析器当场抓住** ✓ 再包一层只是噪音 ✓
+> - ✗ **`GameState.clear_enemy_tile()` 不搬** —— 它是有名字、有文档的**收口函数** ✓
+>   （注释原话："以前这段在 4 个地方各写了一遍" ✓）属于"清空敌人后的世界规则" ✓ 不是散乱写入 ✓
+> - ✗ **`hex_map_view` 的绘制读取不动** ✓（绘制直接读字段是合理的 ✓）
+>
+> **验收** ✓：开新局 → 首都那格**据点正常**（据点面板能看到首都据点 ✓）＋**可建土地正常**（能建建筑 ✓）
+> ＋ 水格照样不能放东西（据点 / 资源点 / 刷怪都不挑水格 ✓）
+
+## 【待做】删掉 `game_state.gd` 里那段"旧存档修补"（≈ 2122–2148 行）✗
+
+**它是什么** ✓：一段给**旧存档**擦屁股的循环 —— 给领地补 `stronghold` ✓ 补 `land_cap` ✓
+给缺 `bid` 的建筑补 id ✓ 最后还会 `_add_log("旧存档已按现有建筑放宽地块的可用土地上限。")` ✓
+
+**为什么可以删** ✓：你定过 **1.0 不考虑旧存档兼容** ✓ → 这段在新局里**永远不会生效** ✓
+（新局的这些字段由 `TileDef.make()` ✓ `TileManager.claim()` ✓ `TileManager.setup_new_world()` 打点齐了 ✓）
+
+**注意** ✗：这是**行为删除**（不是搬代码 ✓）→ 留给你拍板 ✓ 要删我下次动手 ✓
+- 把 `GameState` 里对**地块字段**的写入（`land_cap` ✓ `stronghold` ✓）挪进 `TileManager` ✓
+- 把散落的**裸字段访问**逐步换成小函数 ✓（`t.get("terrain","") == "water"` 约 6 处 ✓；
+  `t.get("owner", …)` 约 45 处 ✓）→ `TileDef.is_water(t)` / `TileDef.owner_of(t)` ✓
+- ✗ **不要**去动 `hex_map_view` 的绘制读取 ✓（绘制直接读字段是合理的 ✓）
+
+### 自检与风险
+
+- **风险**：低 ✓（P1 / P2 都是纯搬运与等价改写 ✓ P3 是可选的清理 ✓）
+- **自检（人工 ✓）**：同种子地图**一格不差** ✓ ＋ 开新局看首都 / 海岸线 / 河 ✓ ＋ 占地 / 清剿 / 敌人刷出 ✓
+- **顺序关键** ✗：P1 搬完**先测** ✓ 再进 P2 ✓（两步都碰 `biome_of` 周边 ✓ 一起改就分不清是谁的锅 ✓）
