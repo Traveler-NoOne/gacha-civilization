@@ -75,7 +75,7 @@ func refresh() -> void:
 		list_box.add_child(UIKit.dim("（没有这块地）"))
 		_update_build_btn(t)
 		return
-	if str(t.get("owner", "")) != "player":
+	if t.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
 		list_box.add_child(UIKit.dim("只有我方领地才能修建。", 12))
 		land_label.text = ""
 		_update_build_btn(t)

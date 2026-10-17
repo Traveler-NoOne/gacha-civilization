@@ -172,7 +172,7 @@ func _on_tile_clicked(key: String, uid: String, gpos: Vector2) -> void:
 		_open_stronghold_panel(key)
 		return
 	# ④ 我方其它格子 → 只更新选中，不弹面板、不弹信息
-	if str(GameState.tile_at(key).get("owner", "")) == "player":
+	if GameState.tile_at(key).get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
 		selected = key
 		sel_uid = ""
 		_refresh_after_select()
@@ -247,7 +247,7 @@ func _refresh_marks() -> void:
 		for k in _attack_targets(pick_unit):
 			map.marks[k] = Color(0.95, 0.45, 0.40)
 	else:
-		for k in WorldGen.claimable_keys(GameState.state):
+		for k in TileManager.claimable_keys(GameState.state):
 			map.marks[k] = Color(0.55, 0.95, 0.65)
 	map.queue_redraw()
 
@@ -407,11 +407,11 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 
 	var owner_txt := "无主"
 	var owner_col := UIKit.TEXT_DIM
-	match str(t.get("owner", "")):
-		"player":
+	match t.get("owner", Consts.Owner.NONE):
+		Consts.Owner.PLAYER:
 			owner_txt = "我方领地"
 			owner_col = Color(0.55, 0.85, 1.0)
-		"enemy":
+		Consts.Owner.ENEMY:
 			owner_txt = "敌方"
 			owner_col = Color(0.95, 0.45, 0.45)
 	tile_info_box.add_child(UIKit.text_label("势力：%s" % owner_txt, 11, owner_col))
@@ -436,12 +436,12 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 		tile_info_box.add_child(UIKit.text_label("资源点：%s" % Consts.res_name(res), 11, UIKit.OK))
 	# v1.8.5：可占领的地块 → 在这里直接给「占领」按钮。
 	# 旧右侧规划面板删掉后，**这里就是占领的唯一入口**（不能丢功能）。
-	if WorldGen.claimable_keys(GameState.state).has(key):
+	if TileManager.claimable_keys(GameState.state).has(key):
 		tile_info_box.add_child(UIKit.spacer(2))
-		var cost := int(WorldGen.claim_cost(GameState.state))
+		var cost := int(TileManager.claim_cost(GameState.state))
 		var cb := UIKit.normal("占领此地块（%d 行政点数）" % cost, 11)
 		cb.pressed.connect(func() -> void:
-			var r: Dictionary = WorldGen.claim(GameState.state, key)
+			var r: Dictionary = TileManager.claim(GameState.state, key)
 			if not bool(r["ok"]):
 				GameState.toast.emit(str(r["why"]))
 			_hide_tile_info()
@@ -494,9 +494,9 @@ func _attack_targets(uid: String) -> Array[String]:
 		return out
 	var a := WorldGen.coord_of(from)
 	for d in Hex.DIRECTIONS:
-		var k := WorldGen.key_of(a + d)
+		var k := TileManager.key_of(a + d)
 		var t := GameState.tile_at(k)
-		if not t.is_empty() and t.get("owner", "") == "enemy":
+		if not t.is_empty() and t.get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY:
 			out.append(k)
 	return out
 

@@ -141,7 +141,7 @@ static func _page_misc(d: DialogLayer) -> Control:
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", UI.fs(3))
 	for t in enemies:
-		var key := WorldGen.tile_key(t)
+		var key := TileManager.tile_key(t)
 		var label := UnitDB.enemy_label(t)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", UI.fs(6))

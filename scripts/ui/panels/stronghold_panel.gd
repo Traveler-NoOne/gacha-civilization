@@ -156,7 +156,7 @@ func _refresh_info(sh: Dictionary) -> void:
 	if tiles.is_empty():
 		content_box.add_child(UIKit.dim("（暂无领地）", 11))
 	for t in tiles:
-		var key := WorldGen.tile_key(t)
+		var key := TileManager.tile_key(t)
 		var nm := str(t.get("name", ""))
 		if nm == "":
 			nm = key
@@ -269,7 +269,7 @@ static func build_labor_rows(parent: VBoxContainer, on_changed: Callable) -> voi
 		return
 	var any := false
 	for t in GameState.stronghold_tiles(str(sh.get("id", ""))):
-		var key := WorldGen.tile_key(t)
+		var key := TileManager.tile_key(t)
 		for b in t.get("buildings", []):
 			var def := GameState.find_building(str(b.get("id", "")))
 			if def == null:

@@ -39,8 +39,8 @@ static func destroy_tile_enemies(key: String) -> Dictionary:
 	if not tiles.has(key):
 		return {"ok": false, "why": "地块不存在", "label": ""}
 	var t: Dictionary = tiles[key]
-	var owner: String = t.get("owner", "")
-	if owner == "" or owner == "player":
+	var owner: int = t.get("owner", Consts.Owner.NONE)
+	if owner == Consts.Owner.NONE or owner == Consts.Owner.PLAYER:
 		return {"ok": false, "why": "该地块没有敌对单位", "label": ""}
 	var label := UnitDB.enemy_label(t)
 	GameState.clear_enemy_tile(key)
@@ -53,8 +53,8 @@ static func destroy_all_enemies() -> int:
 	var keys: Array[String] = []
 	for k in (GameState.state["tiles"] as Dictionary).keys():
 		var t: Dictionary = GameState.state["tiles"][k]
-		var o: String = t.get("owner", "")
-		if o != "" and o != "player":
+		var o: int = t.get("owner", Consts.Owner.NONE)
+		if o != Consts.Owner.NONE and o != Consts.Owner.PLAYER:
 			keys.append(str(k))
 	for k in keys:
 		destroy_tile_enemies(k)
@@ -64,7 +64,7 @@ static func destroy_all_enemies() -> int:
 
 ## 揭开所有迷雾
 static func reveal_all() -> int:
-	var n := WorldGen.discover_all(GameState.state)
+	var n := TileManager.discover_all(GameState.state)
 	GameState.add_log("【作弊】揭开了全部迷雾（新揭开 %d 格）。" % n, "cheat")
 	GameState.state_changed.emit()
 	return n

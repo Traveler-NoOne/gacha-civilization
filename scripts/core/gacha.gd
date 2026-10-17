@@ -83,7 +83,7 @@ static func draw(state: Dictionary, p: int, rng: RandomNumberGenerator) -> Dicti
 	match p:
 		Pool.ROTATION:
 			# v1.5：召唤会一并带来游荡敌人 —— 他们并非召唤的目标，只能寻找机会和漏洞挤进来
-			var wd := WorldGen.maybe_spawn_wanderer(state, rng)
+			var wd := Threats.maybe_spawn_wanderer(state, rng)
 			if wd["spawned"]:
 				if wd["high"]:
 					events.append("⚠ 高危游荡敌人在 %s 出现（%d 次保底触发）" % [wd["key"], Consts.WANDER_PITY])
@@ -93,7 +93,7 @@ static func draw(state: Dictionary, p: int, rng: RandomNumberGenerator) -> Dicti
 					GameState.add_log("游荡敌人出现于 %s。" % wd["key"], "danger")
 		Pool.RESOURCE:
 			# v1.5：直接从量子之海汲取更容易被盯上 —— 一旦被入侵，就是据点形式
-			var hz := WorldGen.maybe_spawn_hazard(state, rng)
+			var hz := Threats.maybe_spawn_hazard(state, rng)
 			if hz["spawned"]:
 				if hz["extreme"]:
 					events.append("⚠ 极度高危据点出现在 %s（%d 次高危据点保底触发）" % [hz["key"], Consts.HAZARD_PITY])
@@ -102,7 +102,7 @@ static func draw(state: Dictionary, p: int, rng: RandomNumberGenerator) -> Dicti
 					events.append("高危据点出现在 %s" % hz["key"])
 					GameState.add_log("高危据点生成于 %s。" % hz["key"], "danger")
 		Pool.DEVELOPMENT:
-			var th := WorldGen.spawn_ultimate_threat(state, rng)
+			var th := Threats.spawn_ultimate_threat(state, rng)
 			events.append("☠ 终极威胁降临于 %s：将在 %d 个周期后直扑首都" % [th["key"], Consts.THREAT_WANDER_CYCLES])
 			GameState.add_log("终极威胁降临于 %s。" % th["key"], "danger")
 			var thr: Dictionary = state["pity"]["development"] if state["pity"].has("development") else {}
@@ -272,7 +272,7 @@ static func _apply_card(state: Dictionary, c: Dictionary) -> void:
 			items2[c["id"]] = int(items2.get(c["id"], 0)) + 1
 			# 功能卡的特殊效果
 			if c.has("spawn_resource"):
-				var r := WorldGen.spawn_resource_node(state, GameState._rng, int(c["spawn_resource"]))
+				var r := TileManager.spawn_resource_node(state, GameState._rng, int(c["spawn_resource"]))
 				if r["ok"]:
 					GameState.add_log("资源地脉生效：%s 出现 %s资源点。" % [r["key"], Consts.res_name(str(r["resource"]))], "world")
 			if c.has("tech"):

@@ -70,7 +70,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	detail_host.add_child(list)
 	var shown := 0
 	for t in own:
-		var key := WorldGen.tile_key(t)
+		var key := TileManager.tile_key(t)
 		var on_tile := GameState.units_on_tile(key)
 		var is_here := key == cur_tile
 		var row := PanelContainer.new()

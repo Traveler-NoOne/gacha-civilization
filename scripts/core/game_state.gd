@@ -97,6 +97,7 @@ func new_game(seed_value: int = 0) -> void:
 		# 存在 AppSettings（user://settings.cfg），不属于存档。
 	}
 	WorldGen.generate(state)
+	TileManager.setup_new_world(state)
 	_setup_capital_stronghold()
 	_recompute_derived()
 	_grant_starting_units()
@@ -287,7 +288,7 @@ func owned_tiles() -> Array:
 	var out := []
 	for k in state["tiles"].keys():
 		var t: Dictionary = state["tiles"][k]
-		if t.get("owner", "") == "player":
+		if t.get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
 			out.append(t)
 	return out
 
@@ -305,7 +306,7 @@ func free_tiles() -> Array:
 	var out := []
 	for k in state["tiles"].keys():
 		var t: Dictionary = state["tiles"][k]
-		if t.get("discovered", false) and t.get("owner", "") == "":
+		if t.get("discovered", false) and t.get("owner", Consts.Owner.NONE) == Consts.Owner.NONE:
 			out.append(t)
 	return out
 
@@ -314,8 +315,8 @@ func enemy_tiles() -> Array:
 	var out := []
 	for k in state["tiles"].keys():
 		var t: Dictionary = state["tiles"][k]
-		var o: String = t.get("owner", "")
-		if o != "" and o != "player":
+		var o: int = t.get("owner", Consts.Owner.NONE)
+		if o != Consts.Owner.NONE and o != Consts.Owner.PLAYER:
 			out.append(t)
 	return out
 
@@ -489,7 +490,7 @@ func deploy_unit(uid: String, key: String) -> Dictionary:
 	var tile := tile_at(key)
 	if tile.is_empty():
 		return {"ok": false, "why": "地块不存在"}
-	if tile.get("owner", "") != "player":
+	if tile.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
 		return {"ok": false, "why": "只能派驻到我方地块"}
 	if not control_ok(key):
 		return {"ok": false, "why": "该领地掌控力不足 %.0f%%" % (Consts.CONTROL_SELF_OPERATE * 100.0)}
@@ -559,7 +560,7 @@ func control_ok(key: String) -> bool:
 func deployable_keys() -> Array[String]:
 	var out: Array[String] = []
 	for t in owned_tiles():
-		var k := WorldGen.tile_key(t)
+		var k := TileManager.tile_key(t)
 		if k == "" or not control_ok(k):
 			continue
 		if units_on_tile(k).size() >= UnitDB.UNITS_PER_TILE:
@@ -608,7 +609,7 @@ func confirm_recruit(uid: String, key: String) -> Dictionary:
 	if str(u.get("status", "")) != UnitDB.STATUS_GUEST:
 		return {"ok": false, "why": "只有客人可以招募"}
 	var t := tile_at(key)
-	if t.is_empty() or t.get("owner", "") != "player":
+	if t.is_empty() or t.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
 		return {"ok": false, "why": "只能部署到我方领地"}
 	if not control_ok(key):
 		return {"ok": false, "why": "该领地掌控力不足 %.0f%%" % (Consts.CONTROL_SELF_OPERATE * 100.0)}
@@ -665,7 +666,7 @@ func tile_passable(key: String) -> bool:
 	var t := tile_at(key)
 	if t.is_empty():
 		return false
-	if t.get("owner", "") == "enemy":
+	if t.get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY:
 		return false
 	return bool(t.get("discovered", false))
 
@@ -695,7 +696,7 @@ func can_move_to(uid: String, key: String) -> Dictionary:
 	if not tile_passable(key):
 		return {"ok": false, "why": "目标地块无法通行（敌方或未点亮）"}
 	if d == 2:
-		var mid := WorldGen.middle_key(a, b)
+		var mid := TileManager.middle_key(a, b)
 		if mid != "" and not tile_passable(mid):
 			return {"ok": false, "why": "中间的地块无法通行"}
 	if units_on_tile(key).size() >= UnitDB.UNITS_PER_TILE:
@@ -716,11 +717,11 @@ func move_candidates(uid: String) -> Array[String]:
 		return out
 	var a := WorldGen.coord_of(from)
 	for d in Hex.DIRECTIONS:
-		var k1 := WorldGen.key_of(a + d)
+		var k1 := TileManager.key_of(a + d)
 		if bool(can_move_to(uid, k1)["ok"]) and not out.has(k1):
 			out.append(k1)
 		for d2 in Hex.DIRECTIONS:
-			var k2 := WorldGen.key_of(a + d + d2)
+			var k2 := TileManager.key_of(a + d + d2)
 			if k2 == from or out.has(k2):
 				continue
 			if bool(can_move_to(uid, k2)["ok"]):
@@ -738,7 +739,7 @@ func move_unit(uid: String, key: String) -> Dictionary:
 	u["move_left"] = int(u.get("move_left", 0)) - cost
 	u["tile"] = key
 	# v1.6.2：单位移动会点亮周围一格的迷雾
-	WorldGen.discover_radius(state, WorldGen.coord_of(key), 1)
+	TileManager.discover_radius(state, WorldGen.coord_of(key), 1)
 	add_log("%s 移动到 %s（消耗 %d 移动力）。" % [str(u["name"]), key, cost], "unit")
 	state_changed.emit()
 	return {"ok": true, "why": "", "cost": cost}
@@ -753,7 +754,7 @@ func unit_attack(uid: String, key: String) -> Dictionary:
 	if Hex.distance(WorldGen.coord_of(from), WorldGen.coord_of(key)) != 1:
 		return {"ok": false, "why": "只能攻击相邻地块"}
 	var t := tile_at(key)
-	if t.is_empty() or t.get("owner", "") != "enemy":
+	if t.is_empty() or t.get("owner", Consts.Owner.NONE) != Consts.Owner.ENEMY:
 		return {"ok": false, "why": "目标不是敌方地块"}
 	if bool(u.get("garrisoned", false)):
 		return {"ok": false, "why": "该单位正在驻军，先「解除驻军」才能攻击"}
@@ -925,7 +926,7 @@ func unit_upkeep_of(u: Dictionary) -> Dictionary:
 	if UnitDB.is_guest(u):
 		return {"food": Consts.GUEST_FOOD_PER_CYCLE, "currency": 0.0}
 	var t := tile_at(str(u.get("tile", "")))
-	var own: bool = (not t.is_empty()) and str(t.get("owner", "")) == "player"
+	var own: bool = (not t.is_empty()) and t.get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER
 	# v1.6.1：只有「驻军」状态才享受维护费折扣（领地内 −60% / 领地外 −10%）；行军时全额
 	var mul := 1.0
 	if bool(u.get("garrisoned", false)):
@@ -1030,8 +1031,8 @@ func simulate_battle(key: String) -> Dictionary:
 	var tile := tile_at(key)
 	if tile.is_empty():
 		return {"ok": false, "why": "地块不存在"}
-	var owner: String = tile.get("owner", "")
-	if owner == "" or owner == "player":
+	var owner: int = tile.get("owner", Consts.Owner.NONE)
+	if owner == Consts.Owner.NONE or owner == Consts.Owner.PLAYER:
 		return {"ok": false, "why": "该地块不是敌方地块"}
 	var attackers := units_on_tile_neighbors(key)
 	if attackers.is_empty():
@@ -1106,9 +1107,9 @@ func simulate_battle(key: String) -> Dictionary:
 func units_on_tile_neighbors(key: String) -> Array:
 	var out := []
 	for n in Hex.neighbors(WorldGen.coord_of(key)):
-		var nk := WorldGen.key_of(n)
+		var nk := TileManager.key_of(n)
 		var t := tile_at(nk)
-		if t.is_empty() or t.get("owner", "") != "player":
+		if t.is_empty() or t.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
 			continue
 		out.append_array(units_on_tile(nk))
 	return out
@@ -1122,7 +1123,7 @@ func clear_enemy_tile(key: String) -> bool:
 	if t.is_empty():
 		return false
 	var was_threat: bool = t.get("threat", false)
-	t["owner"] = ""
+	t["owner"] = Consts.Owner.NONE
 	t["force"] = 0.0
 	t["wander"] = false
 	t["danger"] = false
@@ -1168,7 +1169,7 @@ func tile_building_by_bid(tile: Dictionary, bid: String) -> Dictionary:
 func can_build(tile: Dictionary, def: BuildingDef) -> Dictionary:
 	if tile.is_empty():
 		return {"ok": false, "why": "地块不存在"}
-	if tile.get("owner", "") != "player":
+	if tile.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
 		return {"ok": false, "why": "该地块尚未被占领"}
 	if def.required_tech != "" and not tech_unlocked(def.required_tech):
 		return {"ok": false, "why": "需要科技：%s" % tech_name(def.required_tech)}
@@ -1588,7 +1589,7 @@ func end_cycle() -> Dictionary:
 	report["pop_change"] = growth
 
 	# 6. 敌人与世界演化
-	WorldGen.evolve(state, _rng, report)
+	Threats.evolve(state, _rng, report)
 
 	# 7. 周期推进
 	state["cycle"] = int(state["cycle"]) + 1
@@ -2124,7 +2125,7 @@ func _migrate() -> void:
 	var land_fixed := false
 	for tk in (state.get("tiles", {}) as Dictionary).keys():
 		var t: Dictionary = state["tiles"][tk]
-		if t.get("owner", "") != "player":
+		if t.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
 			continue
 		if str(t.get("stronghold", "")) == "":
 			t["stronghold"] = CAPITAL_STRONGHOLD

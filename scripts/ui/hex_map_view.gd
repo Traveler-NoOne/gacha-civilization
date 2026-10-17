@@ -60,7 +60,7 @@ func axial_to_screen(c: Vector2i) -> Vector2:
 ## 场景坐标转qr坐标
 func screen_to_key(p: Vector2) -> String:
 	var c := Hex.pixel_to_axial(p - origin, hex_size)
-	return WorldGen.key_of(c)
+	return TileManager.key_of(c)
 
 
 # ---------------------------------------------------------------------------
@@ -205,13 +205,13 @@ func _draw_tile_border(v: Dictionary) -> void:
 	var t: Dictionary = v["t"]
 	if not t.get("discovered", false):
 		return
-	var owner: String = t.get("owner", "")
+	var owner: int = t.get("owner", Consts.Owner.NONE)
 	var pts: PackedVector2Array = v["pts"]
-	if owner == "player":
+	if owner == Consts.Owner.PLAYER:
 		var o := pts.duplicate()
 		o.append(pts[0])
 		draw_polyline(o, Color(0.55, 0.85, 1.0), 2.5)
-	elif owner == "enemy":
+	elif owner == Consts.Owner.ENEMY:
 		var o2 := pts.duplicate()
 		o2.append(pts[0])
 		draw_polyline(o2, Color(0.95, 0.30, 0.32), 2.5)
@@ -225,7 +225,7 @@ func _draw_tile_border(v: Dictionary) -> void:
 func unit_icon_positions(key: String) -> Array:
 	var out: Array = []
 	# 敌方地块不画单位标记，所以也没有可点的图标
-	if str(GameState.tile_at(key).get("owner", "")) == "enemy":
+	if GameState.tile_at(key).get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY:
 		return out
 	var units := GameState.units_on_tile(key)
 	var n := units.size()
@@ -248,7 +248,7 @@ func _draw_tile_units(v: Dictionary) -> void:
 	var t: Dictionary = v["t"]
 	if not t.get("discovered", false):
 		return
-	if str(t.get("owner", "")) == "enemy":
+	if t.get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY:
 		return
 	# 图标位置走 unit_icon_positions()（与点击命中共用），不在这里另算一遍
 	var icons := unit_icon_positions(str(v["key"]))
@@ -312,18 +312,18 @@ func _draw_tile_text(v: Dictionary, capital: Vector2i) -> void:
 	var nm: String = str(t.get("name", ""))
 	if nm == "" or hex_size < 28.0:
 		return
-	var owner: String = t.get("owner", "")
+	var owner: int = t.get("owner", Consts.Owner.NONE)
 	var center: Vector2 = v["center"]
 	var f := ThemeDB.fallback_font
 	var fs := int(clampf(hex_size * 0.30, 9.0, 14.0))
-	if owner == "player":
+	if owner == Consts.Owner.PLAYER:
 		if t.get("is_capital", false) or v["c"] == capital:
 			var max_w: float = hex_size * 2.6
 			while fs > 9 and f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
 				fs -= 1
 			draw_string(f, center + Vector2(-max_w * 0.5, hex_size * 0.92), nm,
 				HORIZONTAL_ALIGNMENT_CENTER, max_w, fs, Color(0.85, 0.95, 1.0))
-	elif owner == "enemy":
+	elif owner == Consts.Owner.ENEMY:
 		var label := "危险" if t.get("danger", false) else ("威胁" if t.get("threat", false) else "敌人")
 		draw_string(f, center + Vector2(-hex_size * 0.9, hex_size * 0.92), label,
 			HORIZONTAL_ALIGNMENT_CENTER, hex_size * 1.8, fs, Color(1.0, 0.55, 0.55))
