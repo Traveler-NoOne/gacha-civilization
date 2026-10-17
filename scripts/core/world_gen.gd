@@ -156,6 +156,11 @@ static func eroded_elevation_of(c: Vector2i, world_seed: int) -> float:
 		return float(table[k])
 	return elevation_of(c, world_seed)
 
+
+## 这一格是不是河（侵蚀那一步挑出来的 ✓ 给 `TileDef.make()` 用 ✓ 也是对外报告地形事实 ✓）
+static func is_river(c: Vector2i) -> bool:
+	return _river_keys.has(TileManager.key_of(c))
+
 ## 某一格的"湿度"（0~1）。必须用**另一张噪声**（换种子 + 换频率）——
 ## 否则它和高程一模一样，查表就退化成"只看高程"，看不到干湿分区。
 static var _moist_noise: FastNoiseLite = null
@@ -174,33 +179,6 @@ static func moisture_of(c: Vector2i, world_seed: int) -> float:
 		_moist_noise_seed = world_seed
 	return (_moist_noise.get_noise_2d(float(c.x), float(c.y)) + 1.0) * 0.5
 
-## 高程 + 湿度 → 一层地形 + 一层地物（Red Blob 那篇的二维查表，阈值按本作的种类改过）。
-## 仍是 f(坐标, 种子) 的纯函数。
-static func biome_of(e: float, m: float) -> Dictionary:
-	if e < 0.36:
-		return {"terrain": "water", "cover": ""}
-	if e < 0.50:
-		if m > 0.70:
-			return {"terrain": "plain", "cover": "swamp"}
-		if m > 0.45:
-			return {"terrain": "plain", "cover": "grass"}
-		if m > 0.22:
-			return {"terrain": "plain", "cover": "forest"}
-		return {"terrain": "dune", "cover": ""}
-	if e < 0.62:
-		if m > 0.45:
-			return {"terrain": "hill", "cover": "forest"}
-		if m > 0.22:
-			return {"terrain": "hill", "cover": "grass"}
-		return {"terrain": "hill", "cover": ""}
-	if e < 0.72:
-		if m > 0.60:
-			return {"terrain": "hill", "cover": "forest"}
-		if m > 0.30:
-			return {"terrain": "hill", "cover": "grass"}
-		return {"terrain": "wasteland", "cover": ""}
-	return {"terrain": "mountain", "cover": ""}
-
 ## v1.8.21：挑出生点（首都）。全部由地形/资源决定、**不含随机** → 同一局永远选到同一格。
 ##   候选：非水、且离世界中心不超过「起始半径 × 0.78」（= 不贴边境）
 ##   得分：周围 3 格内"有资源的地块数"（越丰富越好）
@@ -212,7 +190,7 @@ static func choose_capital(tiles: Dictionary) -> String:
 	var best_dist := 9999
 	for k in tiles.keys():
 		var t: Dictionary = tiles[k]
-		if str(t.get("terrain", "")) == "water":
+		if TileDef.is_water(t):
 			continue
 		var c := coord_of(str(k))
 		var d := Hex.distance(c, Vector2i.ZERO)
@@ -224,7 +202,7 @@ static func choose_capital(tiles: Dictionary) -> String:
 			if not tiles.has(nk):
 				continue
 			var nt: Dictionary = tiles[nk]
-			if str(nt.get("terrain", "")) == "water":
+			if TileDef.is_water(nt):
 				continue
 			if str(nt.get("resource", "")) != "":
 				score += 1
@@ -247,58 +225,16 @@ static func coord_of(key: String) -> Vector2i:
 # 生成
 # ===========================================================================
 static func generate(state: Dictionary) -> void:
-	# v1.8.20.9：不再自己造 rng —— 每一格的地形/资源由 _make_tile(c, 世界种子) 直接算出来
+	# v1.8.20.9：不再自己造 rng —— 每一格的地形/资源由 TileDef.make(c, 世界种子) 直接算出来
 	var world_seed := int(state["seed"])
 	var tiles := {}
 	for c in Hex.spiral(Consts.MAP_START_RADIUS):
-		tiles[TileManager.key_of(c)] = _make_tile(c, world_seed)
+		tiles[TileManager.key_of(c)] = TileDef.make(c, world_seed)
 
 	state["tiles"] = tiles
 	# v1.8.21：出生点不再固定在世界中心，改成挑一处**资源相对丰富、又不贴边境**的地块
 	#（原来这里固定中心 + 下面还有一段"保证附近有基础资源"的强制补丁，那段已删）
 	state["capital"] = choose_capital(tiles)
-
-## 造一格（地形 + 基础资源）。
-## v1.8.20.9：地形/资源 = f(坐标, 世界种子) 的纯函数 —— 同种子同地图，
-## 且 expand_map() 后加的那一格与"一开始就生成这么大"时必然一致。
-## 别改成用 rng 按顺序摇地形：那样同一格会随生成顺序变样，这条一致性就没了。
-
-static func _make_tile(c: Vector2i, world_seed: int) -> Dictionary:
-	var t := {
-		"c": [c.x, c.y],
-		"terrain": "plain",
-		"cover": "",
-		"resource": "",
-
-		"owner": Consts.Owner.NONE,
-		"discovered": false,
-		"is_capital": false,
-		"name": "",
-		"buildings": [],
-		"force": 0.0,
-		"threat": false,
-		"danger": false,   # 高危据点
-		"stronghold": "",  # v1.3.1：所属据点（我方地块才有）
-		"land_cap": Consts.LAND_CAP_DEFAULT,   # v1.3.1：可用土地上限
-	}
-	# v1.8.21 第 2 段：地形（地貌）与地物（覆盖物）分两层，由高程 + 湿度查表得出
-	var b := biome_of(eroded_elevation_of(c, world_seed), moisture_of(c, world_seed))
-
-	t["terrain"] = b["terrain"]
-	t["cover"] = b["cover"]
-	# v1.8.21：河流格（上面那次侵蚀已经顺便挑好了，这里只是取用）
-	if _river_keys.has(TileManager.key_of(c)):
-		t["river"] = true
-
-	# 基础资源点
-	var rr := Hex.hash01(c, 31 + world_seed)
-	if t["cover"] == "forest" and rr < 0.55:
-		t["resource"] = "wood"
-		t["amount"] = 4.0 + rr * 8.0
-	elif t["terrain"] == "hill" and rr < 0.45:
-		t["resource"] = "coal" if rr < 0.22 else "copper"
-		t["amount"] = 3.0 + rr * 8.0
-	return t
 
 # ===========================================================================
 # 扩展地图上限（发展系统 / 营地升级）
@@ -318,7 +254,7 @@ static func expand_map(state: Dictionary, rings: int = 1) -> int:
 		var k := TileManager.key_of(c)
 		if tiles.has(k):
 			continue
-		tiles[k] = _make_tile(c, int(state["seed"]))
+		tiles[k] = TileDef.make(c, int(state["seed"]))
 		added += 1
 	return added
 

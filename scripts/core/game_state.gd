@@ -101,7 +101,7 @@ func new_game(seed_value: int = 0) -> void:
 	_setup_capital_stronghold()
 	_recompute_derived()
 	_grant_starting_units()
-	_add_log("建立部落，营地落在世界中央。", "info")
+	_add_log("建立部落，营地落在 %s。" % str(state["capital"]), "info")
 	_add_log("初始点亮营地周围 %d 格，其余被迷雾覆盖。" % (1 + 6 * Consts.CAMP_START_RADIUS), "info")
 	_setup_default_tasks()
 	state_changed.emit()
@@ -195,12 +195,8 @@ func _setup_capital_stronghold() -> void:
 		"queue": [],             # 规划队列（吃生产力）
 		"decrees": [],           # v1.8.3 政事队列（吃行政点数）
 	}]
-	var cap := tile_at(str(state.get("capital", "0,0")))
-	if not cap.is_empty():
-		cap["stronghold"] = CAPITAL_STRONGHOLD
-		if not cap.has("land_cap"):
-			cap["land_cap"] = Consts.LAND_CAP_DEFAULT
-
+	# 首都地块上的 stronghold / land_cap 由 TileManager.setup_new_world() 打点 ✓
+	# （2026-10-15 收拢：改地块字段的活儿归 TileManager ✓）
 
 func strongholds() -> Array:
 	return state.get("strongholds", [])

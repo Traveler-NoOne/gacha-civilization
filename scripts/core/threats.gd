@@ -119,7 +119,7 @@ static func _threat_spawn_candidates(state: Dictionary) -> Array[String]:
 			continue
 		if WorldGen.coord_of(k) == cap:
 			continue
-		if t.get("terrain", "") == "water":
+		if TileDef.is_water(t):
 			continue
 		out.append(k)
 	return out
@@ -138,7 +138,7 @@ static func _enemy_spawn_candidates(state: Dictionary) -> Array[String]:
 		# 不直接刷在首都旁边
 		if Hex.distance(WorldGen.coord_of(k), WorldGen.coord_of(str(state["capital"]))) < 2:
 			continue
-		if t.get("terrain", "") == "water":
+		if TileDef.is_water(t):
 			continue
 		out.append(k)
 	return out

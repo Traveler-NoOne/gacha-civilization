@@ -229,7 +229,7 @@ static func free_candidates(state: Dictionary, min_capital_dist: int = 2) -> Arr
 		var t: Dictionary = tiles[k]
 		if t.get("owner", Consts.Owner.NONE) != Consts.Owner.NONE:
 			continue
-		if t.get("terrain", "") == "water":
+		if TileDef.is_water(t):
 			continue
 		if min_capital_dist > 0 and Hex.distance(WorldGen.coord_of(k), cap) < min_capital_dist:
 			continue
@@ -281,5 +281,10 @@ static func setup_new_world(state: Dictionary) -> void:
 	cap_tile["name"] = "首都·初始营地"
 	cap_tile["claimable"] = false
 	cap_tile["buildings"] = []
+	# 2026-10-15 收拢：下面两行原先写在 GameState._setup_capital_stronghold() 里 ✗
+	#（"改地块字段"的活儿统一归本文件 ✓）
+	cap_tile["stronghold"] = GameState.CAPITAL_STRONGHOLD
+	if not cap_tile.has("land_cap"):
+		cap_tile["land_cap"] = Consts.LAND_CAP_DEFAULT
 	# 初始点亮范围
 	discover_radius(state, cap, Consts.CAMP_START_RADIUS)
