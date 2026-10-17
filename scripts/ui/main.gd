@@ -127,7 +127,7 @@ func show_menu() -> void:
 
 ## v1.8.9：加载界面的**顺序**是刻意的 —— 先出界面，再干活。
 ## 现在加载近乎瞬间所以看不出区别；等地图内容多了，慢的部分就会花在这张界面上（而不是卡在菜单上）。
-func _on_start_game(mode: String) -> void:
+func _on_start_game(mode: String, opts: Dictionary = {}) -> void:
 	show_loading(func() -> bool:
 		match mode:
 			"continue":
@@ -135,7 +135,8 @@ func _on_start_game(mode: String) -> void:
 			"load":
 				return true   # 由菜单自己处理读档，读成功后直接过来
 			_:
-				GameState.new_game()
+				# 2026-10-15：新游戏设置面板给的种子（0 = 随机 —— new_game 里会取时钟 ✓）
+				GameState.new_game(int(opts.get("seed", 0)))
 				return true
 	)
 

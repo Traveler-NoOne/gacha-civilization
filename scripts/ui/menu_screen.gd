@@ -2,7 +2,11 @@ extends Control
 ## 主页面：开始游戏（继续 / 新游戏 / 读取游戏）、游戏设置、退出游戏、反馈。
 ## 对应设计文档「主页面」章节。
 
-signal start_game_requested(mode: String)
+## v1.8.9：mode = "continue" / "load" / "new"。
+## 2026-10-15：新增 opts（新游戏设置面板的选项）。
+## ⚠️ 信号参数**不许写默认值** ✗（Godot 会报 "Signal parameters cannot have a default value" ✓）
+##    —— 所以三处 emit **都必须显式传第二个参数** ✓（不传的那个会报参数不匹配 ✗）
+signal start_game_requested(mode: String, opts: Dictionary)
 
 var _expand_box: VBoxContainer
 var _btn_continue: Button
@@ -71,11 +75,11 @@ func _build() -> void:
 
 	_btn_continue = UIKit.normal("继续游戏")
 	_btn_continue.tooltip_text = "读取最后一次退出时的进度"
-	_btn_continue.pressed.connect(func() -> void: start_game_requested.emit("continue"))
+	_btn_continue.pressed.connect(func() -> void: start_game_requested.emit("continue", {}))
 	_expand_box.add_child(_btn_continue)
 
 	var btn_new := UIKit.normal("新游戏")
-	btn_new.pressed.connect(func() -> void: start_game_requested.emit("new"))
+	btn_new.pressed.connect(_open_new_game_dialog)
 	_expand_box.add_child(btn_new)
 
 	_btn_load = UIKit.normal("读取游戏")
@@ -159,13 +163,81 @@ func _open_load_dialog() -> void:
 		b.pressed.connect(func() -> void:
 			if GameState.load_from_slot(slot):
 				close_dialog()
-				start_game_requested.emit("load"))
+				start_game_requested.emit("load", {}))
 		list.add_child(b)
 	if not found:
 		var l := Label.new()
 		l.text = "没有任何存档。"
 		l.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))
 		list.add_child(l)
+	add_child(d)
+
+
+## 2026-10-15：**新游戏设置面板** —— 新建存档之前先定几件事。
+## 现在两项：① 世界生成器（新生成器还没接进来 → 先灰着 ✓）② 世界种子（留空 = 随机 ✓）
+## 注意：**「继续 / 读取」不弹这个面板** ✓（那是读既有的档，生成器早已定了 ✓）
+func _open_new_game_dialog() -> void:
+	_close_dialog()
+	var d := UIKit.dialog("新游戏设置", 560.0)
+	_dialog = d
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", UI.fs(10))
+	d.set_content(v)
+
+	v.add_child(UIKit.title("世界生成", 15))
+
+	# ① 世界生成器：默认勾选（AppSettings 的默认值就是 true ✓）
+	var cb := CheckBox.new()
+	cb.text = "采用新世界生成器"
+	cb.button_pressed = AppSettings.new_worldgen()
+	cb.disabled = true   # 新生成器还没接进来 —— 这不是"守卫" ✗ 是当前阶段真实的界面状态 ✓
+	cb.pressed.connect(func() -> void: AppSettings.set_new_worldgen(cb.button_pressed))
+	v.add_child(cb)
+	v.add_child(UIKit.dim("实验性：新世界生成器（板块 / 造山 / 气候）还没接进来 ✓ 现在只能跑旧生成器 ✓", 11))
+
+	v.add_child(_spacer(6))
+
+	# ② 世界种子：填数字就能复现同一张地图（new_game 里 0 = 取时钟随机 ✓）
+	var seed_edit := LineEdit.new()
+	seed_edit.placeholder_text = "留空 = 随机"
+	seed_edit.custom_minimum_size = Vector2(UI.px(160), UI.px(0))
+	v.add_child(_row("世界种子", seed_edit))
+	v.add_child(UIKit.dim("填一个数字就能复现同一张地图 ✓ 留空或 0 = 每次随机 ✓", 11))
+
+	# 第 3 步（2026-10-15）：**只出图、不进游戏** ✓ —— 迭代生成器时最常用的入口 ✓
+	var shot := UIKit.small("只出图看看（不开始游戏）", 11)
+	shot.tooltip_text = "生成一次世界并存成 PNG，存到项目目录的 preview/ 里（控制台会打印绝对路径）"
+	shot.pressed.connect(func() -> void:
+		var txt2 := seed_edit.text.strip_edges()
+		var s2 := int(txt2) if txt2 != "" else 0
+		var r := await WorldPreview.save_preview(self, s2)
+		if not bool(r["ok"]):
+			GameState.toast.emit("出图失败 ✗ 详情看控制台")
+		else:
+			print("预览图已保存：", str(r["path"]))
+			GameState.toast.emit("已出图（种子 %d）→ %s" % [int(r["seed"]), str(r["path"])]))
+	v.add_child(shot)
+
+	v.add_child(_spacer(8))
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UI.fs(10))
+	row.alignment = BoxContainer.ALIGNMENT_END
+	var cancel := UIKit.normal("取消", 13)
+	cancel.pressed.connect(_close_dialog)
+	row.add_child(cancel)
+	var ok := UIKit.primary("开始游戏", 13)
+	ok.pressed.connect(func() -> void:
+		var txt := seed_edit.text.strip_edges()
+		var s := int(txt) if txt != "" else 0
+		_close_dialog()
+		start_game_requested.emit("new", {"seed": s}))
+	row.add_child(ok)
+	v.add_child(row)
+
+	# ⚠️ 必须挂进场景树 ✗ —— 只 new 不 add_child = 界面什么都不出现 ✓
+	#（2026-10-15 踩到：抄 _open_settings 时只看了它的开头，漏了它结尾的 add_child(d) ✓）
 	add_child(d)
 
 

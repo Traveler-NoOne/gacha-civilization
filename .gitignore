@@ -7,6 +7,9 @@
 
 # 截图自检输出（由 tests/screenshot.tscn 生成，可随时重新生成）
 tests/_shots/
+
+# 世界生成预览图（scripts/worldgen/preview.gd 的输出，可随时重新生成）
+/preview/
 # AI 工具（godot-mcp-enhanced 监控面板）产物，非游戏文件
 面板入口.html
 
@@ -19,3 +22,4 @@ __pycache__/
 
 # AI 助手的全部配置与技能包（辅助工具，非游戏内容；完全不随项目发布）
 .commandcode/
+.mnemon/
