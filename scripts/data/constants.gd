@@ -85,8 +85,8 @@ const FREE_TILE_MIN_BLOCK := 10     ## 无主地块低于 10 个无法进行世�
 # ---------------------------------------------------------------------------
 # 地块 / 扩张
 # ---------------------------------------------------------------------------
-const MAP_START_RADIUS := 21         ## 半径 21 的六边形地图，直径 43 格（约 1387 格）
-const MAP_MAX_RADIUS := 30           ## 上限必须大于初始半径，否则「扩建地图」永远扩不动
+const MAP_START_RADIUS := 50         ## 半径 50 的六边形地图：中间一行 101 格、共 7651 格
+const MAP_MAX_RADIUS := 51           ## 上限必须大于初始半径，否则「扩建地图」永远扩不动
 
 const CAMP_START_RADIUS := 3         ## 初始点亮范围（保证有足够的无主地块可供扩张与操作限制判定）
 ## v1.3.1：扩张改用「行政点数」，并受行政影响力折扣
@@ -118,10 +118,17 @@ const CLAIM_COST_PER_TILE := 2.0
 const PRODUCTION_PER_TILE := 0.6
 
 ## v1.8.21：地形 = 地表形态（地貌）。森林/草地这类"地表覆盖物"归**地物**，见下面的 COVER_*。
+## 2026-10-16：新增 3 种 ✓（用户："地块种类太少" ✓）
+##   deep_water 深海 ✓（和浅海分开 ✓ 登陆/洪水/洋流都要用 ✓）
+##   plateau    高原 ✓（原来 0.62~0.72 全算丘陵 ✗ 被吞了 ✓）
+##   valley     谷地 ✓（裂谷的谷底 ✓ 高度看不出"比四周低" ✗ 只能由生成器打标 ✓）
 const TERRAIN_NAMES := {
+	"deep_water": "深海",
 	"water": "水域",
 	"plain": "平原",
 	"hill": "丘陵",
+	"plateau": "高原",
+	"valley": "谷地",
 	"mountain": "山脉",
 	"dune": "沙丘",
 	"wasteland": "荒地",
@@ -129,9 +136,12 @@ const TERRAIN_NAMES := {
 }
 
 const TERRAIN_COLORS := {
+	"deep_water": Color(0.10, 0.18, 0.34),
 	"water": Color(0.16, 0.28, 0.46),
 	"plain": Color(0.30, 0.42, 0.26),
 	"hill": Color(0.40, 0.36, 0.28),
+	"plateau": Color(0.58, 0.52, 0.42),
+	"valley": Color(0.20, 0.30, 0.22),
 	"mountain": Color(0.48, 0.46, 0.44),
 	"dune": Color(0.58, 0.50, 0.32),
 	"wasteland": Color(0.34, 0.28, 0.26),

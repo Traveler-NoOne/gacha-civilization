@@ -43,7 +43,7 @@ static func axial_round(qf: float, rf: float) -> Vector2i:
 		rz = -rx - ry
 	return Vector2i(rx, rz)
 
-
+## 计算距离
 static func distance(a: Vector2i, b: Vector2i) -> int:
 	var dq := a.x - b.x
 	var dr := a.y - b.y
