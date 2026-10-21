@@ -74,48 +74,30 @@ Godot 4.7 → 导入 → 选择本目录的 project.godot → F5
 $godot = "C:\Program Files\Godot_v4.4.1-stable_mono_win64\Godot_v4.7.2-stable_win64_console.exe"
 # 注意：上面那个目录名写的是 4.4.1，但里面的 exe 是 4.7.2 ——
 # 当初安装时目录名没跟着改，不是笔误。
-& $godot --path "D:\Project\godot\抽卡文明"
+& $godot --path "D:\Project\godot\抽卡文明-legacy"
 ```
 
-### 自动化验证
+### 验收方式（自检套件已删除，2026-10-17）
+
+`tests/` 下的 4 项无头自检和截图脚本**已经全部删除** —— 无头自检遇到语法 / 解析问题会**静默卡住**，
+修一次比手检还费时间。现在一律**读代码检阅 + 编辑器里手检**，不要再新写自检脚本。
 
 ```powershell
 $godot = "C:\Program Files\Godot_v4.4.1-stable_mono_win64\Godot_v4.7.2-stable_win64_console.exe"
 
-# 1. 随机数种子：同种子 = 同一张地图 + 同一条随机数流；扩张不改动已有地块
-& $godot --headless --path <项目目录> res://tests/seed_check.tscn
-
-# 2. 致命错误码：E-MAP-001 的触发 + 「码表 ↔ docs/错误代码.md」双向同步
-& $godot --headless --path <项目目录> res://tests/fatal_check.tscn
-
-# 3. 悬停弹窗：鼠标离开地块即销毁，不会残留上一格的内容
-& $godot --headless --path <项目目录> res://tests/popup_measure_check.tscn
-
-# 4. 死引用 / 死文案：界面文字里不许再出现已删除的入口（管理页 / 地块规划页）
-& $godot --headless --path <项目目录> res://tests/dead_ref_check.tscn
-
-# 5. 界面截图（**非 headless**）：出图到 tests/_shots/，并生成 00_MANIFEST.md 清单
-& $godot --path <项目目录> --resolution 1280x720 res://tests/screenshot.tscn
-#   也可以直接双击项目根目录的 跑截图.bat
+# 导入资源 / 注册 class_name（新增或替换带 class_name 的脚本之后必须跑一次）
+& $godot --headless --import --path "<项目目录>"
 ```
 
-> 自检**按需跑**：改了哪块就跑相关的那几条；同时对于大约5个版本以前的自检，进行清理，因为早期状态的改变太大，修改旧内容不如重新写。跑时必须全绿——
-> 结构改了导致测试预期失效时，**改测试的预期**，不是把红着的往下带。
-> **新增自检的原则**：只写与本次改动相关的（不再维护"每个版本都加一个 diag_vXX"那一整套）。
+**世界生成怎么验收**：主菜单 → 新游戏 →「出图内容」选 `地图（旧生成器）` 或 `★ 新地图（噪声版）`
+→ 点「只出图看看」。图落在项目 `preview/`（控制台会打印绝对路径）；
+**同一个种子出两次 → 两张图应当逐字节一致**。
 
-> ⚠️ **除截图脚本外，所有自检都用 `--headless` 跑，不要开图形窗口。**
-> 项目用的是 OpenGL(Compatibility) 后端，反复起停图形窗口时，N 卡驱动偶发会让窗口
-> **卡在灰屏、不渲染也不退出**（似乎与概率有关，不是每次都复现）。
-> headless 不创建窗口，完全绕开这个问题。
->
-> ⚠️ **自检必须用「场景」跑**（`res://tests/xxx.tscn`），**不能**用 `--script`：
-> 后者不注册 autoload，任何引用 `GameState` 的脚本都编译不过，于是测试会**假通过**。
->
 > ⚠️ **新增 / 替换 `art/` 下的图片后**，先跑一次 `& $godot --headless --import --path <项目>`（或打开一次编辑器）让 Godot 导入，否则游戏里 `load()` 拿不到纹理。
 > **带 `class_name` 的脚本从 git 恢复或新建之后也一样**：不 `--import` 的话全局类名没注册，
-> 依赖它的脚本会编译失败，表现常常是"某个函数不存在"甚至**看门狗超时**（不是崩溃，最难认）。
+> 依赖它的脚本会编译失败，表现常常是"某个函数不存在"，很容易被当成语法错误。
 >
-> 截图脚本自带 **120 秒看门狗**：中途报错或卡住会自动退出并打印最后完成的那张截图名，不会再挂死窗口。
+> ⚠️ 出图工具（`scripts/worldgen/preview.gd`）**必须带窗口跑**：`--headless` 下 `SubViewport` 拿不到纹理。
 
 ---
 
@@ -234,8 +216,8 @@ project.godot                     项目配置（autoload / 主场景 / 分辨�
 scenes/main.tscn                  唯一场景：挂 Main 脚本
 docs/版本记录/                      版本历史与已删除内容的归档（按版本分文件）
 docs/更新指导/                      逐段施工图（每段一个文件）+ 总规则 + 两份远期设计存档
-docs/错误代码.md                    致命错误码对照表（与 Fatal.CODES 双向同步，有自检守着）
-docs/bug清单.md                    视觉检查清单（对着 tests/_shots/00_MANIFEST.md 逐张看，按轮次记录）
+docs/错误代码.md                    致命错误码对照表（与 Fatal.CODES 双向同步）
+docs/bug清单.md                    视觉检查清单（对着游戏截图逐张看，按轮次记录）
 .commandcode/skills/              开发期使用的第三方 Godot Agent 技能（**不入库**，来源与许可见「八、第三方与致谢」）
 art/                              美术素材（codeart2d 代码绘制，14 格）
   icons.resources.svg             图标源文件（14 格 32×32，颜色走 icons-palette.json 的调色板类）
@@ -255,7 +237,10 @@ scripts/
     app_settings.gd               Autoload 单例：全局设置（作弊开关 / 自动存档周期 / 分辨率 / 全屏），存 user://settings.cfg
     game_state.gd                 Autoload 单例：存档状态、周期结算、建筑、科技、存读档
     ui_scale.gd                  Autoload 单例（名 UI）：**UI 尺寸词典** —— 所有尺寸与字号都从这里取
-    world_gen.gd                  六边形地图生成（高程噪声 → 地形、湿度 → 地物、大陆形状、侵蚀、河流）、迷雾、扩张、敌人演化、清剿
+    world_gen.gd                  六边形地图生成（高程噪声 → 地形、湿度 → 地物、大陆形状、侵蚀、河流；**只管造格子**）
+    tile_manager.gd               地块的读 / 改（归属、迷雾、扩张、清剿、资源点、首都初始化）
+    threats.gd                    敌人：高危据点刷怪、游荡移动、终极威胁推进、破坏地块
+    cheat.gd                      作弊开关（配合顶部红色「作弊」按钮）
     gacha.gd                      三个卡池、保底、权重、卡片落地、卡组轮换
     fatal.gd                      致命错误码（Fatal）：报码 + 含义 + 结束进程
   data/
@@ -266,6 +251,8 @@ scripts/
     unit_db.gd                    单位系统：职业 / 位阶 / 克制 / 经验 / 伤害结算
     term_db.gd                    手册的专有名词与世界观设定数据
     decree_db.gd                  政事表（可排队的据点级事务，第一条是**征兵**）
+    tile_def.gd                   旧系统地块定义（地形 / 地物查表 + `make` / `make_from`）
+    tile_lib.gd                   新系统地块库（0~10 高度标尺；只给 `WorldgenBuilder` 用）
   ui/
     main.gd                       入口：启动时应用分辨率 + 主页面 ↔ 游戏主页切换 + 全局提示
     menu_screen.gd                主页面
@@ -282,15 +269,11 @@ scripts/
       gacha_view.gd               世界泡（召唤 / 打捞 / 发展）
       log_view.gd                 日志浮窗（+ parts/task_page, record_page, codex_page, manual_page）
       view_world_page.gd          世界页（地图 + 右键菜单 + **悬停 1 秒**的简约信息小窗 + 据点管理窗口 + 底部单位条）
+scripts/worldgen/
+  builder.gd                     新一代世界生成（噪声版）：fBm 大结构 + 山脊噪声 → 高度 / 湿度（**尚未接进 new_game**）
+  preview.gd                     「只出图看看」：生成一次世界 → 离屏渲染成 PNG（落在项目 preview/）
 scripts/util/hex.gd               六边形坐标换算（轴向 <-> 像素、邻居、距离、螺旋）
-tests/                            无框架自检；**全部用 --headless 跑「场景」**（不能 --script，见「一、运行方式」）
-  seed_check.tscn/.gd             随机数种子：同种子同地图 / 扩张不改动已有地块 / 地形成片
-  fatal_check.tscn/.gd            致命错误码 + 「码表 ↔ docs/错误代码.md」双向同步
-  popup_measure_check.tscn/.gd    悬停弹窗：鼠标离开地块即销毁、不残留
-  dead_ref_check.tscn/.gd         界面文字里不许出现已删入口（管理页 / 地块规划页）
-  screenshot.tscn/.gd             界面截图（**非 headless**；120 秒看门狗）+ 生成 00_MANIFEST.md
-  _shots/                         截图输出目录（.gitignore 已忽略）
-跑截图.bat                        双击跑截图自检（非 headless）
+tests/                            **空目录**（自检套件已于 2026-10-17 删除，改为读代码 + 编辑器手检）
 ```
 
 > 命名提醒：`view_world_page.gd` 之所以不叫 `world_view.gd`，是因为当年那两个 `*_view` 名字
