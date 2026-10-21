@@ -194,7 +194,7 @@ func _open_new_game_dialog() -> void:
 	cb.disabled = true   # 新生成器还没接进来 —— 这不是"守卫" ✗ 是当前阶段真实的界面状态 ✓
 	cb.pressed.connect(func() -> void: AppSettings.set_new_worldgen(cb.button_pressed))
 	v.add_child(cb)
-	v.add_child(UIKit.dim("实验性：新世界生成器（板块 / 造山 / 气候）还没接进来 ✓ 现在只能跑旧生成器 ✓", 11))
+	v.add_child(UIKit.dim("实验性：新世界生成器（噪声版）还没接进来 ✓ 开新档仍走旧生成器 ✓ 只有「出图」能选它 ✓", 11))
 
 	v.add_child(_spacer(6))
 
@@ -205,13 +205,22 @@ func _open_new_game_dialog() -> void:
 	v.add_child(_row("世界种子", seed_edit))
 	v.add_child(UIKit.dim("填一个数字就能复现同一张地图 ✓ 留空或 0 = 每次随机 ✓", 11))
 
-	# 第 3 步（2026-10-15）：**只出图、不进游戏** ✓ —— 迭代生成器时最常用的入口 ✓
+	# 只出图、不进游戏 ✓（2026-10-18：板块那条路放弃后，选项精简成两个 ✓）
+	var what := OptionButton.new()
+	what.add_item("地图（旧生成器）")
+	what.add_item("★ 新地图（噪声版）")
+	what.selected = 0
+	v.add_child(_row("出图内容", what))
+
 	var shot := UIKit.small("只出图看看（不开始游戏）", 11)
 	shot.tooltip_text = "生成一次世界并存成 PNG，存到项目目录的 preview/ 里（控制台会打印绝对路径）"
 	shot.pressed.connect(func() -> void:
 		var txt2 := seed_edit.text.strip_edges()
 		var s2 := int(txt2) if txt2 != "" else 0
-		var r := await WorldPreview.save_preview(self, s2)
+		var pass_name := "terrain"
+		if what.selected == 1:
+			pass_name = "newmap"
+		var r := await WorldPreview.save_preview(self, s2, pass_name)
 		if not bool(r["ok"]):
 			GameState.toast.emit("出图失败 ✗ 详情看控制台")
 		else:
