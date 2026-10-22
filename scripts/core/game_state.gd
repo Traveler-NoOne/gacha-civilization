@@ -99,7 +99,7 @@ func new_game(seed_value: int = 0) -> void:
 	}
 	WorldgenBuilder.generate(state)
 	TileManager.setup_new_world(state)
-	_setup_capital_stronghold()
+	Strongholds.setup_capital(state)
 	_recompute_derived()
 	_grant_starting_units()
 	_add_log("建立部落，营地落在 %s。" % str(state["capital"]), "info")
@@ -177,23 +177,6 @@ func cost_to_text(cost: Dictionary) -> String:
 # ===========================================================================
 # v1.3.1 据点（本作仅首都；v1.7 删死代码时误删过这一行声明，已补回）
 # ===========================================================================
-const CAPITAL_STRONGHOLD := "sh_capital"
-
-
-func _setup_capital_stronghold() -> void:
-	state["strongholds"] = [{
-		"id": CAPITAL_STRONGHOLD,
-		"name": "首都",
-		"core": str(state.get("capital", "0,0")),
-		"control": 1.0,          # 掌控力（预留，本作恒 1.0）
-		"queue": [],             # 规划队列（吃生产力）
-		"decrees": [],           # v1.8.3 政事队列（吃行政点数）
-	}]
-	# 首都地块上的 stronghold / land_cap 由 TileManager.setup_new_world() 打点 ✓
-	# （2026-10-15 收拢：改地块字段的活儿归 TileManager ✓）
-
-func strongholds() -> Array:
-	return state.get("strongholds", [])
 
 
 ## v1.6：开局赠送 5★ 公民「格蕾修」。
@@ -218,60 +201,6 @@ func _grant_starting_units() -> void:
 	add_log("格蕾修随方舟的残骸漂流至此，成为你的第一位公民。", "unit")
 
 
-func stronghold_by_id(sid: String) -> Dictionary:
-	for s in strongholds():
-		if str(s.get("id", "")) == sid:
-			return s
-	return {}
-
-
-## 当前默认管理的据点（本作仅首都）
-func current_stronghold() -> Dictionary:
-	var all := strongholds()
-	if all.is_empty():
-		return {}
-	return all[0]
-
-
-func stronghold_of(tile: Dictionary) -> String:
-	return str(tile.get("stronghold", ""))
-
-
-## 某据点包含的地块（仅我方领地）
-func stronghold_tiles(sid: String) -> Array:
-	var out := []
-	for t in TileManager.owned_tiles(state):
-		if str(t.get("stronghold", "")) == sid:
-			out.append(t)
-	return out
-
-
-func land_cap(tile: Dictionary) -> float:
-	return float(tile.get("land_cap", Consts.LAND_CAP_DEFAULT))
-
-
-func land_used(tile: Dictionary) -> float:
-	var used := 0.0
-	for b in tile.get("buildings", []):
-		var def := find_building(str(b.get("id", "")))
-		if def != null:
-			used += def.land
-	return used
-
-
-func land_free(tile: Dictionary) -> float:
-	return maxf(0.0, land_cap(tile) - land_used(tile))
-
-
-func _new_bid() -> String:
-	return "b_%d_%d" % [Time.get_ticks_usec(), randi() % 100000]
-
-
-# ===========================================================================
-# v1.3.1 掌控力（预留接口：只保留数据结构与骨架，本版不接行为）
-# ===========================================================================
-func control_of(stronghold: Dictionary) -> float:
-	return float(stronghold.get("control", 1.0))
 
 
 # ===========================================================================
@@ -303,7 +232,7 @@ func culture_rate() -> float:
 	var c := 0.0
 	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
-			var def := find_building(b.get("id", ""))
+			var def := BuildingDB.find(b.get("id", ""))
 			if def == null:
 				continue
 			c += float(BuildingDB.meta_of(def, "culture", 0.0)) * float(b.get("level", 1))
@@ -315,7 +244,7 @@ func happiness() -> float:
 	var h := 50.0
 	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
-			var def := find_building(b.get("id", ""))
+			var def := BuildingDB.find(b.get("id", ""))
 			if def == null:
 				continue
 			var lv := int(b.get("level", 1))
@@ -393,19 +322,6 @@ func stability() -> float:
 	return clampf(s, 0.0, 1.0)
 
 
-func find_building(id: String) -> BuildingDef:
-	for b in building_defs:
-		if b.id == id:
-			return b
-	return null
-
-
-func tech_unlocked(id: String) -> bool:
-	return state["techs"].has(id)
-
-
-func has_flag(f: String) -> bool:
-	return state["techs_owned_flags"].has(f)
 
 
 # ===========================================================================
@@ -493,7 +409,7 @@ func citizen_units() -> Array:
 	return units_by_status(UnitDB.STATUS_CITIZEN)
 
 
-## 地块掌控力 = 该地块所属据点的 control_of()。
+## 地块掌控力 = 该地块所属据点的 Strongholds.control_of()。
 ## v1.5：据点 control 仍恒 1.0（衰减留待后续），所以门槛先挂着、暂不拦人。
 func tile_control(key: String) -> float:
 	var t := TileManager.tile_at(state, key)
@@ -502,7 +418,7 @@ func tile_control(key: String) -> float:
 	var sid := str(t.get("stronghold", ""))
 	if sid == "":
 		return 0.0
-	return control_of(stronghold_by_id(sid))
+	return Strongholds.control_of(Strongholds.by_id(state, sid))
 
 
 func control_ok(key: String) -> bool:
@@ -1093,136 +1009,6 @@ func clear_enemy_tile(key: String) -> bool:
 
 
 # ===========================================================================
-# 建筑操作（v1.3.1：按可用土地计容；同种可重复；修建走「即时或规划队列」）
-# ===========================================================================
-func tile_building(tile: Dictionary, id: String) -> Dictionary:
-	## 返回该地块上首个同 id 建筑（兼容旧调用）
-	for b in tile.get("buildings", []):
-		if b.get("id", "") == id:
-			return b
-	return {}
-
-
-func tile_buildings_of(tile: Dictionary, id: String) -> Array:
-	var out := []
-	for b in tile.get("buildings", []):
-		if b.get("id", "") == id:
-			out.append(b)
-	return out
-
-
-func tile_building_by_bid(tile: Dictionary, bid: String) -> Dictionary:
-	for b in tile.get("buildings", []):
-		if str(b.get("bid", "")) == bid:
-			return b
-	return {}
-
-
-## 校验能否在此地块建造该建筑（只看归属 / 科技 / 可用土地；付不付得起交给队列）
-func can_build(tile: Dictionary, def: BuildingDef) -> Dictionary:
-	if tile.is_empty():
-		return {"ok": false, "why": "地块不存在"}
-	if tile.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
-		return {"ok": false, "why": "该地块尚未被占领"}
-	if def.required_tech != "" and not tech_unlocked(def.required_tech):
-		return {"ok": false, "why": "需要科技：%s" % tech_name(def.required_tech)}
-	if land_used(tile) + def.land > land_cap(tile) + 0.0001:
-		return {"ok": false, "why": "可用土地不足（需 %.1f，剩余 %.1f）" % [def.land, land_free(tile)]}
-	return {"ok": true, "why": ""}
-
-
-## 建造入口：生产力够则立即建成，不够则进规划队列
-func build(tile_key: String, id: String) -> Dictionary:
-	return request_build(tile_key, id)
-
-
-func request_build(tile_key: String, id: String) -> Dictionary:
-	var def := find_building(id)
-	if def == null:
-		return {"ok": false, "why": "未知建筑"}
-	var tile := TileManager.tile_at(state, tile_key)
-	var chk := can_build(tile, def)
-	if not chk["ok"]:
-		return chk
-	var cost := def.upgrade_cost(1)
-	var non_prod := _non_production_cost(cost)
-	if not can_afford(non_prod):
-		return {"ok": false, "why": "资源不足（%s）" % cost_to_text(non_prod)}
-	pay(non_prod)
-	var item := {
-		"kind": "build", "tile": tile_key, "id": id, "level": 1, "bid": "",
-		"need_prod": float(cost.get("production", 0.0)), "paid_prod": 0.0,
-	}
-	var queued := _enqueue(item, tile_key)
-	_add_log("%s：%s" % ["已加入规划队列" if queued else "建造", def.display_name], "build")
-	_recompute_derived()
-	state_changed.emit()
-	return {"ok": true, "why": "", "queued": queued}
-
-
-## 入队：先把现有储量生产力灌进该项，够则立刻完成，否则 append 到据点队列
-func _enqueue(item: Dictionary, tile_key: String) -> bool:
-	var tile := TileManager.tile_at(state, tile_key)
-	var sh := stronghold_by_id(stronghold_of(tile))
-	if sh.is_empty():
-		sh = current_stronghold()
-	var need: float = float(item["need_prod"]) - float(item["paid_prod"])
-	var give := minf(res("production"), maxf(0.0, need))
-	if give > 0.0:
-		add_res("production", -give)
-		item["paid_prod"] = float(item["paid_prod"]) + give
-	if float(item["paid_prod"]) + 0.0001 >= float(item["need_prod"]):
-		_execute_queue_item(item)
-		return false
-	if sh.is_empty():
-		return false
-	(sh["queue"] as Array).append(item)
-	return true
-
-
-## 完成一个队列项（真正落地建筑 / 升级）
-func _execute_queue_item(item: Dictionary) -> void:
-	var tile := TileManager.tile_at(state, str(item.get("tile", "")))
-	if tile.is_empty():
-		return
-	var def := find_building(str(item.get("id", "")))
-	if str(item.get("kind", "")) == "build":
-		if not tile.has("buildings"):
-			tile["buildings"] = []
-		(tile["buildings"] as Array).append({
-			"bid": _new_bid(), "id": str(item["id"]), "level": 1, "workers": 0,
-		})
-	else:
-		var b := tile_building_by_bid(tile, str(item.get("bid", "")))
-		if b.is_empty():
-			return   # 目标建筑已被摧毁，项目作废
-		b["level"] = int(item.get("level", 1))
-	if def != null:
-		_add_log("%s完成：%s" % [
-			"建造" if str(item.get("kind", "")) == "build" else "升级", def.display_name], "build")
-
-
-## 每周期用可用生产力推进队列；返回未被队列消耗的生产力
-func _process_build_queue(avail: float) -> float:
-	for sh in strongholds():
-		var q: Array = sh.get("queue", [])
-		var i := 0
-		while i < q.size():
-			if avail <= 0.0:
-				break
-			var item: Dictionary = q[i]
-			var need := float(item.get("need_prod", 0.0)) - float(item.get("paid_prod", 0.0))
-			var put := minf(avail, maxf(0.0, need))
-			item["paid_prod"] = float(item.get("paid_prod", 0.0)) + put
-			avail -= put
-			if float(item["paid_prod"]) + 0.0001 >= float(item.get("need_prod", 0.0)):
-				q.remove_at(i)
-				_execute_queue_item(item)   # 完成后下一项顶上，不 i++
-			else:
-				break   # 队首未完成，后面的不推进
-	return maxf(0.0, avail)
-
-
 # ===========================================================================
 # v1.8.3：政事队列（吃行政点数）
 # ===========================================================================
@@ -1242,7 +1028,7 @@ func enqueue_decree(id: String, profession: String = UnitDB.MELEE) -> Dictionary
 	var why := decree_blocked_reason(id)
 	if why != "":
 		return {"ok": false, "why": why}
-	var sh := current_stronghold()
+	var sh := Strongholds.current(state)
 	if sh.is_empty():
 		return {"ok": false, "why": "没有据点"}
 	if not sh.has("decrees"):
@@ -1261,7 +1047,7 @@ func enqueue_decree(id: String, profession: String = UnitDB.MELEE) -> Dictionary
 ## 每周期用**当期入账的行政点数**推进政事队列。
 ## 结构与 _process_build_queue 一致：**队首没办完，后面的不推进**（避免摊薄）。
 func _process_decree_queue(avail: float) -> void:
-	for sh in strongholds():
+	for sh in Strongholds.all(state):
 		var q: Array = sh.get("decrees", [])
 		var i := 0
 		while i < q.size():
@@ -1299,7 +1085,7 @@ func _execute_decree(item: Dictionary) -> void:
 
 ## 队列编辑（UI 用）
 func queue_move(sid: String, index: int, delta: int) -> void:
-	var sh := stronghold_by_id(sid)
+	var sh := Strongholds.by_id(state, sid)
 	if sh.is_empty():
 		return
 	var q: Array = sh.get("queue", [])
@@ -1313,7 +1099,7 @@ func queue_move(sid: String, index: int, delta: int) -> void:
 
 
 func queue_remove(sid: String, index: int) -> void:
-	var sh := stronghold_by_id(sid)
+	var sh := Strongholds.by_id(state, sid)
 	if sh.is_empty():
 		return
 	var q: Array = sh.get("queue", [])
@@ -1327,7 +1113,7 @@ func queue_remove(sid: String, index: int) -> void:
 func drop_queue_items_for_bid(bid: String) -> void:
 	if bid == "":
 		return
-	for sh in strongholds():
+	for sh in Strongholds.all(state):
 		var q: Array = sh.get("queue", [])
 		var kept: Array = []
 		for item in q:
@@ -1336,111 +1122,9 @@ func drop_queue_items_for_bid(bid: String) -> void:
 		sh["queue"] = kept
 
 
-func _non_production_cost(cost: Dictionary) -> Dictionary:
-	var out := {}
-	for k in cost.keys():
-		if str(k) != "production":
-			out[k] = cost[k]
-	return out
-
-
-func request_upgrade_by_bid(tile_key: String, bid: String) -> Dictionary:
-	var tile := TileManager.tile_at(state, tile_key)
-	var b := tile_building_by_bid(tile, bid)
-	if b.is_empty():
-		return {"ok": false, "why": "该地块没有此建筑"}
-	return _request_upgrade_instance(tile_key, b)
-
-
-func _request_upgrade_instance(tile_key: String, b: Dictionary) -> Dictionary:
-	var def := find_building(str(b.get("id", "")))
-	if def == null:
-		return {"ok": false, "why": "未知建筑"}
-	var lv := int(b.get("level", 1))
-	if lv >= def.level_cap():
-		return {"ok": false, "why": "已达等级上限"}
-	var target := lv + 1
-	var cost := def.upgrade_cost(target)
-	var non_prod := _non_production_cost(cost)
-	if not can_afford(non_prod):
-		return {"ok": false, "why": "资源不足（%s）" % cost_to_text(non_prod)}
-	pay(non_prod)
-	var item := {
-		"kind": "upgrade", "tile": tile_key, "id": str(b.get("id", "")),
-		"level": target, "bid": str(b.get("bid", "")),
-		"need_prod": float(cost.get("production", 0.0)), "paid_prod": 0.0,
-	}
-	var queued := _enqueue(item, tile_key)
-	_add_log("%s → Lv.%d：%s" % [def.display_name, target,
-		"已加入规划队列" if queued else "升级完成"], "build")
-	_recompute_derived()
-	state_changed.emit()
-	return {"ok": true, "why": "", "queued": queued}
-
-
-## 指派 / 撤回人力（delta 可正可负）；按 id 命中首个同种建筑
-func assign_worker(tile_key: String, id: String, delta: int) -> Dictionary:
-	var tile := TileManager.tile_at(state, tile_key)
-	var b := tile_building(tile, id)
-	if b.is_empty():
-		return {"ok": false, "why": "该地块没有此建筑"}
-	return _assign_worker_instance(b, delta)
-
-
-func assign_worker_by_bid(tile_key: String, bid: String, delta: int) -> Dictionary:
-	var tile := TileManager.tile_at(state, tile_key)
-	var b := tile_building_by_bid(tile, bid)
-	if b.is_empty():
-		return {"ok": false, "why": "该地块没有此建筑"}
-	return _assign_worker_instance(b, delta)
-
-
-func _assign_worker_instance(b: Dictionary, delta: int) -> Dictionary:
-	var def := find_building(str(b.get("id", "")))
-	if def == null:
-		return {"ok": false, "why": "未知建筑"}
-	var cur := int(b.get("workers", 0))
-	var cap := def.max_workers(int(b["level"]))
-	if delta > 0:
-		if cur >= cap:
-			return {"ok": false, "why": "已达该等级人力上限（%d）" % cap}
-		if free_pop() <= 0:
-			return {"ok": false, "why": "没有空闲人力"}
-	b["workers"] = clampi(cur + delta, 0, cap)
-	_recompute_derived()
-	state_changed.emit()
-	return {"ok": true, "why": ""}
-
-
-## 该地块当前建筑的产出预览
-func tile_yield(tile: Dictionary) -> Dictionary:
-	var out := {}
-	for b in tile.get("buildings", []):
-		var def := find_building(b.get("id", ""))
-		if def == null:
-			continue
-		var lv := int(b.get("level", 1))
-		var w := int(b.get("workers", 0))
-		var y := def.yield_now(lv, w)
-		# 矿场：依赖地块资源点
-		var uses_node := bool(BuildingDB.meta_of(def, "uses_node", false))
-		if uses_node and tile.get("resource", "") != "":
-			var bonus := float(BuildingDB.meta_of(def, "node_bonus", 1.0)) \
-				+ float(BuildingDB.meta_of(def, "node_bonus_per_level", 0.25)) * float(lv)
-			var rk: String = tile["resource"]
-			y[rk] = float(y.get(rk, 0.0)) + bonus
-		# 磨坊等：人力维护
-		var upk: Dictionary = BuildingDB.meta_of(def, "upkeep_per_worker", {})
-		for k in upk.keys():
-			y[k] = float(y.get(k, 0.0)) - float(upk[k]) * float(w)
-		for k in y.keys():
-			out[k] = float(out.get(k, 0.0)) + float(y[k])
-	return out
-
-
 ## 首都民居按照「房屋比例」给金币
 func _housing_gold(level: int) -> float:
-	var def := find_building("classic_house")
+	var def := BuildingDB.find("classic_house")
 	if def == null:
 		return 0.0
 	var rng: Dictionary = BuildingDB.meta_of(def, "housing_ratio_gold", {"min": 1.0, "max": 10.0})
@@ -1466,7 +1150,7 @@ func end_cycle() -> Dictionary:
 	# 1. 建筑产出
 	var income := {}
 	for t in TileManager.owned_tiles(state):
-		var y := tile_yield(t)
+		var y := Buildings.tile_yield(t)
 		for k in y.keys():
 			income[k] = float(income.get(k, 0.0)) + float(y[k])
 	# 民居金币
@@ -1510,7 +1194,7 @@ func end_cycle() -> Dictionary:
 		add_res("currency", -short * 2.0)
 		report["events"].append("生产力不足，用货币抵付维护 %.0f" % short)
 		prod_avail = 0.0
-	var leftover := _process_build_queue(prod_avail)
+	var leftover := Buildings.process_queue(state, prod_avail)
 	var room := maxf(0.0, Consts.PRODUCTION_STORE_CAP - res("production"))
 	var added := minf(leftover, room)
 	if added > 0.0:
@@ -1637,7 +1321,7 @@ func settle_gacha_currency(report: Dictionary) -> void:
 func _balance_lines() -> Array[float]:
 	var inc := {}
 	for t in TileManager.owned_tiles(state):
-		var y := tile_yield(t)
+		var y := Buildings.tile_yield(t)
 		for k in y.keys():
 			inc[k] = float(inc.get(k, 0.0)) + float(y[k])
 	var owned := TileManager.owned_tiles(state)
@@ -1727,7 +1411,7 @@ func resource_breakdown(key: String) -> Dictionary:
 	var upk: Array = []
 	var building_out := 0.0
 	for t in TileManager.owned_tiles(state):
-		var y := tile_yield(t)
+		var y := Buildings.tile_yield(t)
 		building_out += float(y.get(key, 0.0))
 		if key == "currency":
 			for b in t.get("buildings", []):
@@ -1840,57 +1524,6 @@ func _setup_default_tasks() -> void:
 	]
 	state["tasks_done"] = []
 	state["enemy_killed"] = 0
-
-
-# ===========================================================================
-# 科技
-# ===========================================================================
-func tech_name(id: String) -> String:
-	for t in Consts.TECHS:
-		if t["id"] == id:
-			return t["name"]
-	if id == "genesis_crystal":
-		return "创世结晶"
-	return id
-
-
-func can_research(id: String) -> Dictionary:
-	var def: Dictionary = {}
-	for t in Consts.TECHS:
-		if t["id"] == id:
-			def = t
-			break
-	if def.is_empty():
-		return {"ok": false, "why": "未知科技"}
-	if tech_unlocked(id):
-		return {"ok": false, "why": "已研究"}
-	for p in def["prereq"]:
-		# 前置可能是科技，也可能是「发展抽卡得到的标记」
-		if tech_unlocked(p) or has_flag(p):
-			continue
-		return {"ok": false, "why": "缺少前置：%s" % tech_name(p)}
-	if res("research") < float(def["cost"]):
-		return {"ok": false, "why": "科研点不足（需要 %d）" % int(def["cost"])}
-	return {"ok": true, "why": ""}
-
-
-func research(id: String) -> Dictionary:
-	var chk := can_research(id)
-	if not chk["ok"]:
-		return chk
-	for t in Consts.TECHS:
-		if t["id"] == id:
-			add_res("research", -float(t["cost"]))
-			state["techs"].append(id)
-			var names: Array[String] = []
-			for bid in t["unlocks"]:
-				var bd := find_building(bid)
-				if bd != null:
-					names.append(bd.display_name)
-			_add_log("研究完成：%s（解锁 %s）" % [t["name"], "、".join(names)], "tech")
-			break
-	state_changed.emit()
-	return {"ok": true, "why": ""}
 
 
 # ===========================================================================

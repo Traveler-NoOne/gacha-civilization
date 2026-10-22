@@ -335,7 +335,7 @@ static func _damage_tile(state: Dictionary, key: String, rng: RandomNumberGenera
 		return
 	var idx := rng.randi() % bs.size()
 	var lost: Dictionary = bs[idx]
-	var def := GameState.find_building(str(lost.get("id", "")))
+	var def := BuildingDB.find(str(lost.get("id", "")))
 	var lname := def.display_name if def != null else str(lost.get("id", ""))
 	if int(lost.get("level", 1)) > 1:
 		lost["level"] = int(lost["level"]) - 1

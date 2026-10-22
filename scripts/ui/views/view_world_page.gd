@@ -422,7 +422,7 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 	var bcount := (t.get("buildings", []) as Array).size()
 	var line := "地形 %s　土地 %.1f/%.1f　建筑 %d" % [
 		Consts.terrain_name(str(t.get("terrain", ""))),
-		GameState.land_used(t), GameState.land_cap(t), bcount]
+		Strongholds.land_used(t), Strongholds.land_cap(t), bcount]
 	var l := UIKit.dim(line, 11)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tile_info_box.add_child(l)

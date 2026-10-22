@@ -103,9 +103,9 @@ func refresh() -> void:
 		c.queue_free()
 	_refresh_tabs()
 	# v1.8.20.4：按"被点的那一格"找据点（认格子）；没给格子时退回旧的"默认据点"
-	var sh := GameState.stronghold_by_id(GameState.stronghold_of(TileManager.tile_at(GameState.state, key)))
+	var sh := Strongholds.by_id(GameState.state, Strongholds.of_tile(TileManager.tile_at(GameState.state, key)))
 	if sh.is_empty():
-		sh = GameState.current_stronghold()
+		sh = Strongholds.current(GameState.state)
 	if sh.is_empty():
 
 		content_box.add_child(UIKit.dim("（没有据点）"))
@@ -142,14 +142,14 @@ func _refresh_tabs() -> void:
 # ---------------------------------------------------------------------------
 ## 信息：**只显示** 掌控力 / 已用土地 / 据点明细（地块明细归 v1.8.2 的简约信息小窗）
 func _refresh_info(sh: Dictionary) -> void:
-	var tiles := GameState.stronghold_tiles(str(sh.get("id", "")))
+	var tiles := Strongholds.tiles_of(GameState.state, str(sh.get("id", "")))
 	var land_cap := 0.0
 	var land_used := 0.0
 	for t in tiles:
-		land_cap += GameState.land_cap(t)
-		land_used += GameState.land_used(t)
+		land_cap += Strongholds.land_cap(t)
+		land_used += Strongholds.land_used(t)
 	content_box.add_child(_kv("据点", str(sh.get("name", "")), UIKit.GOLD))
-	content_box.add_child(_kv("掌控力", "%.0f%%" % (GameState.control_of(sh) * 100.0), UIKit.TEXT))
+	content_box.add_child(_kv("掌控力", "%.0f%%" % (Strongholds.control_of(sh) * 100.0), UIKit.TEXT))
 	content_box.add_child(_kv("已用土地", "%.1f / %.1f" % [land_used, land_cap], UIKit.TEXT))
 	content_box.add_child(UIKit.spacer(2))
 	content_box.add_child(UIKit.dim("据点明细：", 11))
@@ -162,7 +162,7 @@ func _refresh_info(sh: Dictionary) -> void:
 			nm = key
 		var bcount := (t.get("buildings", []) as Array).size()
 		var l := UIKit.dim("· %s [%s]　土地 %.1f/%.1f　建筑 %d" % [
-			nm, key, GameState.land_used(t), GameState.land_cap(t), bcount], 10)
+			nm, key, Strongholds.land_used(t), Strongholds.land_cap(t), bcount], 10)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		content_box.add_child(l)
 
@@ -237,7 +237,7 @@ func _refresh_build_queue(sh: Dictionary) -> void:
 		var item: Dictionary = q[i]
 		var need := maxf(0.0001, float(item.get("need_prod", 0.0)))
 		var paid := float(item.get("paid_prod", 0.0))
-		var def := GameState.find_building(str(item.get("bid", "")))
+		var def := BuildingDB.find(str(item.get("bid", "")))
 		var nm := def.display_name if def != null else str(item.get("bid", "?"))
 		var head := "▶ " if i == 0 else "· "
 		build_box.add_child(UIKit.text_label("%s%s　%.0f / %.0f" % [head, nm, paid, need], 11,
@@ -263,15 +263,15 @@ func _kv(k: String, v: String, col: Color) -> Control:
 static func build_labor_rows(parent: VBoxContainer, on_changed: Callable) -> void:
 	for c in parent.get_children():
 		c.queue_free()
-	var sh := GameState.current_stronghold()
+	var sh := Strongholds.current(GameState.state)
 	if sh.is_empty():
 		parent.add_child(UIKit.dim("（没有据点）"))
 		return
 	var any := false
-	for t in GameState.stronghold_tiles(str(sh.get("id", ""))):
+	for t in Strongholds.tiles_of(GameState.state, str(sh.get("id", ""))):
 		var key := TileManager.tile_key(t)
 		for b in t.get("buildings", []):
-			var def := GameState.find_building(str(b.get("id", "")))
+			var def := BuildingDB.find(str(b.get("id", "")))
 			if def == null:
 				continue
 			var level := int(b.get("level", 1))
@@ -289,12 +289,12 @@ static func build_labor_rows(parent: VBoxContainer, on_changed: Callable) -> voi
 			var bid := str(b.get("bid", ""))
 			var minus := UIKit.tiny("−", 12)
 			minus.pressed.connect(func() -> void:
-				GameState.assign_worker_by_bid(key, bid, -1)
+				Buildings.assign_worker_by_bid(GameState.state, key, bid, -1)
 				on_changed.call())
 			var num := UIKit.text_label("%d/%d" % [int(b.get("workers", 0)), maxw], 11, UIKit.TEXT)
 			var plus := UIKit.tiny("＋", 12)
 			plus.pressed.connect(func() -> void:
-				var r2: Dictionary = GameState.assign_worker_by_bid(key, bid, 1)
+				var r2: Dictionary = Buildings.assign_worker_by_bid(GameState.state, key, bid, 1)
 				if not r2["ok"]:
 					GameState.toast.emit(str(r2["why"]))
 				on_changed.call())

@@ -195,8 +195,11 @@ static func meta_of(b: BuildingDef, key: String, def_value: Variant) -> Variant:
 	return def_value
 
 
+## 全部建筑的 id → BuildingDef 索引（`all()` 每次都会重建 12 个对象，这里缓一份 ✓）
+static var _by_id: Dictionary = {}
+
 static func find(id: String) -> BuildingDef:
-	for b in all():
-		if b.id == id:
-			return b
-	return null
+	if _by_id.is_empty():
+		for b in all():
+			_by_id[b.id] = b
+	return _by_id.get(id, null) as BuildingDef

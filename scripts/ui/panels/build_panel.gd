@@ -80,11 +80,11 @@ func refresh() -> void:
 		land_label.text = ""
 		_update_build_btn(t)
 		return
-	land_label.text = "已用土地 %.1f / %.1f" % [GameState.land_used(t), GameState.land_cap(t)]
+	land_label.text = "已用土地 %.1f / %.1f" % [Strongholds.land_used(t), Strongholds.land_cap(t)]
 	var shown := 0
 	for def in GameState.building_defs:
 		# v1.6 的规矩：未满足科技条件的建筑**自动隐藏**
-		if def.required_tech != "" and not GameState.tech_unlocked(def.required_tech):
+		if def.required_tech != "" and not Techs.unlocked(GameState.state, def.required_tech):
 			continue
 		list_box.add_child(_row(def, t))
 		shown += 1
@@ -114,7 +114,7 @@ func _row(def: BuildingDef, t: Dictionary) -> Control:
 	v.add_child(head)
 	head.add_child(UIKit.text_label(str(def.display_name), 13, UIKit.GOLD if sel else UIKit.TEXT))
 	head.add_child(UIKit.dim("占地 %.1f" % float(def.land), 10))
-	var count := GameState.tile_buildings_of(t, def.id).size()
+	var count := Buildings.tile_buildings_of(t, def.id).size()
 	if count > 0:
 		head.add_child(UIKit.text_label("已有 ×%d" % count, 10, UIKit.OK))
 
@@ -128,7 +128,7 @@ func _row(def: BuildingDef, t: Dictionary) -> Control:
 		var info := UIKit.dim(str(def.summary()), 10)
 		info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(info)
-		var chk := GameState.can_build(t, def)
+		var chk := Buildings.can_build(GameState.state, t, def)
 		if not bool(chk["ok"]):
 			v.add_child(UIKit.text_label("不能修建：%s" % str(chk["why"]), 10, UIKit.BAD))
 	return row
@@ -145,11 +145,11 @@ func _update_build_btn(t: Dictionary) -> void:
 		build_btn.text = "修建"
 		build_btn.tooltip_text = "先在列表里选一项"
 		return
-	var def := GameState.find_building(selected_id)
+	var def := BuildingDB.find(selected_id)
 	if def == null:
 		build_btn.disabled = true
 		return
-	var chk := GameState.can_build(t, def)
+	var chk := Buildings.can_build(GameState.state, t, def)
 	build_btn.disabled = not bool(chk["ok"])
 	build_btn.tooltip_text = "" if bool(chk["ok"]) else str(chk["why"])
 	# 生产力够就叫「修建」，不够就叫「加入队列」（沿用旧面板的说法）
@@ -160,7 +160,7 @@ func _update_build_btn(t: Dictionary) -> void:
 func _on_build() -> void:
 	if selected_id == "":
 		return
-	var r: Dictionary = GameState.request_build(tile_key, selected_id)
+	var r: Dictionary = Buildings.request_build(GameState.state, tile_key, selected_id)
 	if not bool(r["ok"]):
 		GameState.toast.emit(str(r["why"]))
 	else:

@@ -40,7 +40,7 @@ func refresh() -> void:
 		c.queue_free()
 	for t in Consts.TECHS:
 		var id := str(t["id"])
-		var unlocked := GameState.tech_unlocked(id)
+		var unlocked := Techs.unlocked(GameState.state, id)
 		var row := UIKit.panel(UIKit.BG_PANEL_2, UIKit.OK if unlocked else UIKit.LINE_SOFT, 5)
 		list_box.add_child(row)
 		var v := UIKit.vbox(2)
@@ -54,12 +54,12 @@ func refresh() -> void:
 		var b := UIKit.small("已完成" if unlocked else "研究", 12)
 		b.disabled = unlocked
 		if not unlocked:
-			var chk := GameState.can_research(id)
+			var chk := Techs.can_research(GameState.state, id)
 			if not bool(chk["ok"]):
 				b.disabled = true
 				b.tooltip_text = str(chk["why"])
 			b.pressed.connect(func() -> void:
-				var r: Dictionary = GameState.research(id)
+				var r: Dictionary = Techs.research(GameState.state, id)
 				if not bool(r["ok"]):
 					GameState.toast.emit(str(r["why"]))
 				refresh())

@@ -192,7 +192,7 @@ func _draw_tile_buildings(v: Dictionary) -> void:
 	var bx := center + Vector2(-hex_size * 0.42, hex_size * 0.42)
 	for i in mini(bs.size(), 6):
 		var b: Dictionary = bs[i]
-		var def := GameState.find_building(str(b.get("id", "")))
+		var def := BuildingDB.find(str(b.get("id", "")))
 		var cat: String = def.category if def != null else "工业建筑"
 		var bcol := _cat_color(cat)
 		var pos := bx + Vector2(float(i) * hex_size * 0.19, 0.0)
