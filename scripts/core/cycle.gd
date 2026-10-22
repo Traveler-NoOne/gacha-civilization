@@ -130,9 +130,9 @@ static func end_cycle(state: Dictionary, rng: RandomNumberGenerator) -> Dictiona
 	Derived.recompute(state)
 	report["happiness"] = Derived.happiness(state)
 	report["stability"] = Derived.stability(state)
-	GameState._add_log("第 %d 周期结束：%s" % [report["cycle"], _report_line(state, income, upkeep, growth)], "cycle")
+	Journal.add(state, "第 %d 周期结束：%s" % [report["cycle"], _report_line(state, income, upkeep, growth)], "cycle")
 	for e in report["events"]:
-		GameState._add_log(e, "warn")
+		Journal.add(state, e, "warn")
 
 	# 11. 自动存档（按全局设置里的「自动存档周期数」，默认每周期）
 	var interval := GameState.autosave_interval()

@@ -106,8 +106,8 @@ func new_game(seed_value: int = 0) -> void:
 	Strongholds.setup_capital(state)
 	Derived.recompute(state)
 	Units.grant_starting(state)
-	_add_log("建立部落，营地落在 %s。" % str(state["capital"]), "info")
-	_add_log("初始点亮营地周围 %d 格，其余被迷雾覆盖。" % (1 + 6 * Consts.CAMP_START_RADIUS), "info")
+	Journal._add(state, "建立部落，营地落在 %s。" % str(state["capital"]), "info")
+	Journal._add(state, "初始点亮营地周围 %d 格，其余被迷雾覆盖。" % (1 + 6 * Consts.CAMP_START_RADIUS), "info")
 	_setup_default_tasks()
 	state_changed.emit()
 
@@ -183,23 +183,6 @@ func _setup_default_tasks() -> void:
 # ===========================================================================
 # 日志
 # ===========================================================================
-func add_log(text: String, kind: String = "info") -> void:
-	_add_log(text, kind)
-
-
-func _add_log(text: String, kind: String) -> void:
-	var entry := {"cycle": int(state.get("cycle", 1)), "text": text, "kind": kind}
-	var l: Array = state["log"]
-	l.append(entry)
-	while l.size() > 300:
-		l.pop_front()
-
-
-func add_manual_log(text: String) -> void:
-	var l: Array = state["manual_log"]
-	l.append({"cycle": int(state["cycle"]), "text": text})
-	_add_log("记录：%s" % text, "record")
-	state_changed.emit()
 
 
 # ===========================================================================

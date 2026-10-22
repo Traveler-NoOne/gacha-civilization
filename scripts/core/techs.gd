@@ -56,7 +56,7 @@ static func research(state: Dictionary, id: String) -> Dictionary:
 				var bd := BuildingDB.find(str(bid))
 				if bd != null:
 					names.append(bd.display_name)
-			GameState.add_log("研究完成：%s（解锁 %s）" % [t["name"], "、".join(names)], "tech")
+			Journal.add(GameState.state, "研究完成：%s（解锁 %s）" % [t["name"], "、".join(names)], "tech")
 			break
 	GameState.state_changed.emit()
 	return {"ok": true, "why": ""}

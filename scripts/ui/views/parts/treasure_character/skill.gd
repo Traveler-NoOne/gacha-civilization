@@ -51,7 +51,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		if not found:
 			arr.append({"name": nm, "level": 1})
 		u["skills"] = arr
-		GameState.add_log("%s 的技能获得提升。" % u["name"], "unit")
+		Journal.add(GameState.state, "%s 的技能获得提升。" % u["name"], "unit")
 		GameState.state_changed.emit()
 		on_changed.call())
 	sv.add_child(add)

@@ -33,7 +33,7 @@ static func enqueue(state: Dictionary, id: String, profession: String = UnitDB.M
 		"cost": DecreeDB.cost_of(id),
 		"paid": 0.0,
 	})
-	GameState.add_log("政事「%s」已排入队列。" % DecreeDB.display_name(id), "admin")
+	Journal.add(GameState.state, "政事「%s」已排入队列。" % DecreeDB.display_name(id), "admin")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": ""}
 
@@ -67,10 +67,10 @@ static func _execute(state: Dictionary, item: Dictionary) -> void:
 	if id == DecreeDB.RECRUIT:
 		var r := Units.recruit_soldier(GameState.state, str(item.get("profession", UnitDB.MELEE)))
 		if bool(r["ok"]):
-			GameState.add_log("政事「征兵」完成：%s 进驻首都。" % str((r["unit"] as Dictionary).get("name", "")), "admin")
+			Journal.add(GameState.state, "政事「征兵」完成：%s 进驻首都。" % str((r["unit"] as Dictionary).get("name", "")), "admin")
 		else:
 			Res.add(GameState.state, "admin", paid)
-			GameState.add_log("政事「征兵」未能执行（%s），已退还行政点数 %.1f。" % [str(r["why"]), paid], "admin")
+			Journal.add(GameState.state, "政事「征兵」未能执行（%s），已退还行政点数 %.1f。" % [str(r["why"]), paid], "admin")
 	else:
 		Res.add(GameState.state, "admin", paid)
-		GameState.add_log("未知政事「%s」，已退还行政点数 %.1f。" % [id, paid], "admin")
+		Journal.add(GameState.state, "未知政事「%s」，已退还行政点数 %.1f。" % [id, paid], "admin")

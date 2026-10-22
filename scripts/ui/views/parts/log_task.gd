@@ -259,7 +259,7 @@ func _archive_one(t: Dictionary) -> void:
 	tasks.remove_at(idx)
 	if selected == "task:" + tid:
 		selected = ""
-	GameState.add_log("任务归档：%s" % str(item["name"]), "task")
+	Journal.add(GameState.state, "任务归档：%s" % str(item["name"]), "task")
 	GameState.toast.emit("已归档「%s」，可在档案页查看" % str(item["name"]))
 	GameState.state_changed.emit()
 	refresh()
@@ -408,7 +408,7 @@ func _new_task() -> void:
 			"system": false,
 			"created_cycle": int(GameState.state["cycle"]),
 		})
-		GameState.add_log("新建任务：%s" % nm, "task")
+		Journal.add(GameState.state, "新建任务：%s" % nm, "task")
 		gs.close_dialog()
 		refresh())
 	v.add_child(ok)
@@ -519,7 +519,7 @@ func _complete_task() -> void:
 	(GameState.state["tasks_done"] as Array).append(t)
 	tasks.remove_at(idx)
 	selected = ""
-	GameState.add_log("任务归档：%s" % str(t["name"]), "task")
+	Journal.add(GameState.state, "任务归档：%s" % str(t["name"]), "task")
 	GameState.toast.emit("已完成并归档「%s」" % str(t["name"]))
 	GameState.state_changed.emit()
 	refresh()

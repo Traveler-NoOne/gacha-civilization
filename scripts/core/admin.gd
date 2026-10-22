@@ -93,7 +93,7 @@ static func add_effect(state: Dictionary, delta: float, duration: int, label: St
 		"delta": delta, "remaining": duration,
 		"source": "kill" if delta > 0.0 else "death", "label": label,
 	})
-	GameState.add_log("行政影响：%s，每周期 %+.1f（持续 %d 周期）。" % [label, delta, duration], "world")
+	Journal.add(GameState.state, "行政影响：%s，每周期 %+.1f（持续 %d 周期）。" % [label, delta, duration], "world")
 
 
 ## 某项资源的「每周期收支明细」（顶部资源栏点击悬浮窗用）

@@ -87,24 +87,24 @@ static func draw(state: Dictionary, p: int, rng: RandomNumberGenerator) -> Dicti
 			if wd["spawned"]:
 				if wd["high"]:
 					events.append("⚠ 高危游荡敌人在 %s 出现（%d 次保底触发）" % [wd["key"], Consts.WANDER_PITY])
-					GameState.add_log("高危游荡敌人出现于 %s。" % wd["key"], "danger")
+					Journal.add(GameState.state, "高危游荡敌人出现于 %s。" % wd["key"], "danger")
 				else:
 					events.append("游荡敌人出现在 %s" % wd["key"])
-					GameState.add_log("游荡敌人出现于 %s。" % wd["key"], "danger")
+					Journal.add(GameState.state, "游荡敌人出现于 %s。" % wd["key"], "danger")
 		Pool.RESOURCE:
 			# v1.5：直接从量子之海汲取更容易被盯上 —— 一旦被入侵，就是据点形式
 			var hz := Threats.maybe_spawn_hazard(state, rng)
 			if hz["spawned"]:
 				if hz["extreme"]:
 					events.append("⚠ 极度高危据点出现在 %s（%d 次高危据点保底触发）" % [hz["key"], Consts.HAZARD_PITY])
-					GameState.add_log("极度高危据点生成于 %s。" % hz["key"], "danger")
+					Journal.add(GameState.state, "极度高危据点生成于 %s。" % hz["key"], "danger")
 				else:
 					events.append("高危据点出现在 %s" % hz["key"])
-					GameState.add_log("高危据点生成于 %s。" % hz["key"], "danger")
+					Journal.add(GameState.state, "高危据点生成于 %s。" % hz["key"], "danger")
 		Pool.DEVELOPMENT:
 			var th := Threats.spawn_ultimate_threat(state, rng)
 			events.append("☠ 终极威胁降临于 %s：将在 %d 个周期后直扑首都" % [th["key"], Consts.THREAT_WANDER_CYCLES])
-			GameState.add_log("终极威胁降临于 %s。" % th["key"], "danger")
+			Journal.add(GameState.state, "终极威胁降临于 %s。" % th["key"], "danger")
 			var thr: Dictionary = state["pity"]["development"] if state["pity"].has("development") else {}
 			if not thr.is_empty():
 				thr["total"] = int(thr.get("total", 0)) + 1
@@ -274,7 +274,7 @@ static func _apply_card(state: Dictionary, c: Dictionary) -> void:
 			if c.has("spawn_resource"):
 				var r := TileManager.spawn_resource_node(state, GameState._rng, int(c["spawn_resource"]))
 				if r["ok"]:
-					GameState.add_log("资源地脉生效：%s 出现 %s资源点。" % [r["key"], Consts.res_name(str(r["resource"]))], "world")
+					Journal.add(GameState.state, "资源地脉生效：%s 出现 %s资源点。" % [r["key"], Consts.res_name(str(r["resource"]))], "world")
 			if c.has("tech"):
 				var flag := str(c["tech"])
 				if not (state["techs_owned_flags"] as Array).has(flag):
@@ -289,7 +289,7 @@ static func _apply_card(state: Dictionary, c: Dictionary) -> void:
 				var added := WorldgenBuilder.expand_map(state, int(c["expand_map"]))
 
 				if added > 0:
-					GameState.add_log("营地扩建：可探索范围增加了 %d 格。" % added, "world")
+					Journal.add(GameState.state, "营地扩建：可探索范围增加了 %d 格。" % added, "world")
 		_:
 			pass
 
@@ -303,7 +303,7 @@ static func rotate_group(state: Dictionary, rng: RandomNumberGenerator) -> Strin
 		idx = 0
 	var nxt: String = str(groups[(idx + 1) % groups.size()])
 	state["active_group"] = nxt
-	GameState.add_log("卡组轮换：%s -> %s" % [cur, nxt], "gacha")
+	Journal.add(GameState.state, "卡组轮换：%s -> %s" % [cur, nxt], "gacha")
 	return nxt
 
 

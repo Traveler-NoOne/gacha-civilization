@@ -48,7 +48,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 			return
 		Res.add(GameState.state, "currency", -cost)
 		u["level"] = int(u["level"]) + 1
-		GameState.add_log("%s 提升到 Lv.%d。" % [u["name"], int(u["level"])], "unit")
+		Journal.add(GameState.state, "%s 提升到 Lv.%d。" % [u["name"], int(u["level"])], "unit")
 		GameState.state_changed.emit()
 		on_changed.call())
 	lv_row.add_child(up)

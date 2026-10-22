@@ -210,7 +210,7 @@ static func claim(state: Dictionary, key: String) -> Dictionary:
 		t["name"] = "%s·领地" % Consts.terrain_name(str(t["terrain"]))
 	var c := coord_of(key)
 	var revealed := discover_radius(state, c, 1)
-	GameState.add_log("占领 %s（周围点亮 %d 格）。" % [key, revealed], "world")
+	Journal.add(GameState.state, "占领 %s（周围点亮 %d 格）。" % [key, revealed], "world")
 	return {"ok": true, "why": "", "revealed": revealed}
 
 
@@ -264,7 +264,7 @@ static func clear_tile(state: Dictionary, key: String, rng: RandomNumberGenerato
 		state["pop_total"] = int(state["pop_total"]) - 1
 	GameState.clear_enemy_tile(key)
 	var kind := "终极威胁" if was_threat else ("高危据点" if was_danger else "游荡敌人")
-	GameState.add_log("清剿 %s 的%s成功。" % [key, kind], "combat")
+	Journal.add(GameState.state, "清剿 %s 的%s成功。" % [key, kind], "combat")
 	return {"ok": true, "why": "", "kind": kind, "loss": loss}
 
 

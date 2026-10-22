@@ -9,9 +9,9 @@ extends RefCounted
 static func set_enabled(on: bool) -> void:
 	AppSettings.set_cheat_enabled(on)
 	if on:
-		GameState.add_log("作弊功能已开启。", "cheat")
+		Journal.add(GameState.state, "作弊功能已开启。", "cheat")
 	else:
-		GameState.add_log("作弊功能已关闭。", "cheat")
+		Journal.add(GameState.state, "作弊功能已关闭。", "cheat")
 
 ## 批量增加资源
 static func add_resources(amounts: Dictionary) -> Dictionary:
@@ -29,7 +29,7 @@ static func add_resources(amounts: Dictionary) -> Dictionary:
 	if parts.is_empty():
 		return {"ok": false, "why": "没有填写任何数量", "summary": ""}
 	var summary := "、".join(parts)
-	GameState.add_log("【作弊】获得 %s。" % "、".join(parts), "cheat")
+	Journal.add(GameState.state, "【作弊】获得 %s。" % "、".join(parts), "cheat")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": "", "summary": summary}
 
@@ -44,7 +44,7 @@ static func destroy_tile_enemies(key: String) -> Dictionary:
 		return {"ok": false, "why": "该地块没有敌对单位", "label": ""}
 	var label := UnitDB.enemy_label(t)
 	GameState.clear_enemy_tile(key)
-	GameState.add_log("【作弊】直接摧毁了 %s 的%s。" % [key, label], "cheat")
+	Journal.add(GameState.state, "【作弊】直接摧毁了 %s 的%s。" % [key, label], "cheat")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": "", "label": label}
 
@@ -58,13 +58,13 @@ static func destroy_all_enemies() -> int:
 			keys.append(str(k))
 	for k in keys:
 		destroy_tile_enemies(k)
-	GameState.add_log("【作弊】清空了全部敌对单位(%d 个)。" % keys.size(), "cheat")
+	Journal.add(GameState.state, "【作弊】清空了全部敌对单位(%d 个)。" % keys.size(), "cheat")
 	GameState.state_changed.emit()
 	return keys.size()
 
 ## 揭开所有迷雾
 static func reveal_all() -> int:
 	var n := TileManager.discover_all(GameState.state)
-	GameState.add_log("【作弊】揭开了全部迷雾（新揭开 %d 格）。" % n, "cheat")
+	Journal.add(GameState.state, "【作弊】揭开了全部迷雾（新揭开 %d 格）。" % n, "cheat")
 	GameState.state_changed.emit()
 	return n

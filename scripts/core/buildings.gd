@@ -71,7 +71,7 @@ static func request_build(state: Dictionary, tile_key: String, id: String) -> Di
 		"need_prod": float(cost.get("production", 0.0)), "paid_prod": 0.0,
 	}
 	var queued := _enqueue(state, item, tile_key)
-	GameState.add_log("%s：%s" % ["已加入规划队列" if queued else "建造", def.display_name], "build")
+	Journal.add(GameState.state, "%s：%s" % ["已加入规划队列" if queued else "建造", def.display_name], "build")
 	Derived.recompute(GameState.state)
 	GameState.state_changed.emit()
 	return {"ok": true, "why": "", "queued": queued}
@@ -104,7 +104,7 @@ static func _request_upgrade_instance(state: Dictionary, tile_key: String, b: Di
 		"need_prod": float(cost.get("production", 0.0)), "paid_prod": 0.0,
 	}
 	var queued := _enqueue(state, item, tile_key)
-	GameState.add_log("%s → Lv.%d：%s" % [def.display_name, target,
+	Journal.add(GameState.state, "%s → Lv.%d：%s" % [def.display_name, target,
 		"已加入规划队列" if queued else "升级完成"], "build")
 	Derived.recompute(GameState.state)
 	GameState.state_changed.emit()
@@ -149,7 +149,7 @@ static func _execute_queue_item(state: Dictionary, item: Dictionary) -> void:
 			return   # 目标建筑已被摧毁，项目作废
 		b["level"] = int(item.get("level", 1))
 	if def != null:
-		GameState.add_log("%s完成：%s" % [
+		Journal.add(GameState.state, "%s完成：%s" % [
 			"建造" if str(item.get("kind", "")) == "build" else "升级", def.display_name], "build")
 
 

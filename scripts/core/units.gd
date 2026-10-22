@@ -24,7 +24,7 @@ static func grant_starting(state: Dictionary) -> void:
 	u["acquired_cycle"] = int(state["cycle"])
 	u["move_left"] = max_move(state, u)
 	(state["units"] as Array).append(u)
-	GameState.add_log("格蕾修随方舟的残骸漂流至此，成为你的第一位公民。", "unit")
+	Journal.add(GameState.state, "格蕾修随方舟的残骸漂流至此，成为你的第一位公民。", "unit")
 
 
 static func unit_by_uid(state: Dictionary, uid: String) -> Dictionary:
@@ -69,7 +69,7 @@ static func deploy_unit(state: Dictionary, uid: String, key: String) -> Dictiona
 	if cur.size() >= UnitDB.UNITS_PER_TILE:
 		return {"ok": false, "why": "该地块已驻满 %d 个单位" % UnitDB.UNITS_PER_TILE}
 	u["tile"] = key
-	GameState.add_log("%s 进驻 %s（该地块 %d/%d）。" % [
+	Journal.add(GameState.state, "%s 进驻 %s（该地块 %d/%d）。" % [
 		str(u["name"]), key, units_on_tile(state, key).size(), UnitDB.UNITS_PER_TILE], "unit")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": ""}
@@ -83,7 +83,7 @@ static func withdraw_unit(state: Dictionary, uid: String) -> Dictionary:
 	if was == "":
 		return {"ok": false, "why": "该单位未派驻"}
 	u["tile"] = ""
-	GameState.add_log("%s 从 %s 撤回。" % [str(u["name"]), was], "unit")
+	Journal.add(GameState.state, "%s 从 %s 撤回。" % [str(u["name"]), was], "unit")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": ""}
 
@@ -173,7 +173,7 @@ static func confirm_recruit(state: Dictionary, uid: String, key: String) -> Dict
 	u["acquired_cycle"] = int(state["cycle"])
 	u["move_left"] = max_move(state, u)
 	state.erase("pending_recruit")
-	GameState.add_log("%s 接受了招募，成为公民并进驻 %s。" % [str(u["name"]), key], "unit")
+	Journal.add(GameState.state, "%s 接受了招募，成为公民并进驻 %s。" % [str(u["name"]), key], "unit")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": ""}
 
@@ -186,7 +186,7 @@ static func dismiss_guest(state: Dictionary, uid: String) -> Dictionary:
 	if str(u.get("status", "")) != UnitDB.STATUS_GUEST:
 		return {"ok": false, "why": "只有客人可以遣返"}
 	state["units"].erase(u)
-	GameState.add_log("%s 被遣返回了自己的世界。" % str(u["name"]), "unit")
+	Journal.add(GameState.state, "%s 被遣返回了自己的世界。" % str(u["name"]), "unit")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": ""}
 
@@ -210,7 +210,7 @@ static func toggle_garrison(state: Dictionary, uid: String) -> Dictionary:
 		return {"ok": false, "why": "该单位不在大世界上"}
 	var g := not bool(u.get("garrisoned", false))
 	u["garrisoned"] = g
-	GameState.add_log("%s %s。" % [str(u["name"]), "开始驻军" if g else "解除驻军"], "unit")
+	Journal.add(GameState.state, "%s %s。" % [str(u["name"]), "开始驻军" if g else "解除驻军"], "unit")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": "", "garrisoned": g}
 
@@ -234,7 +234,7 @@ static func assign_team(state: Dictionary, uid: String, team_index: int) -> Dict
 		(t["members"] as Array).erase(uid)
 	members.append(uid)
 	u["team"] = team_index
-	GameState.add_log("%s 编入%s。" % [str(u["name"]), str(team["name"])], "unit")
+	Journal.add(GameState.state, "%s 编入%s。" % [str(u["name"]), str(team["name"])], "unit")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": ""}
 
@@ -319,7 +319,7 @@ static func promote_unit(state: Dictionary, uid: String) -> Dictionary:
 	u["exp"] = 0
 	u["exp_from_cycles"] = 0
 	u["exp_from_combat"] = 0
-	GameState.add_log("%s 晋升为%s。" % [str(u["name"]), UnitDB.rank_name(nxt)], "unit")
+	Journal.add(GameState.state, "%s 晋升为%s。" % [str(u["name"]), UnitDB.rank_name(nxt)], "unit")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": "", "rank": nxt}
 
@@ -384,7 +384,7 @@ static func guest_leave_tick(state: Dictionary, rng: RandomNumberGenerator, repo
 		if rng.randf() < p:
 			leaving.append(u)
 	for u in leaving:
-		GameState.add_log("%s 等得太久，离开了（未招募的客人会自行离去）。" % str(u["name"]), "unit")
+		Journal.add(GameState.state, "%s 等得太久，离开了（未招募的客人会自行离去）。" % str(u["name"]), "unit")
 		(state["units"] as Array).erase(u)
 	if not leaving.is_empty():
 		report["events"].append("%d 位客人等不到招募，离开了。" % leaving.size())
@@ -439,6 +439,6 @@ static func recruit_soldier(state: Dictionary, profession: String) -> Dictionary
 	u["acquired_cycle"] = int(state["cycle"])
 	u["move_left"] = max_move(state, u)
 	(state["units"] as Array).append(u)
-	GameState.add_log("招募了 %s（进驻首都）。" % nm, "unit")
+	Journal.add(GameState.state, "招募了 %s（进驻首都）。" % nm, "unit")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": "", "unit": u}

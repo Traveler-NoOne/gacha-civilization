@@ -83,7 +83,7 @@ static func move_unit(state: Dictionary, uid: String, key: String) -> Dictionary
 	u["tile"] = key
 	# v1.6.2：单位移动会点亮周围一格的迷雾
 	TileManager.discover_radius(state, TileManager.coord_of(key), 1)
-	GameState.add_log("%s 移动到 %s（消耗 %d 移动力）。" % [str(u["name"]), key, cost], "unit")
+	Journal.add(GameState.state, "%s 移动到 %s（消耗 %d 移动力）。" % [str(u["name"]), key, cost], "unit")
 	GameState.state_changed.emit()
 	return {"ok": true, "why": "", "cost": cost}
 
@@ -121,7 +121,7 @@ static func unit_attack(state: Dictionary, uid: String, key: String) -> Dictiona
 		Admin.on_enemy_killed(state, t)
 		GameState.clear_enemy_tile(key)
 		lines.append("战斗胜利：%s 的敌人被清剿。" % key)
-		GameState.add_log("战斗胜利：%s 被 %s 清剿。" % [key, str(u["name"])], "combat")
+		Journal.add(GameState.state, "战斗胜利：%s 被 %s 清剿。" % [key, str(u["name"])], "combat")
 	else:
 		t["force"] = force
 		var cr := UnitDB.resolve_damage(enemy, u)
@@ -130,11 +130,11 @@ static func unit_attack(state: Dictionary, uid: String, key: String) -> Dictiona
 		lines.append("%s 反击 %s，造成 %.1f 伤害" % [UnitDB.enemy_label(t), str(u["name"]), back])
 		if int(u.get("hp", 1)) <= 0:
 			lines.append("%s 阵亡。" % str(u["name"]))
-			GameState.add_log("%s 在进攻 %s 时阵亡。" % [str(u["name"]), key], "combat")
+			Journal.add(GameState.state, "%s 在进攻 %s 时阵亡。" % [str(u["name"]), key], "combat")
 			Admin.on_unit_died(state, str(u.get("rank", UnitDB.RECRUIT)))
 			state["units"].erase(u)
 		else:
-			GameState.add_log("战斗未决：%s 的敌人仍在顽抗。" % key, "combat")
+			Journal.add(GameState.state, "战斗未决：%s 的敌人仍在顽抗。" % key, "combat")
 
 	u["move_left"] = 0   # 攻击耗尽本周期行动
 	GameState.state_changed.emit()
@@ -207,10 +207,10 @@ static func simulate_battle(state: Dictionary, key: String) -> Dictionary:
 		Admin.on_enemy_killed(state, tile)   # 依据击杀时的敌人类型给行政产出 buff（须在清空标记前）
 		GameState.clear_enemy_tile(key)
 		log_lines.append("战斗胜利：%s 被清剿。" % key)
-		GameState.add_log("战斗胜利：%s 的%s被消灭。" % [key, UnitDB.enemy_label(tile)], "combat")
+		Journal.add(GameState.state, "战斗胜利：%s 的%s被消灭。" % [key, UnitDB.enemy_label(tile)], "combat")
 	else:
 		log_lines.append("战斗未决：敌方剩余战力 %.0f。" % (enemy_hp * 0.5))
-		GameState.add_log("战斗未决：%s 的敌人仍在顽抗。" % key, "combat")
+		Journal.add(GameState.state, "战斗未决：%s 的敌人仍在顽抗。" % key, "combat")
 
 	GameState.state_changed.emit()
 	return {

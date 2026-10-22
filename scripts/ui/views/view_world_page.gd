@@ -80,7 +80,7 @@ func _build() -> void:
 		var added := WorldgenBuilder.expand_map(GameState.state, 1)
 
 		if added > 0:
-			GameState.add_log("营地扩建：地图上限扩大，新增 %d 格。" % added, "world")
+			Journal.add(GameState.state, "营地扩建：地图上限扩大，新增 %d 格。" % added, "world")
 			GameState.toast.emit("地图已扩大，新增 %d 格" % added)
 			GameState.state_changed.emit()
 		else:
