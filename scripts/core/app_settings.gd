@@ -19,10 +19,6 @@ var _autosave_interval: int = Consts.AUTOSAVE_INTERVAL_DEFAULT
 var _resolution := "1280x720"
 
 var _fullscreen := false
-## 2026-10-15：新游戏设置面板的第一个开关 —— 是否采用**新世界生成器**。
-## **默认 true**（用户的决定 ✓）。当前新生成器还没接进来，面板上先灰着，
-## 等 scripts/worldgen/ 出了第一轮再点亮。
-var _new_worldgen := true
 
 func _ready() -> void:
 	load_settings()
@@ -86,21 +82,6 @@ func set_fullscreen(on: bool) -> void:
 	changed.emit()
 
 
-# ---------------------------------------------------------------------------
-# 世界生成器（2026-10-15：新游戏设置面板的第一个开关）
-# ---------------------------------------------------------------------------
-func new_worldgen() -> bool:
-	return _new_worldgen
-
-
-func set_new_worldgen(on: bool) -> void:
-	if _new_worldgen == on:
-		return
-	_new_worldgen = on
-	save_settings()
-	changed.emit()
-
-
 signal changed
 
 
@@ -113,7 +94,6 @@ func save_settings() -> void:
 	cfg.set_value("save", "autosave_interval", _autosave_interval)
 	cfg.set_value("display", "resolution", _resolution)
 	cfg.set_value("display", "fullscreen", _fullscreen)
-	cfg.set_value("world", "new_gen", _new_worldgen)
 	var err := cfg.save(SETTINGS_PATH)
 	if err != OK:
 		push_warning("全局设置保存失败（错误 %d）：%s" % [err, SETTINGS_PATH])
@@ -127,4 +107,3 @@ func load_settings() -> void:
 	_autosave_interval = int(cfg.get_value("save", "autosave_interval", Consts.AUTOSAVE_INTERVAL_DEFAULT))
 	_resolution = str(cfg.get_value("display", "resolution", "1280x720"))
 	_fullscreen = bool(cfg.get_value("display", "fullscreen", false))
-	_new_worldgen = bool(cfg.get_value("world", "new_gen", true))

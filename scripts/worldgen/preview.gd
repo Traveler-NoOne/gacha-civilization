@@ -1,10 +1,8 @@
 class_name WorldPreview
 extends RefCounted
-## 世界生成**预览工具**（2026-10-18 精简 ✓）—— **不开始游戏** ✓ 只生成一次世界 ✓ 出一张 PNG ✓
+## 世界生成**预览工具** —— **不开始游戏** ✓ 只生成一次世界 ✓ 出一张 PNG ✓
 ##
-## 两个 pass ✓：
-##   · `"terrain"` → **旧生成器**的图 ✓（复用游戏里的 `HexMapView` ✓ 和游戏里看到的一致 ✓）
-##   · `"newmap"`  → **新生成器**（`WorldgenBuilder`）的图 ✓
+## 复用游戏里的 `HexMapView` 画 ✓ 所以图里看到的就是进游戏后会看到的样子 ✓
 ##
 ## ⭐ 用途：**同一张图出两次 → 逐字节一致** ✓
 ##   （没有自检套件的现在，这是唯一的"确定性验收" ✓）
@@ -35,7 +33,7 @@ static func _canvas(radius: int, hex_size: float) -> Dictionary:
 
 
 ## 生成一张预览图 ✓ 返回 `{ok, path, seed}`（path 是**绝对路径** ✓ 失败为空 ✓）
-static func save_preview(host: Node, seed_value: int, pass_name: String = "terrain") -> Dictionary:
+static func save_preview(host: Node, seed_value: int) -> Dictionary:
 	var old_state: Dictionary = GameState.state
 	GameState.new_game(seed_value)          # 生成一张完整、合法的世界 ✓
 	# `HexMapView` 有 7 处 `if not t["discovered"]: return` ✓ → 不揭开就只画首都周围几圈 ✗
@@ -51,10 +49,6 @@ static func save_preview(host: Node, seed_value: int, pass_name: String = "terra
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	host.add_child(vp)
 
-	if pass_name == "newmap":
-		WorldgenBuilder.generate(GameState.state)   # 覆盖 state["tiles"] ✓（画完照样还原 ✓）
-		TileManager.discover_all(GameState.state)   # 新图是"没点亮"的 → 再揭一次 ✓
-
 	var view := HexMapView.new()
 	view.hex_size = HEX_SIZE
 	view.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -69,7 +63,7 @@ static func save_preview(host: Node, seed_value: int, pass_name: String = "terra
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 		var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
 		var abs_path := ProjectSettings.globalize_path(
-			"%s/worldgen_%s_%d_%s.png" % [OUT_DIR, pass_name, real_seed, stamp])
+			"%s/worldgen_%d_%s.png" % [OUT_DIR, real_seed, stamp])
 		var err := img.save_png(abs_path)
 		if err == OK:
 			path = abs_path
