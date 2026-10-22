@@ -118,7 +118,7 @@ static func resource_breakdown(state: Dictionary, key: String) -> Dictionary:
 	# 周期结算类（抽卡货币 / 行政）
 	if key == "order_crystal":
 		inc.append({"label": "周期结算", "amount":
-			Consts.CRYSTAL_PER_CYCLE + Consts.CRYSTAL_PER_LEVEL * float(GameState.player_level())})
+			Consts.CRYSTAL_PER_CYCLE + Consts.CRYSTAL_PER_LEVEL * float(Cycle.player_level(GameState.state))})
 	elif key == "cohesion":
 		var hp := Derived.happiness(GameState.state)
 		inc.append({"label": "周期结算", "amount":

@@ -408,7 +408,7 @@ func _refresh_nav() -> void:
 
 
 func _end_cycle() -> void:
-	var rep: Dictionary = GameState.end_cycle()
+	var rep: Dictionary = Cycle.end_cycle(GameState.state, GameState.rng())
 	# 广播给当前视图
 	var v: Variant = views.get(current_view, null)
 	if v != null and v.has_method("on_cycle_finished"):
