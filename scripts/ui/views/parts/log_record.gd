@@ -83,7 +83,7 @@ func refresh() -> void:
 		var summ := Save.summary(i)
 		var row := PanelContainer.new()
 		var is_cur := i == cur
-		UIKit.apply_panel(row, UIKit.BG_PANEL_2, UIKit.GOLD if is_cur else UIKit.LINE_SOFT, 5)
+		UIKit.apply_panel(row, Palette.BG_PANEL_2, Palette.GOLD if is_cur else Palette.LINE_SOFT, 5)
 		slot_box.add_child(row)
 		var h := UIKit.hbox(8)
 		row.add_child(h)
@@ -93,7 +93,7 @@ func refresh() -> void:
 		var v := UIKit.vbox(1)
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(v)
-		v.add_child(UIKit.text_label(title, 13, UIKit.GOLD if is_cur else UIKit.TEXT))
+		v.add_child(UIKit.text_label(title, 13, Palette.GOLD if is_cur else Palette.TEXT))
 		if summ.is_empty():
 			v.add_child(UIKit.dim("（空槽位）", 11))
 		else:

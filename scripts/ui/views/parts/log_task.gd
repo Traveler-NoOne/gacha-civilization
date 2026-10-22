@@ -99,7 +99,7 @@ func refresh() -> void:
 		if c is Button:
 			var want := "current" if i == 0 else "archive"
 			UIKit.style_button(c as Button, mode == want)
-			(c as Button).add_theme_color_override("font_color", UIKit.GOLD if mode == want else UIKit.TEXT)
+			(c as Button).add_theme_color_override("font_color", Palette.GOLD if mode == want else Palette.TEXT)
 			i += 1
 
 	for c in list_box.get_children():
@@ -122,7 +122,7 @@ func refresh() -> void:
 	for g in groups:
 		var gid := str(g["id"])
 		var head := PanelContainer.new()
-		UIKit.apply_panel(head, Color(0.13, 0.13, 0.19), UIKit.LINE, 5)
+		UIKit.apply_panel(head, Color(0.13, 0.13, 0.19), Palette.LINE, 5)
 		list_box.add_child(head)
 		var h := UIKit.hbox(6)
 		head.add_child(h)
@@ -133,7 +133,7 @@ func refresh() -> void:
 			refresh())
 		h.add_child(caret)
 		h.add_child(UIKit.text_label("%s　（%d 个任务）" % [str(g["name"]), _count_in(gid)], 13,
-			UIKit.GOLD))
+			Palette.GOLD))
 		if bool(g.get("system", false)):
 			h.add_child(UIKit.dim("系统", 10))
 		var hit := UIKit.small("选中", 11)
@@ -142,7 +142,7 @@ func refresh() -> void:
 			refresh())
 		h.add_child(hit)
 		if selected == "group:" + gid:
-			h.add_child(UIKit.text_label("◀ 已选中", 11, UIKit.OK))
+			h.add_child(UIKit.text_label("◀ 已选中", 11, Palette.OK))
 
 		if open:
 			for t in tasks:
@@ -169,10 +169,10 @@ func _count_in(gid: String) -> int:
 
 func _task_row(t: Dictionary, indented: bool) -> Control:
 	var row := PanelContainer.new()
-	var col := UIKit.LINE_SOFT
+	var col := Palette.LINE_SOFT
 	if selected == "task:" + str(t["id"]):
-		col = UIKit.GOLD
-	UIKit.apply_panel(row, UIKit.BG_PANEL_2, col, 5)
+		col = Palette.GOLD
+	UIKit.apply_panel(row, Palette.BG_PANEL_2, col, 5)
 	if indented:
 		var mc := MarginContainer.new()
 		mc.add_theme_constant_override("margin_left", UI.px(18))
@@ -191,7 +191,7 @@ func _fill_task_row(row: PanelContainer, t: Dictionary) -> void:
 	h.add_child(v)
 	var head := UIKit.hbox(6)
 	v.add_child(head)
-	head.add_child(UIKit.text_label(str(t["name"]), 13, UIKit.TEXT))
+	head.add_child(UIKit.text_label(str(t["name"]), 13, Palette.TEXT))
 	if bool(t.get("system", false)):
 		head.add_child(UIKit.dim("系统", 10))
 	var desc := UIKit.dim(str(t.get("desc", "")), 11)
@@ -215,7 +215,7 @@ func _fill_task_row(row: PanelContainer, t: Dictionary) -> void:
 	# v1.1：已完成的任务，在「选中」按钮的左边增加一个「归档」按钮
 	var done := _is_complete(t)
 	if done:
-		var done_tag := UIKit.text_label("已完成", 11, UIKit.OK)
+		var done_tag := UIKit.text_label("已完成", 11, Palette.OK)
 		v.add_child(done_tag)
 		var arc := UIKit.small("归档", 11)
 		UIKit.style_button(arc, true)
@@ -296,17 +296,17 @@ static func _goal_progress(g: Dictionary) -> int:
 
 
 func _done_row(t: Dictionary) -> Control:
-	var row := UIKit.panel(UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 5)
+	var row := UIKit.panel(Palette.BG_PANEL_2, Palette.LINE_SOFT, 5)
 	var v := UIKit.vbox(1)
 	row.add_child(v)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", UI.fs(6))
 	v.add_child(h)
-	h.add_child(UIKit.text_label(str(t["name"]), 13, UIKit.OK))
+	h.add_child(UIKit.text_label(str(t["name"]), 13, Palette.OK))
 	if bool(t.get("archived", false)):
-		h.add_child(UIKit.text_label("已归档", 10, UIKit.GOLD))
+		h.add_child(UIKit.text_label("已归档", 10, Palette.GOLD))
 	else:
-		h.add_child(UIKit.text_label("已完成", 10, UIKit.TEXT_DIM))
+		h.add_child(UIKit.text_label("已完成", 10, Palette.TEXT_DIM))
 	v.add_child(UIKit.dim("%s于第 %d 周期　%s" % [
 		"归档" if bool(t.get("archived", false)) else "完成",
 		int(t.get("done_cycle", 0)), str(t.get("desc", ""))], 11))
@@ -360,7 +360,7 @@ func _new_task() -> void:
 	for g in GameState.state["task_groups"]:
 		group_opt.add_item(str(g["name"]))
 		group_opt.set_item_metadata(group_opt.item_count - 1, str(g["id"]))
-	v.add_child(UIKit.text_label("归属任务组", 12, UIKit.TEXT_DIM))
+	v.add_child(UIKit.text_label("归属任务组", 12, Palette.TEXT_DIM))
 	v.add_child(group_opt)
 
 	var type_opt := OptionButton.new()
@@ -369,7 +369,7 @@ func _new_task() -> void:
 	for pair in types:
 		type_opt.add_item(str(pair[1]))
 		type_opt.set_item_metadata(type_opt.item_count - 1, str(pair[0]))
-	v.add_child(UIKit.text_label("追踪目标类型（目标必须是图鉴中已解锁的内容）", 12, UIKit.TEXT_DIM))
+	v.add_child(UIKit.text_label("追踪目标类型（目标必须是图鉴中已解锁的内容）", 12, Palette.TEXT_DIM))
 	v.add_child(type_opt)
 
 	var key_edit := LineEdit.new()
@@ -380,14 +380,14 @@ func _new_task() -> void:
 	need_spin.min_value = 1
 	need_spin.max_value = 9999
 	need_spin.value = 10
-	v.add_child(UIKit.text_label("需要数量", 12, UIKit.TEXT_DIM))
+	v.add_child(UIKit.text_label("需要数量", 12, Palette.TEXT_DIM))
 	v.add_child(need_spin)
 
 	var reset_spin := SpinBox.new()
 	reset_spin.min_value = 0
 	reset_spin.max_value = 999
 	reset_spin.value = 0
-	v.add_child(UIKit.text_label("多少周期后重置（0 = 不重置）", 12, UIKit.TEXT_DIM))
+	v.add_child(UIKit.text_label("多少周期后重置（0 = 不重置）", 12, Palette.TEXT_DIM))
 	v.add_child(reset_spin)
 
 	var ok := UIKit.primary("创建", 14)

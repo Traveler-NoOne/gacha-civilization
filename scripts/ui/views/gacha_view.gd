@@ -92,11 +92,11 @@ func _build() -> void:
 	rule_box.add_theme_font_size_override("normal_font_size", UI.fs(12))
 	rule_scroll.add_child(rule_box)
 
-	cost_label = UIKit.text_label("消耗：--", 14, UIKit.GOLD)
+	cost_label = UIKit.text_label("消耗：--", 14, Palette.GOLD)
 	lv.add_child(cost_label)
-	pity_label = UIKit.text_label("保底：--", 12, UIKit.TEXT_DIM)
+	pity_label = UIKit.text_label("保底：--", 12, Palette.TEXT_DIM)
 	lv.add_child(pity_label)
-	limit_label = UIKit.text_label("", 12, UIKit.WARN)
+	limit_label = UIKit.text_label("", 12, Palette.WARN)
 	limit_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lv.add_child(limit_label)
 
@@ -182,10 +182,10 @@ func refresh() -> void:
 	if limit["ok"]:
 		limit_label.text = "✔ 当前可以进行世界泡操作（稳定度 %.0f%%，无主地块 %d）" % [
 			Derived.stability(GameState.state) * 100.0, TileManager.free_tiles(GameState.state).size()]
-		limit_label.add_theme_color_override("font_color", UIKit.OK)
+		limit_label.add_theme_color_override("font_color", Palette.OK)
 	else:
 		limit_label.text = "✖ " + str(limit["why"])
-		limit_label.add_theme_color_override("font_color", UIKit.BAD)
+		limit_label.add_theme_color_override("font_color", Palette.BAD)
 
 	pity_label.text = "保底：" + Gacha.pity_text(GameState.state, pe)
 
@@ -223,7 +223,7 @@ func _refresh_bar() -> void:
 		if c is Button:
 			var active: bool = int(POOLS[i]["enum"]) == pool
 			UIKit.style_button(c as Button, active)
-			(c as Button).add_theme_color_override("font_color", UIKit.GOLD if active else UIKit.TEXT)
+			(c as Button).add_theme_color_override("font_color", Palette.GOLD if active else Palette.TEXT)
 			i += 1
 
 
@@ -312,9 +312,9 @@ func _show_result_dialog(r: Dictionary) -> void:
 
 	var events: Array = r["events"]
 	if not events.is_empty():
-		v.add_child(UIKit.text_label("世界事件", 14, UIKit.WARN))
+		v.add_child(UIKit.text_label("世界事件", 14, Palette.WARN))
 		for e in events:
-			var l := UIKit.text_label("· " + str(e), 12, UIKit.WARN)
+			var l := UIKit.text_label("· " + str(e), 12, Palette.WARN)
 			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			v.add_child(l)
 

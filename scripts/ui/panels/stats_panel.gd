@@ -32,7 +32,7 @@ var content_box: VBoxContainer
 
 func _init() -> void:
 	custom_minimum_size = Vector2(UI.px(360), UI.px(0))
-	UIKit.apply_panel(self, Color(0.08, 0.08, 0.12, 0.98), UIKit.GOLD, 6)
+	UIKit.apply_panel(self, Color(0.08, 0.08, 0.12, 0.98), Palette.GOLD, 6)
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", UI.fs(6))
@@ -106,10 +106,10 @@ func refresh() -> void:
 
 
 ## 一行「名称 …… 值」
-func _row(label_text: String, value_text: String, col := UIKit.TEXT) -> Control:
+func _row(label_text: String, value_text: String, col := Palette.TEXT) -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", UI.fs(8))
-	var l := UIKit.text_label(label_text, 11, UIKit.TEXT_DIM)
+	var l := UIKit.text_label(label_text, 11, Palette.TEXT_DIM)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(l)
 	h.add_child(UIKit.text_label(value_text, 12, col))
@@ -149,14 +149,14 @@ func _fill_resources() -> void:
 				net += float(e2["amount"])
 			var h := HBoxContainer.new()
 			h.add_theme_constant_override("separation", UI.fs(6))
-			var l := UIKit.text_label(label_text, 11, UIKit.TEXT_DIM)
+			var l := UIKit.text_label(label_text, 11, Palette.TEXT_DIM)
 			l.custom_minimum_size = Vector2(UI.px(74), UI.px(0))
 			h.add_child(l)
-			h.add_child(UIKit.text_label(("%s / %s" % [UIKit.fmt_num(Res.amount(GameState.state, key)), UIKit.fmt_num(cap)]) if cap >= 0.0 else UIKit.fmt_num(Res.amount(GameState.state, key)), 12, UIKit.TEXT))
+			h.add_child(UIKit.text_label(("%s / %s" % [UIKit.fmt_num(Res.amount(GameState.state, key)), UIKit.fmt_num(cap)]) if cap >= 0.0 else UIKit.fmt_num(Res.amount(GameState.state, key)), 12, Palette.TEXT))
 			var sp := Control.new()
 			sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			h.add_child(sp)
-			h.add_child(UIKit.text_label("%+.1f/周期" % net, 11, UIKit.OK if net >= 0.0 else UIKit.BAD))
+			h.add_child(UIKit.text_label("%+.1f/周期" % net, 11, Palette.OK if net >= 0.0 else Palette.BAD))
 			content_box.add_child(h)
 
 
@@ -194,7 +194,7 @@ func _fill_units() -> void:
 		var members: Array = (t2 as Dictionary).get("members", [])
 		content_box.add_child(_row("%s" % str((t2 as Dictionary).get("name", "队伍 %d" % (i + 1))),
 			"%d / %d 人" % [members.size(), UnitDB.UNITS_PER_TEAM],
-			UIKit.OK if not members.is_empty() else UIKit.TEXT_DIM))
+			Palette.OK if not members.is_empty() else Palette.TEXT_DIM))
 		i += 1
 
 
@@ -229,8 +229,8 @@ func _fill_tiles() -> void:
 # ---------------------------------------------------------------------------
 func _fill_land() -> void:
 	_section("领地口径")
-	content_box.add_child(_row("我方领地", str(TileManager.owned_tiles(GameState.state).size()), UIKit.OK))
-	content_box.add_child(_row("敌方据点", str(TileManager.enemy_tiles(GameState.state).size()), UIKit.BAD))
+	content_box.add_child(_row("我方领地", str(TileManager.owned_tiles(GameState.state).size()), Palette.OK))
+	content_box.add_child(_row("敌方据点", str(TileManager.enemy_tiles(GameState.state).size()), Palette.BAD))
 	content_box.add_child(_row("无主地块", str(TileManager.free_tiles(GameState.state).size())))
 	content_box.add_child(_row("扩张消耗", "%d 行政点数" % int(TileManager.claim_cost(GameState.state))))
 	_section("可扩张的格数")

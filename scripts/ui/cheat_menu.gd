@@ -20,7 +20,7 @@ const CHEAT_RESOURCES := [
 static func build() -> DialogLayer:
 	var d := UIKit.dialog("作弊菜单", 560.0)
 	var v := UIKit.vbox(8)
-	v.add_child(UIKit.text_label("适度作弊不伤体验，过度作弊容易空虚。", 12, UIKit.WARN))
+	v.add_child(UIKit.text_label("适度作弊不伤体验，过度作弊容易空虚。", 12, Palette.WARN))
 
 	var pages := {} # 用于容纳三个页签：资源 / 世界 / 杂项
 	var tabs: Array = [] # [ [页签名, 按钮], ... ]
@@ -73,7 +73,7 @@ static func _page_resources(d: DialogLayer) -> Control:
 	for pair in CHEAT_RESOURCES:
 		var key: String = pair[0]
 		var nm: String = pair[1]
-		grid.add_child(UIKit.text_label(nm, 12, UIKit.TEXT_DIM))
+		grid.add_child(UIKit.text_label(nm, 12, Palette.TEXT_DIM))
 		var sb := SpinBox.new()
 		sb.min_value = -999999
 		sb.max_value = 999999
@@ -147,7 +147,7 @@ static func _page_misc(d: DialogLayer) -> Control:
 		row.add_theme_constant_override("separation", UI.fs(6))
 		list.add_child(row)
 		var l := UIKit.text_label("%s　[%s]　战力 %.0f" % [label, key, float(t.get("force", 0.0))],
-			12, UIKit.BAD)
+			12, Palette.BAD)
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(l)
 		var rb := UIKit.tiny("摧毁", 11, true)

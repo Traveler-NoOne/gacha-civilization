@@ -68,7 +68,7 @@ func _ready() -> void:
 # ---------------------------------------------------------------------------
 func _build() -> void:
 	var bg := ColorRect.new()
-	bg.color = UIKit.BG_DARK
+	bg.color = Palette.BG_DARK
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
@@ -79,7 +79,7 @@ func _build() -> void:
 
 	# --- 顶部资源栏 ---
 	var top := PanelContainer.new()
-	UIKit.apply_panel(top, Color(0.08, 0.08, 0.12), UIKit.LINE_SOFT, 0)
+	UIKit.apply_panel(top, Color(0.08, 0.08, 0.12), Palette.LINE_SOFT, 0)
 	top.custom_minimum_size = Vector2(UI.px(0), UI.px(98))
 	root.add_child(top)
 
@@ -91,10 +91,10 @@ func _build() -> void:
 	head.add_theme_constant_override("separation", UI.fs(14))
 	top_v.add_child(head)
 
-	cycle_label = UIKit.text_label("周期 1", 16, UIKit.GOLD)
+	cycle_label = UIKit.text_label("周期 1", 16, Palette.GOLD)
 	head.add_child(cycle_label)
 
-	detail_label = UIKit.text_label("", 12, UIKit.TEXT_DIM)
+	detail_label = UIKit.text_label("", 12, Palette.TEXT_DIM)
 	detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(detail_label)
 
@@ -404,7 +404,7 @@ func _refresh_nav() -> void:
 			continue
 		var active: bool = vid == current_view
 		UIKit.style_button(b, active)
-		b.add_theme_color_override("font_color", UIKit.GOLD if active else UIKit.TEXT)
+		b.add_theme_color_override("font_color", Palette.GOLD if active else Palette.TEXT)
 
 
 func _end_cycle() -> void:
@@ -453,7 +453,7 @@ func _refresh() -> void:
 		iv,
 	]
 	detail_label.add_theme_color_override("font_color",
-		UIKit.BAD if st < Consts.STABILITY_MIN_BLOCK else UIKit.TEXT_DIM)
+		Palette.BAD if st < Consts.STABILITY_MIN_BLOCK else Palette.TEXT_DIM)
 
 	var v2: Variant = views.get(current_view, null)
 	if v2 != null and v2.has_method("refresh"):
@@ -499,11 +499,11 @@ func _add_chip(row: HBoxContainer, key: String, label_text: String, color: Color
 		h.add_child(tr)
 	h.add_child(UIKit.text_label(label_text, 11, color))
 	var val_text := UIKit.fmt_num(value)
-	var val_color := UIKit.TEXT
+	var val_color := Palette.TEXT
 	if cap >= 0.0:
 		val_text = "%s / %s" % [UIKit.fmt_num(value), UIKit.fmt_num(cap)]
 		if value >= cap - 0.001:
-			val_color = UIKit.WARN
+			val_color = Palette.WARN
 	h.add_child(UIKit.text_label(val_text, 12, val_color))
 	# v1.4.1：点击资源 → 在该位置弹出收支明细悬浮窗
 	chip.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -534,7 +534,7 @@ func _show_res_info(key: String, rect: Rect2) -> void:
 	bg.pressed.connect(_close_res_popup)
 	layer.add_child(bg)
 
-	var panel := UIKit.panel(UIKit.BG_PANEL_2, UIKit.LINE, 6)
+	var panel := UIKit.panel(Palette.BG_PANEL_2, Palette.LINE, 6)
 	panel.custom_minimum_size = Vector2(UI.px(250), UI.px(0))
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	layer.add_child(panel)
@@ -557,7 +557,7 @@ func _show_res_info(key: String, rect: Rect2) -> void:
 			v.add_child(_break_row(str(e["label"]), float(e["amount"])))
 		if not inc.is_empty() and not upk.is_empty():
 			var sep := ColorRect.new()
-			sep.color = UIKit.LINE_SOFT
+			sep.color = Palette.LINE_SOFT
 			sep.custom_minimum_size = Vector2(UI.px(0), UI.px(1))
 			v.add_child(sep)
 		for e in upk:
@@ -566,7 +566,7 @@ func _show_res_info(key: String, rect: Rect2) -> void:
 		if inc.is_empty() and upk.is_empty():
 			v.add_child(UIKit.dim("该资源本期没有收支。"))
 		v.add_child(UIKit.text_label("净收支 %+.1f / 周期" % net, 12,
-			UIKit.OK if net >= 0.0 else UIKit.BAD))
+			Palette.OK if net >= 0.0 else Palette.BAD))
 
 	# 定位到点击位置下方，夹在视口内
 	var vs := get_viewport_rect().size
@@ -579,11 +579,11 @@ func _show_res_info(key: String, rect: Rect2) -> void:
 func _break_row(label_text: String, amount: float) -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", UI.fs(8))
-	var l := UIKit.text_label(label_text, 11, UIKit.TEXT_DIM)
+	var l := UIKit.text_label(label_text, 11, Palette.TEXT_DIM)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(l)
 	h.add_child(UIKit.text_label("%+.1f" % amount, 12,
-		UIKit.OK if amount >= 0.0 else UIKit.BAD))
+		Palette.OK if amount >= 0.0 else Palette.BAD))
 	return h
 
 
@@ -601,7 +601,7 @@ func _confirm_exit() -> void:
 func _build_exit_dialog() -> DialogLayer:
 	var d := UIKit.dialog("休眠 / 退出", 420.0)
 	var v := UIKit.vbox(8)
-	v.add_child(UIKit.text_label("请选择退出方式", 15, UIKit.GOLD))
+	v.add_child(UIKit.text_label("请选择退出方式", 15, Palette.GOLD))
 	var cur := int(GameState.state.get("current_slot", -1))
 	if cur < 0:
 		v.add_child(UIKit.dim("当前进度还没有保存过，退出前建议先保存（会存到槽位 2）。"))

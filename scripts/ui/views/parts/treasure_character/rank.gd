@@ -8,7 +8,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	var prog := UnitDB.progress_of(u)
 	var mul := UnitDB.rank_multiplier(rank, prog)
 
-	var head := UIKit.panel(UIKit.BG_PANEL_2, UnitDB.rank_color(rank), 6)
+	var head := UIKit.panel(Palette.BG_PANEL_2, UnitDB.rank_color(rank), 6)
 	detail_host.add_child(head)
 	var hv := HBoxContainer.new()
 	hv.add_theme_constant_override("separation", UI.fs(8))
@@ -26,19 +26,19 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ht.add_child(d)
 	ht.add_child(UIKit.text_label("当前属性倍率：×%.2f" % mul, 13,
-		UIKit.OK if mul >= 1.0 else UIKit.WARN))
+		Palette.OK if mul >= 1.0 else Palette.WARN))
 	ht.add_child(UIKit.progress_bar_row(exp, cap, prog, UnitDB.rank_color(rank)))
 
 	detail_host.add_child(UIKit.title("经验来源", 15))
 	var eg := UIKit.grid(2, 16, 3)
 	detail_host.add_child(eg)
 	eg.add_child(UIKit.dim("经验值上限", 12))
-	eg.add_child(UIKit.text_label("%d" % cap, 12, UIKit.TEXT))
+	eg.add_child(UIKit.text_label("%d" % cap, 12, Palette.TEXT))
 	eg.add_child(UIKit.dim("周期循环获得", 12))
 	eg.add_child(UIKit.text_label("%d / %d（上限 %d）" % [
-		int(u.get("exp_from_cycles", 0)), UnitDB.EXP_FROM_CYCLES_CAP, UnitDB.EXP_FROM_CYCLES_CAP], 12, UIKit.TEXT))
+		int(u.get("exp_from_cycles", 0)), UnitDB.EXP_FROM_CYCLES_CAP, UnitDB.EXP_FROM_CYCLES_CAP], 12, Palette.TEXT))
 	eg.add_child(UIKit.dim("战斗获得", 12))
-	eg.add_child(UIKit.text_label("%d" % int(u.get("exp_from_combat", 0)), 12, UIKit.TEXT))
+	eg.add_child(UIKit.text_label("%d" % int(u.get("exp_from_combat", 0)), 12, Palette.TEXT))
 
 	detail_host.add_child(UIKit.spacer(4))
 	detail_host.add_child(UIKit.title("位阶一览", 15))
@@ -53,10 +53,10 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		var rd: Dictionary = UnitDB.RANKS[r]
 		var is_cur := r == rank
 		tbl.add_child(UIKit.text_label(UnitDB.rank_name(r), 11,
-			UnitDB.rank_color(r) if is_cur else UIKit.TEXT_DIM))
-		tbl.add_child(UIKit.text_label("%.1f ~ %.1f" % [float(rd["mul_min"]), float(rd["mul_max"])], 11, UIKit.TEXT))
-		tbl.add_child(UIKit.text_label("%d" % int(rd["exp_cap"]), 11, UIKit.TEXT))
-		tbl.add_child(UIKit.text_label("≤ %d" % UnitDB.EXP_FROM_CYCLES_CAP, 11, UIKit.TEXT))
+			UnitDB.rank_color(r) if is_cur else Palette.TEXT_DIM))
+		tbl.add_child(UIKit.text_label("%.1f ~ %.1f" % [float(rd["mul_min"]), float(rd["mul_max"])], 11, Palette.TEXT))
+		tbl.add_child(UIKit.text_label("%d" % int(rd["exp_cap"]), 11, Palette.TEXT))
+		tbl.add_child(UIKit.text_label("≤ %d" % UnitDB.EXP_FROM_CYCLES_CAP, 11, Palette.TEXT))
 		var sd := UIKit.dim(str(rd["desc"]).split("。")[0], 10)
 		sd.custom_minimum_size = Vector2(UI.px(240), UI.px(0))
 		sd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

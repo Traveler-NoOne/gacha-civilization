@@ -37,7 +37,7 @@ var _tip: Label
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var bg := ColorRect.new()
-	bg.color = UIKit.BG_DARK
+	bg.color = Palette.BG_DARK
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
@@ -69,7 +69,7 @@ func _ready() -> void:
 	tips_h.add_theme_constant_override("separation", UI.fs(6))
 	add_child(tips_h)
 	tips_h.add_child(UIKit.dim("提示：", 13))
-	_tip = UIKit.text_label(TIPS[randi() % TIPS.size()], 13, UIKit.TEXT)
+	_tip = UIKit.text_label(TIPS[randi() % TIPS.size()], 13, Palette.TEXT)
 	tips_h.add_child(_tip)
 
 	# 右下角：进度条
@@ -81,8 +81,8 @@ func _ready() -> void:
 	_bar.max_value = 100.0
 	_bar.value = 0.0
 	_bar.show_percentage = false
-	_bar.add_theme_stylebox_override("background", UIKit.panel_style(Color(0.14, 0.14, 0.19), UIKit.LINE_SOFT, 3))
-	_bar.add_theme_stylebox_override("fill", UIKit.panel_style(UIKit.GOLD, UIKit.GOLD, 3))
+	_bar.add_theme_stylebox_override("background", UIKit.panel_style(Color(0.14, 0.14, 0.19), Palette.LINE_SOFT, 3))
+	_bar.add_theme_stylebox_override("fill", UIKit.panel_style(Palette.GOLD, Palette.GOLD, 3))
 	add_child(_bar)
 
 

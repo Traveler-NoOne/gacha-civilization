@@ -6,7 +6,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	row.add_theme_constant_override("separation", UI.fs(6))
 	detail_host.add_child(row)
 
-	var tal := UIKit.panel(UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 6)
+	var tal := UIKit.panel(Palette.BG_PANEL_2, Palette.LINE_SOFT, 6)
 	tal.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(tal)
 	var tv := VBoxContainer.new()
@@ -20,10 +20,10 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		var need := int(unlock_levels[i])
 		var unlocked := int(u.get("level", 1)) >= need
 		tv.add_child(UIKit.text_label("%s %s" % ["✔" if unlocked else "✖", tnames[i]], 12,
-			UIKit.OK if unlocked else UIKit.TEXT_FAINT))
+			Palette.OK if unlocked else Palette.TEXT_FAINT))
 		tv.add_child(UIKit.dim("　　Lv.%d 解锁" % need, 10))
 
-	var sk := UIKit.panel(UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 6)
+	var sk := UIKit.panel(Palette.BG_PANEL_2, Palette.LINE_SOFT, 6)
 	sk.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(sk)
 	var sv := VBoxContainer.new()
@@ -57,7 +57,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	sv.add_child(add)
 
 	# v1.1：独特机制接口（为抽卡角色预留）
-	var uniq := UIKit.panel(UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 6)
+	var uniq := UIKit.panel(Palette.BG_PANEL_2, Palette.LINE_SOFT, 6)
 	detail_host.add_child(uniq)
 	var uv := VBoxContainer.new()
 	uniq.add_child(uv)
@@ -67,7 +67,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		uv.add_child(UIKit.dim("该单位暂时没有独特机制。召唤角色可以挂载以下接口：", 11))
 	else:
 		for key in uniques:
-			uv.add_child(UIKit.text_label("· " + str(UnitDB.UNIQUE_HOOKS.get(str(key), key)), 12, UIKit.GOLD))
+			uv.add_child(UIKit.text_label("· " + str(UnitDB.UNIQUE_HOOKS.get(str(key), key)), 12, Palette.GOLD))
 	var gh := HBoxContainer.new()
 	gh.add_theme_constant_override("separation", UI.fs(4))
 	uv.add_child(gh)

@@ -10,7 +10,7 @@ var list_box: VBoxContainer
 
 func _init() -> void:
 	custom_minimum_size = Vector2(UI.px(560), UI.px(480))
-	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
+	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), Palette.GOLD, 6)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", UI.fs(6))
 	add_child(col)
@@ -41,13 +41,13 @@ func refresh() -> void:
 	for t in Consts.TECHS:
 		var id := str(t["id"])
 		var unlocked := Techs.unlocked(GameState.state, id)
-		var row := UIKit.panel(UIKit.BG_PANEL_2, UIKit.OK if unlocked else UIKit.LINE_SOFT, 5)
+		var row := UIKit.panel(Palette.BG_PANEL_2, Palette.OK if unlocked else Palette.LINE_SOFT, 5)
 		list_box.add_child(row)
 		var v := UIKit.vbox(2)
 		row.add_child(v)
 		var head := UIKit.hbox(6)
 		v.add_child(head)
-		head.add_child(UIKit.text_label(str(t["name"]), 13, UIKit.OK if unlocked else UIKit.GOLD))
+		head.add_child(UIKit.text_label(str(t["name"]), 13, Palette.OK if unlocked else Palette.GOLD))
 		head.add_child(UIKit.dim(str(t["era"]), 11))
 		head.add_child(UIKit.dim("科研点 %d" % int(t["cost"]), 11))
 		v.add_child(UIKit.dim(str(t["desc"]), 11))

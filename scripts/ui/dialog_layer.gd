@@ -34,7 +34,7 @@ func _ready() -> void:
 	_panel = PanelContainer.new() # 创建面板容器
 	_panel.custom_minimum_size = Vector2(dialog_width, 0)
 	_panel.clip_contents = true
-	UIKit.apply_panel(_panel, UIKit.BG_PANEL, UIKit.GOLD, 8)
+	UIKit.apply_panel(_panel, Palette.BG_PANEL, Palette.GOLD, 8)
 	center.add_child(_panel)
 
 	_body = VBoxContainer.new() 
@@ -46,7 +46,7 @@ func _ready() -> void:
 	var t := Label.new()
 	t.text = dialog_title
 	t.add_theme_font_size_override("font_size", UI.fs(18))
-	t.add_theme_color_override("font_color", UIKit.GOLD)
+	t.add_theme_color_override("font_color", Palette.GOLD)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
 	if show_close_button:
@@ -56,7 +56,7 @@ func _ready() -> void:
 	_body.add_child(head)
 
 	var rule := ColorRect.new() # 分割线
-	rule.color = UIKit.LINE_SOFT
+	rule.color = Palette.LINE_SOFT
 	rule.custom_minimum_size = Vector2(UI.px(0), UI.px(1))
 	_body.add_child(rule)
 

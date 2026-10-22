@@ -37,7 +37,7 @@ func _init() -> void:
 	custom_minimum_size = Vector2(UI.px(340), UI.px(0))
 	# ⚠️ 底色必须**完全不透明**。用 0.97 的话，底下旧右侧面板的文字会透上来，
 	# 看起来像"内容很暗/有鬼影"（实测踩过）。
-	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
+	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), Palette.GOLD, 6)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", UI.fs(0))
 	add_child(col)
@@ -82,11 +82,11 @@ func _init() -> void:
 
 func _queue_section(title: String, box: VBoxContainer) -> Control:
 	var p := PanelContainer.new()
-	UIKit.apply_panel(p, UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 5)
+	UIKit.apply_panel(p, Palette.BG_PANEL_2, Palette.LINE_SOFT, 5)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", UI.fs(3))
 	p.add_child(v)
-	v.add_child(UIKit.text_label(title, 12, UIKit.GOLD))
+	v.add_child(UIKit.text_label(title, 12, Palette.GOLD))
 	v.add_child(box)
 	return p
 
@@ -134,7 +134,7 @@ func _refresh_tabs() -> void:
 		var active: bool = str(TABS[i]["id"]) == tab
 		UIKit.style_button(c as Button, active)
 		(c as Button).add_theme_color_override("font_color",
-			UIKit.GOLD if active else UIKit.TEXT)
+			Palette.GOLD if active else Palette.TEXT)
 
 
 # ---------------------------------------------------------------------------
@@ -148,9 +148,9 @@ func _refresh_info(sh: Dictionary) -> void:
 	for t in tiles:
 		land_cap += Strongholds.land_cap(t)
 		land_used += Strongholds.land_used(t)
-	content_box.add_child(_kv("据点", str(sh.get("name", "")), UIKit.GOLD))
-	content_box.add_child(_kv("掌控力", "%.0f%%" % (Strongholds.control_of(sh) * 100.0), UIKit.TEXT))
-	content_box.add_child(_kv("已用土地", "%.1f / %.1f" % [land_used, land_cap], UIKit.TEXT))
+	content_box.add_child(_kv("据点", str(sh.get("name", "")), Palette.GOLD))
+	content_box.add_child(_kv("掌控力", "%.0f%%" % (Strongholds.control_of(sh) * 100.0), Palette.TEXT))
+	content_box.add_child(_kv("已用土地", "%.1f / %.1f" % [land_used, land_cap], Palette.TEXT))
 	content_box.add_child(UIKit.spacer(2))
 	content_box.add_child(UIKit.dim("据点明细：", 11))
 	if tiles.is_empty():
@@ -174,11 +174,11 @@ func _refresh_decrees(sh: Dictionary) -> void:
 		var id := str(d["id"])
 		var row := PanelContainer.new()
 		var why := Decrees.blocked_reason(GameState.state, id)
-		UIKit.apply_panel(row, UIKit.BG_PANEL_2, UIKit.LINE if why == "" else UIKit.LINE_SOFT, 4)
+		UIKit.apply_panel(row, Palette.BG_PANEL_2, Palette.LINE if why == "" else Palette.LINE_SOFT, 4)
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", UI.fs(2))
 		row.add_child(v)
-		v.add_child(UIKit.text_label("%s（行政点数 %.0f）" % [str(d["name"]), float(d["cost"])], 12, UIKit.TEXT))
+		v.add_child(UIKit.text_label("%s（行政点数 %.0f）" % [str(d["name"]), float(d["cost"])], 12, Palette.TEXT))
 		var dd := UIKit.dim(str(d.get("desc", "")), 10)
 		dd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(dd)
@@ -219,8 +219,8 @@ func _refresh_decree_queue(sh: Dictionary) -> void:
 		var head := "▶ " if i == 0 else "· "
 		decree_box.add_child(UIKit.text_label("%s%s　%.0f / %.0f" % [
 			head, DecreeDB.display_name(str(item.get("id", ""))), paid, cost], 11,
-			UIKit.GOLD if i == 0 else UIKit.TEXT_DIM))
-		decree_box.add_child(UIKit.bar(paid, cost, UIKit.GOLD if i == 0 else UIKit.LINE, 280.0, 8.0))
+			Palette.GOLD if i == 0 else Palette.TEXT_DIM))
+		decree_box.add_child(UIKit.bar(paid, cost, Palette.GOLD if i == 0 else Palette.LINE, 280.0, 8.0))
 
 
 ## 规划队列：队首 + 进度条（吃生产力）
@@ -241,8 +241,8 @@ func _refresh_build_queue(sh: Dictionary) -> void:
 		var nm := def.display_name if def != null else str(item.get("bid", "?"))
 		var head := "▶ " if i == 0 else "· "
 		build_box.add_child(UIKit.text_label("%s%s　%.0f / %.0f" % [head, nm, paid, need], 11,
-			UIKit.GOLD if i == 0 else UIKit.TEXT_DIM))
-		build_box.add_child(UIKit.bar(paid, need, UIKit.GOLD if i == 0 else UIKit.LINE, 280.0, 8.0))
+			Palette.GOLD if i == 0 else Palette.TEXT_DIM))
+		build_box.add_child(UIKit.bar(paid, need, Palette.GOLD if i == 0 else Palette.LINE, 280.0, 8.0))
 
 
 func _kv(k: String, v: String, col: Color) -> Control:
@@ -282,7 +282,7 @@ static func build_labor_rows(parent: VBoxContainer, on_changed: Callable) -> voi
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", UI.fs(4))
 			parent.add_child(row)
-			var l := UIKit.text_label("%s Lv.%d（%s）" % [def.display_name, level, key], 11, UIKit.TEXT)
+			var l := UIKit.text_label("%s Lv.%d（%s）" % [def.display_name, level, key], 11, Palette.TEXT)
 			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			row.add_child(l)
@@ -291,7 +291,7 @@ static func build_labor_rows(parent: VBoxContainer, on_changed: Callable) -> voi
 			minus.pressed.connect(func() -> void:
 				Buildings.assign_worker_by_bid(GameState.state, key, bid, -1)
 				on_changed.call())
-			var num := UIKit.text_label("%d/%d" % [int(b.get("workers", 0)), maxw], 11, UIKit.TEXT)
+			var num := UIKit.text_label("%d/%d" % [int(b.get("workers", 0)), maxw], 11, Palette.TEXT)
 			var plus := UIKit.tiny("＋", 12)
 			plus.pressed.connect(func() -> void:
 				var r2: Dictionary = Buildings.assign_worker_by_bid(GameState.state, key, bid, 1)

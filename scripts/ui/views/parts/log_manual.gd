@@ -84,7 +84,7 @@ func _refresh_groups() -> void:
 		var b := UIKit.small(g, 12)
 		var active: bool = g == current_group
 		UIKit.style_button(b, active)
-		b.add_theme_color_override("font_color", UIKit.GOLD if active else UIKit.TEXT)
+		b.add_theme_color_override("font_color", Palette.GOLD if active else Palette.TEXT)
 		b.pressed.connect(func() -> void:
 			current_group = g
 			selected_term = ""
@@ -109,7 +109,7 @@ func refresh() -> void:
 		var b := UIKit.small(str(t["name"]), 12)
 		if str(t["name"]) == selected_term:
 			UIKit.style_button(b, true)
-			b.add_theme_color_override("font_color", UIKit.GOLD)
+			b.add_theme_color_override("font_color", Palette.GOLD)
 		b.pressed.connect(func() -> void:
 			selected_term = str(t["name"])
 			refresh())
@@ -144,13 +144,13 @@ func refresh() -> void:
 
 
 func _preview(t: Dictionary) -> Control:
-	var p := UIKit.panel(UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 5)
+	var p := UIKit.panel(Palette.BG_PANEL_2, Palette.LINE_SOFT, 5)
 	var v := UIKit.vbox(2)
 	p.add_child(v)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", UI.fs(6))
 	v.add_child(h)
-	h.add_child(UIKit.text_label(str(t["name"]), 13, UIKit.GOLD))
+	h.add_child(UIKit.text_label(str(t["name"]), 13, Palette.GOLD))
 	h.add_child(UIKit.dim(str(t["group"]), 10))
 	var d := UIKit.dim(str(t["text"]), 11)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -172,7 +172,7 @@ func _render_term(name: String) -> void:
 	detail_box.add_child(head)
 	head.add_child(UIKit.title(str(term["name"]), 20))
 	head.add_child(UIKit.dim("分类：%s" % str(term["group"]), 12))
-	var body := UIKit.panel(UIKit.BG_PANEL_2, UIKit.GOLD, 6)
+	var body := UIKit.panel(Palette.BG_PANEL_2, Palette.GOLD, 6)
 	detail_box.add_child(body)
 	var bv := VBoxContainer.new()
 	body.add_child(bv)

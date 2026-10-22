@@ -71,7 +71,7 @@ func _refresh_bar() -> void:
 			var active: bool = SUB_TABS[i]["id"] == current
 			UIKit.style_button(child as Button, active)
 			(child as Button).add_theme_color_override("font_color",
-				UIKit.GOLD if active else UIKit.TEXT)
+				Palette.GOLD if active else Palette.TEXT)
 			i += 1
 
 

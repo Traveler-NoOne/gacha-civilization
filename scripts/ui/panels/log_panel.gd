@@ -12,7 +12,7 @@ var page: Control
 
 
 func _init() -> void:
-	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
+	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), Palette.GOLD, 6)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", UI.fs(4))
 	add_child(col)

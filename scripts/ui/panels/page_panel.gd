@@ -19,7 +19,7 @@ var page: Control = null
 func _init(p_title: String, script_path: String, w: float = 1120.0, h: float = 620.0) -> void:
 	title = p_title
 	custom_minimum_size = Vector2(UI.px(w), UI.px(h))
-	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
+	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), Palette.GOLD, 6)
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", UI.fs(4))

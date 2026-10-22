@@ -12,35 +12,9 @@ extends RefCounted
 ## 里面全是 static 函数，用 UIKit.xxx() 调用，不需要也不应该去实例化它。
 ## 统一 UI 风格与控件工厂。所有界面优先使用几何色块 + 文字，可选加载美术图标，找不到时回退。
 
-# ---------------------------------------------------------------------------
-# 配色常量
-# ---------------------------------------------------------------------------
-## 最底层背景（近黑带紫）
-const BG_DARK := Color(0.055, 0.055, 0.08)
-## 普通面板背景
-const BG_PANEL := Color(0.10, 0.10, 0.145)
-## 面板上的第二层背景（比 BG_PANEL 略亮，常用于按钮 / 嵌套块）
-const BG_PANEL_2 := Color(0.135, 0.135, 0.19)
-## 槽位 / 格子背景（比面板更暗，用于图标格、卡片底）
-const BG_SLOT := Color(0.075, 0.075, 0.115)
-## 主要描边色
-const LINE := Color(0.28, 0.30, 0.40)
-## 次要描边色（用于禁用态等弱化场景）
-const LINE_SOFT := Color(0.20, 0.21, 0.29)
-## 金色强调色（标题、选中、强调按钮）
-const GOLD := Color(0.93, 0.80, 0.45)
-## 正文文字色
-const TEXT := Color(0.90, 0.91, 0.95)
-## 弱化文字色（说明 / 次要信息）
-const TEXT_DIM := Color(0.62, 0.64, 0.72)
-## 最弱的文字色（禁用 / 占位）
-const TEXT_FAINT := Color(0.45, 0.47, 0.56)
-## 成功 / 正向数值（绿）
-const OK := Color(0.45, 0.85, 0.55)
-## 警告 / 注意数值（橙）
-const WARN := Color(0.95, 0.62, 0.35)
-## 危险 / 负向数值（红）
-const BAD := Color(0.92, 0.38, 0.40)
+## 颜色一律从 `Palette` 取（数值在 `ui_palette.tres`，Inspector 里直接调）✓
+## UNSET = "调用方没传颜色，用调色板里的默认色" —— 默认参数不能指向运行时变量，所以用哨兵 ✓
+const UNSET := Color(-1, -1, -1, -1)
 
 ## 美术资源根目录
 const ART_DIR := "res://art/"
@@ -82,7 +56,11 @@ const MIN_BORDER_WIDTH := 3
 
 ## 生成一个统一的「样式盒」StyleBoxFlat：决定面板 / 按钮的底色、描边、圆角与内边距。
 ## bg / border / radius 不传时用默认面板配色；width 会被强制不小于 MIN_BORDER_WIDTH。
-static func panel_style(bg: Color = BG_PANEL, border: Color = LINE,radius: int = 6, width: int = MIN_BORDER_WIDTH) -> StyleBoxFlat:
+static func panel_style(bg: Color = UNSET, border: Color = UNSET, radius: int = 6, width: int = MIN_BORDER_WIDTH) -> StyleBoxFlat:
+	if bg == UNSET:
+		bg = Palette.BG_PANEL
+	if border == UNSET:
+		border = Palette.LINE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = bg
 	sb.border_color = border
@@ -99,10 +77,14 @@ static func panel_style(bg: Color = BG_PANEL, border: Color = LINE,radius: int =
 ## （传进其它类型的控件不会报错，什么也不做。）
 ## ⚠️ 2026-10-22 起：**默认面板交给主题**（`ui_theme.tres` 里的 `panel` 样式盒），
 ##    只有调用方明确传了别的颜色/圆角时才在代码里覆盖 ✓
-static func apply_panel(p: Control, bg: Color = BG_PANEL, border: Color = LINE,
+static func apply_panel(p: Control, bg: Color = UNSET, border: Color = UNSET,
 		radius: int = 6) -> void:
-	if bg == BG_PANEL and border == LINE and radius == 6:
+	if bg == UNSET and border == UNSET and radius == 6:
 		return
+	if bg == UNSET:
+		bg = Palette.BG_PANEL
+	if border == UNSET:
+		border = Palette.LINE
 	var sb := panel_style(bg, border, radius)
 	if p is PanelContainer:
 		(p as PanelContainer).add_theme_stylebox_override("panel", sb)
@@ -128,12 +110,14 @@ static func style_button(b: Button, accent: bool = false, danger: bool = false) 
 ## 造一个金色标题文字（Label），size 为字号。
 ## 等价于 text_label(text, size, GOLD) —— 只差一个默认字号（标题 20 / 正文 13）。
 static func title(text: String, size: int = 20) -> Label:
-	return text_label(text, size, GOLD)
+	return text_label(text, size, Palette.GOLD)
 
 
 
 ## 造一个普通文字（Label），可指定字号与颜色。
-static func text_label(text: String, size: int = 13, color: Color = TEXT) -> Label:
+static func text_label(text: String, size: int = 13, color: Color = UNSET) -> Label:
+	if color == UNSET:
+		color = Palette.TEXT
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", UI.fs(size))
@@ -143,7 +127,7 @@ static func text_label(text: String, size: int = 13, color: Color = TEXT) -> Lab
 
 ## 造一个弱化说明文字（灰色小字），等价于 text_label(text, size, TEXT_DIM)。
 static func dim(text: String, size: int = 12) -> Label:
-	return text_label(text, size, TEXT_DIM)
+	return text_label(text, size, Palette.TEXT_DIM)
 
 
 ## 四种按钮的**唯一实现**：造一个套好统一外观的按钮。
@@ -219,7 +203,7 @@ static func scroll(child: Control) -> ScrollContainer:
 
 
 ## 造一个统一样式的面板容器（PanelContainer）。
-static func panel(bg: Color = BG_PANEL, border: Color = LINE, radius: int = 6) -> PanelContainer:
+static func panel(bg: Color = UNSET, border: Color = UNSET, radius: int = 6) -> PanelContainer:
 	var p := PanelContainer.new()
 	apply_panel(p, bg, border, radius)
 	return p
@@ -271,12 +255,12 @@ static func bar(value: float, maxv: float, fill: Color, w: float = 120.0, h: flo
 static func progress_bar_row(value: int, cap: int, progress: float, fill: Color) -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", UI.fs(6))
-	var l := text_label("经验", 11, TEXT_DIM)
+	var l := text_label("经验", 11, Palette.TEXT_DIM)
 	h.add_child(l)
 	var b := bar(float(value), float(maxi(1, cap)), fill, 180.0, 12.0)
 	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(b)
-	var t := text_label("%d / %d（%.0f%%）" % [value, cap, progress * 100.0], 11, TEXT)
+	var t := text_label("%d / %d（%.0f%%）" % [value, cap, progress * 100.0], 11, Palette.TEXT)
 	h.add_child(t)
 	return h
 
@@ -307,15 +291,15 @@ static func toggle_checkbox(label_text: String, on: bool = false) -> Button:
 ## 刷新自绘勾选框的外观：按 on 切换方括号勾选符号 [ ✔ ] / [    ]、文字颜色与底色。
 static func _apply_checkbox_look(b: Button, on: bool, label_text: String) -> void:
 	b.text = "%s  %s" % ["[ ✔ ]" if on else "[    ]", label_text]
-	b.add_theme_color_override("font_color", GOLD if on else TEXT)
-	b.add_theme_color_override("font_hover_color", GOLD)
-	b.add_theme_color_override("font_pressed_color", GOLD)
-	var base := Color(0.16, 0.15, 0.10) if on else BG_PANEL_2
-	var line := GOLD if on else LINE
+	b.add_theme_color_override("font_color", Palette.GOLD if on else Palette.TEXT)
+	b.add_theme_color_override("font_hover_color", Palette.GOLD)
+	b.add_theme_color_override("font_pressed_color", Palette.GOLD)
+	var base := Color(0.16, 0.15, 0.10) if on else Palette.BG_PANEL_2
+	var line := Palette.GOLD if on else Palette.LINE
 	b.add_theme_stylebox_override("normal", panel_style(base, line, 5))
-	b.add_theme_stylebox_override("hover", panel_style(base.lightened(0.12), GOLD, 5))
-	b.add_theme_stylebox_override("pressed", panel_style(base.darkened(0.15), GOLD, 5))
-	b.add_theme_stylebox_override("focus", panel_style(Color(0, 0, 0, 0), GOLD, 5))
+	b.add_theme_stylebox_override("hover", panel_style(base.lightened(0.12), Palette.GOLD, 5))
+	b.add_theme_stylebox_override("pressed", panel_style(base.darkened(0.15), Palette.GOLD, 5))
+	b.add_theme_stylebox_override("focus", panel_style(Color(0, 0, 0, 0), Palette.GOLD, 5))
 	b.tooltip_text = "点击切换：%s" % ("已开启" if on else "已关闭")
 
 
@@ -404,7 +388,7 @@ static func card_button(card: Dictionary, w: float = 104.0, h: float = 128.0) ->
 	var holder := PanelContainer.new()
 	var rarity := int(card.get("rarity", 1))
 	var col: Color = Consts.rarity_color(rarity)
-	apply_panel(holder, BG_SLOT, col, 6)
+	apply_panel(holder, Palette.BG_SLOT, col, 6)
 	holder.custom_minimum_size = Vector2(UI.px(w), UI.px(h))
 	var v := vbox(2)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -418,7 +402,7 @@ static func card_button(card: Dictionary, w: float = 104.0, h: float = 128.0) ->
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(name_l)
-	var sub := text_label("%d★ %s" % [rarity, Consts.rarity_name(rarity)], 10, TEXT_DIM)
+	var sub := text_label("%d★ %s" % [rarity, Consts.rarity_name(rarity)], 10, Palette.TEXT_DIM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(sub)
 	return holder

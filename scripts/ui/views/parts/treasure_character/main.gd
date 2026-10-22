@@ -2,7 +2,7 @@ class_name CharacterMain
 ## 角色页 · 「主要」子页的构建器（无状态）
 ## 参数：详情容器 / 要显示的单位 / 变化后的回调（通常是页面自己的 refresh）
 static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callable) -> void:
-	var attr_panel := UIKit.panel(UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 6)
+	var attr_panel := UIKit.panel(Palette.BG_PANEL_2, Palette.LINE_SOFT, 6)
 	detail_host.add_child(attr_panel)
 	var av := VBoxContainer.new()
 	av.add_theme_constant_override("separation", UI.fs(4))
@@ -26,10 +26,10 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	for k in ["atk", "def", "hp", "spd", "agi"]:
 		if not base.has(k):
 			continue
-		g.add_child(UIKit.text_label(str(names.get(k, k)), 12, UIKit.TEXT_DIM))
-		g.add_child(UIKit.text_label(str(base[k]), 12, UIKit.TEXT))
+		g.add_child(UIKit.text_label(str(names.get(k, k)), 12, Palette.TEXT_DIM))
+		g.add_child(UIKit.text_label(str(base[k]), 12, Palette.TEXT))
 		g.add_child(UIKit.text_label("%.1f" % float(eff.get(k, 0.0)), 12,
-			UIKit.OK if mul >= 1.0 else UIKit.WARN))
+			Palette.OK if mul >= 1.0 else Palette.WARN))
 		g.add_child(UIKit.dim("×%.2f" % mul, 11))
 	av.add_child(UIKit.dim("位阶倍率 ×%.2f = 在 [%.2f, %.2f] 区间内按经验进度插值" % [
 		mul, float(UnitDB.RANKS[str(u.get("rank", "recruit"))]["mul_min"]),
@@ -54,7 +54,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	lv_row.add_child(up)
 
 	# 携带信息
-	var carry := UIKit.panel(UIKit.BG_PANEL_2, UIKit.LINE_SOFT, 6)
+	var carry := UIKit.panel(Palette.BG_PANEL_2, Palette.LINE_SOFT, 6)
 	detail_host.add_child(carry)
 	var cv := VBoxContainer.new()
 	cv.add_theme_constant_override("separation", UI.fs(3))
@@ -76,7 +76,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		cv.add_child(row)
 		row.add_child(UIKit.dim(slot_name, 12))
 		if item_id == "":
-			row.add_child(UIKit.text_label("（空）", 12, UIKit.TEXT_FAINT))
+			row.add_child(UIKit.text_label("（空）", 12, Palette.TEXT_FAINT))
 		else:
 			var it := _find_equipment(item_id)
 			row.add_child(UIKit.text_label(str(it.get("name", item_id)), 12,

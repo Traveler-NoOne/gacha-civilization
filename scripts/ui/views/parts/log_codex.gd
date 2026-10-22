@@ -149,7 +149,7 @@ func refresh() -> void:
 		if c is Button:
 			var active: bool = CATEGORIES[i]["id"] == cat
 			UIKit.style_button(c as Button, active)
-			(c as Button).add_theme_color_override("font_color", UIKit.GOLD if active else UIKit.TEXT)
+			(c as Button).add_theme_color_override("font_color", Palette.GOLD if active else Palette.TEXT)
 			i += 1
 
 	# 二级分类：每个分组各占一块，互不冲突，可以同时生效
@@ -157,7 +157,7 @@ func refresh() -> void:
 		c2.queue_free()
 	for g in _current_cat().get("groups", []):
 		var gkey: String = g["key"]
-		var gl := UIKit.text_label(str(g["title"]), 12, UIKit.GOLD)
+		var gl := UIKit.text_label(str(g["title"]), 12, Palette.GOLD)
 		sub_area.add_child(gl)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", UI.fs(3))
@@ -194,13 +194,13 @@ func refresh() -> void:
 		if not is_unlocked:
 			holder.modulate = Color(0.34, 0.34, 0.38, 0.9)
 			var v := UIKit.vbox(0)
-			var tag := UIKit.text_label("未解锁", 10, UIKit.TEXT_FAINT)
+			var tag := UIKit.text_label("未解锁", 10, Palette.TEXT_FAINT)
 			tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			v.add_child(tag)
 			holder.add_child(v)
 		else:
 			var v2 := UIKit.vbox(0)
-			var tag2 := UIKit.text_label("持有 %d" % cnt, 10, UIKit.OK)
+			var tag2 := UIKit.text_label("持有 %d" % cnt, 10, Palette.OK)
 			tag2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			v2.add_child(tag2)
 			holder.add_child(v2)
@@ -242,7 +242,7 @@ static func _civ_color(civ: String) -> Color:
 		"提瓦特": return Color(0.55, 0.85, 0.75)
 		"绝区零": return Color(0.95, 0.78, 0.35)
 		"崩坏本征": return Color(0.85, 0.55, 0.95)
-		_: return UIKit.TEXT_DIM
+		_: return Palette.TEXT_DIM
 
 
 func _cards_for_cat() -> Array:
@@ -330,8 +330,8 @@ func _profession_content() -> void:
 	for r in UnitDB.RANK_ORDER:
 		var rd: Dictionary = UnitDB.RANKS[r]
 		tbl.add_child(UIKit.text_label(UnitDB.rank_name(r), 12, UnitDB.rank_color(r)))
-		tbl.add_child(UIKit.text_label("%.1f ~ %.1f" % [float(rd["mul_min"]), float(rd["mul_max"])], 12, UIKit.TEXT))
-		tbl.add_child(UIKit.text_label("%d" % int(rd["exp_cap"]), 12, UIKit.TEXT))
+		tbl.add_child(UIKit.text_label("%.1f ~ %.1f" % [float(rd["mul_min"]), float(rd["mul_max"])], 12, Palette.TEXT))
+		tbl.add_child(UIKit.text_label("%d" % int(rd["exp_cap"]), 12, Palette.TEXT))
 		var sd := UIKit.dim(str(rd["desc"]), 10)
 		sd.custom_minimum_size = Vector2(UI.px(300), UI.px(0))
 		sd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -340,7 +340,7 @@ func _profession_content() -> void:
 
 func _profession_card(p: String) -> Control:
 	var col := UnitDB.profession_color(p)
-	var row := UIKit.panel(UIKit.BG_PANEL_2, col, 6)
+	var row := UIKit.panel(Palette.BG_PANEL_2, col, 6)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", UI.fs(10))
 	row.add_child(h)
@@ -368,9 +368,9 @@ func _profession_card(p: String) -> Control:
 			countered_by.append(UnitDB.profession_name(q))
 	var rng := int((UnitDB.PROFESSIONS[p] as Dictionary).get("range", 1))
 	if not cnames.is_empty():
-		v.add_child(UIKit.text_label("克制：%s（伤害 +30%%）" % "、".join(cnames), 11, UIKit.OK))
+		v.add_child(UIKit.text_label("克制：%s（伤害 +30%%）" % "、".join(cnames), 11, Palette.OK))
 	if not countered_by.is_empty():
-		v.add_child(UIKit.text_label("被克制：%s（伤害 −20%%）" % "、".join(countered_by), 11, UIKit.BAD))
+		v.add_child(UIKit.text_label("被克制：%s（伤害 −20%%）" % "、".join(countered_by), 11, Palette.BAD))
 	v.add_child(UIKit.dim("攻击距离：%d 格%s" % [rng, "（可以隔一格攻击）" if rng >= 2 else ""], 11))
 
 	# 该职业的单位数量
@@ -379,7 +379,7 @@ func _profession_card(p: String) -> Control:
 		if str(u.get("profession", "")) == p:
 			n += 1
 	v.add_child(UIKit.text_label("我方持有该职业单位：%d 个" % n, 11,
-		UIKit.OK if n > 0 else UIKit.TEXT_FAINT))
+		Palette.OK if n > 0 else Palette.TEXT_FAINT))
 	return row
 
 

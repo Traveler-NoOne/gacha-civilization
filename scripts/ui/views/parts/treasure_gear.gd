@@ -74,7 +74,7 @@ func _refresh_tabs() -> void:
 		if c is Button:
 			var active: bool = ids[i] == filter
 			UIKit.style_button(c as Button, active)
-			(c as Button).add_theme_color_override("font_color", UIKit.GOLD if active else UIKit.TEXT)
+			(c as Button).add_theme_color_override("font_color", Palette.GOLD if active else Palette.TEXT)
 			i += 1
 
 
@@ -100,7 +100,7 @@ func _refresh_list() -> void:
 	for e in items:
 		var col: Color = Consts.rarity_color(int(e["rarity"]))
 		var row := PanelContainer.new()
-		UIKit.apply_panel(row, UIKit.BG_PANEL_2, col if str(e["id"]) == selected else UIKit.LINE_SOFT, 5)
+		UIKit.apply_panel(row, Palette.BG_PANEL_2, col if str(e["id"]) == selected else Palette.LINE_SOFT, 5)
 		list_box.add_child(row)
 		var h := UIKit.hbox(6)
 		row.add_child(h)
@@ -159,7 +159,7 @@ func _refresh_detail() -> void:
 		for k in attr.keys():
 			var nm := "攻击力" if k == "atk" else ("防御力" if k == "def" else str(k))
 			g.add_child(UIKit.dim(nm, 12))
-			g.add_child(UIKit.text_label(str(attr[k]), 12, UIKit.TEXT))
+			g.add_child(UIKit.text_label(str(attr[k]), 12, Palette.TEXT))
 
 	detail_box.add_child(UIKit.spacer(6))
 	detail_box.add_child(UIKit.dim("当前筛选下共 %d 件装备。" % total, 12))

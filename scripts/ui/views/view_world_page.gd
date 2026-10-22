@@ -52,7 +52,7 @@ func _build() -> void:
 	add_child(root)
 
 	# ---- 地图 ----
-	var map_panel := UIKit.panel(UIKit.BG_SLOT, UIKit.LINE, 6)
+	var map_panel := UIKit.panel(Palette.BG_SLOT, Palette.LINE, 6)
 	map_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.add_child(map_panel)
 	var mv := VBoxContainer.new()
@@ -113,7 +113,7 @@ func _build() -> void:
 	unit_strip.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	unit_strip.position = Vector2(0, UI.px(-10))
 	unit_strip.visible = false
-	UIKit.apply_panel(unit_strip, Color(0.08, 0.08, 0.12, 0.94), UIKit.LINE, 6)
+	UIKit.apply_panel(unit_strip, Color(0.08, 0.08, 0.12, 0.94), Palette.LINE, 6)
 	add_child(unit_strip)
 	unit_strip_row = HBoxContainer.new()
 	unit_strip_row.add_theme_constant_override("separation", UI.fs(6))
@@ -128,7 +128,7 @@ func _build() -> void:
 
 	unit_panel.custom_minimum_size = Vector2(UI.px(260), 0)
 	unit_panel.visible = false
-	UIKit.apply_panel(unit_panel, Color(0.07, 0.07, 0.11, 0.96), UIKit.GOLD, 6)
+	UIKit.apply_panel(unit_panel, Color(0.07, 0.07, 0.11, 0.96), Palette.GOLD, 6)
 	add_child(unit_panel)
 	unit_panel_box = VBoxContainer.new()
 	unit_panel_box.add_theme_constant_override("separation", UI.fs(4))
@@ -239,7 +239,7 @@ func _refresh_marks() -> void:
 		for k in Units.deployable_keys(GameState.state):
 			map.marks[k] = Color(0.55, 0.95, 0.65)
 		if pending_tile != "":
-			map.marks[pending_tile] = UIKit.GOLD
+			map.marks[pending_tile] = Palette.GOLD
 	elif pick_mode == "move":
 		for k in _move_targets(pick_unit):
 			map.marks[k] = Color(0.55, 0.95, 0.65)
@@ -330,7 +330,7 @@ func _ensure_action_menu() -> void:
 	action_menu = PanelContainer.new()
 	action_menu.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	action_menu.visible = false
-	UIKit.apply_panel(action_menu, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
+	UIKit.apply_panel(action_menu, Color(0.07, 0.07, 0.11, 1.0), Palette.GOLD, 6)
 	add_child(action_menu)
 
 
@@ -378,7 +378,7 @@ func _ensure_tile_info_popup() -> void:
 	tile_info_popup.visible = false
 	# 小窗里有按钮（占领），所以必须能接收点击；点窗外仍然照常落到地图上
 	tile_info_popup.mouse_filter = Control.MOUSE_FILTER_STOP
-	UIKit.apply_panel(tile_info_popup, Color(0.07, 0.07, 0.11, 1.0), UIKit.LINE, 6)
+	UIKit.apply_panel(tile_info_popup, Color(0.07, 0.07, 0.11, 1.0), Palette.LINE, 6)
 	add_child(tile_info_popup)
 	tile_info_box = VBoxContainer.new()
 	tile_info_box.add_theme_constant_override("separation", UI.fs(3))
@@ -406,7 +406,7 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 
 
 	var owner_txt := "无主"
-	var owner_col := UIKit.TEXT_DIM
+	var owner_col := Palette.TEXT_DIM
 	match t.get("owner", Consts.Owner.NONE):
 		Consts.Owner.PLAYER:
 			owner_txt = "我方领地"
@@ -418,7 +418,7 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 	# 地块明细（单格版）—— 与据点详情里那行同格式，避免两处口径不同
 	var nm := str(t.get("name", ""))
 	if nm != "":
-		tile_info_box.add_child(UIKit.text_label("名称：%s" % nm, 11, UIKit.TEXT))
+		tile_info_box.add_child(UIKit.text_label("名称：%s" % nm, 11, Palette.TEXT))
 	var bcount := (t.get("buildings", []) as Array).size()
 	var line := "地形 %s　土地 %.1f/%.1f　建筑 %d" % [
 		Consts.terrain_name(str(t.get("terrain", ""))),
@@ -429,11 +429,11 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 	# v1.8.21：地物（覆盖物）单独一行 —— 裸地不显示（空串），免得每格都多一行废话
 	var cover_txt := str(t.get("cover", ""))
 	if cover_txt != "":
-		tile_info_box.add_child(UIKit.text_label("地物：%s" % Consts.cover_name(cover_txt), 11, UIKit.OK))
+		tile_info_box.add_child(UIKit.text_label("地物：%s" % Consts.cover_name(cover_txt), 11, Palette.OK))
 
 	var res := str(t.get("resource", ""))
 	if res != "":
-		tile_info_box.add_child(UIKit.text_label("资源点：%s" % Consts.res_name(res), 11, UIKit.OK))
+		tile_info_box.add_child(UIKit.text_label("资源点：%s" % Consts.res_name(res), 11, Palette.OK))
 	# v1.8.5：可占领的地块 → 在这里直接给「占领」按钮。
 	# 旧右侧规划面板删掉后，**这里就是占领的唯一入口**（不能丢功能）。
 	if TileManager.claimable_keys(GameState.state).has(key):
@@ -597,7 +597,7 @@ func _refresh_unit_panel() -> void:
 		info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		unit_panel_box.add_child(info)
 		unit_panel_box.add_child(UIKit.text_label(
-			"目标：%s" % ("（未选）" if pending_tile == "" else pending_tile), 11, UIKit.GOLD))
+			"目标：%s" % ("（未选）" if pending_tile == "" else pending_tile), 11, Palette.GOLD))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", UI.fs(6))
 		var okb := UIKit.primary("确认招募", 12)
@@ -640,7 +640,7 @@ func _refresh_unit_panel() -> void:
 		"　［驻军中］" if garrisoned else ""], 10))
 	col.add_child(UIKit.text_label("攻击 %.0f　血量 %d / %d　移动力 %d / %d" % [
 		float(eff.get("atk", 0.0)), int(u.get("hp", 0)), UnitDB.max_hp(u),
-		int(u.get("move_left", 0)), Units.max_move(GameState.state, u)], 11, UIKit.TEXT))
+		int(u.get("move_left", 0)), Units.max_move(GameState.state, u)], 11, Palette.TEXT))
 	var row2 := HBoxContainer.new()
 	row2.add_theme_constant_override("separation", UI.fs(6))
 	var no_act := int(u.get("move_left", 0)) <= 0 or garrisoned

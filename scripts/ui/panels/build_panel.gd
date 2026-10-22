@@ -22,7 +22,7 @@ var build_btn: Button
 
 func _init() -> void:
 	custom_minimum_size = Vector2(UI.px(560), UI.px(420))
-	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), UIKit.GOLD, 6)
+	UIKit.apply_panel(self, Color(0.07, 0.07, 0.11, 1.0), Palette.GOLD, 6)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", UI.fs(6))
 	add_child(col)
@@ -97,7 +97,7 @@ func refresh() -> void:
 func _row(def: BuildingDef, t: Dictionary) -> Control:
 	var sel := str(def.id) == selected_id
 	var row := PanelContainer.new()
-	UIKit.apply_panel(row, UIKit.BG_PANEL_2, UIKit.GOLD if sel else UIKit.LINE_SOFT, 5)
+	UIKit.apply_panel(row, Palette.BG_PANEL_2, Palette.GOLD if sel else Palette.LINE_SOFT, 5)
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.gui_input.connect(func(e: InputEvent) -> void:
 		if e is InputEventMouseButton and (e as InputEventMouseButton).pressed \
@@ -112,11 +112,11 @@ func _row(def: BuildingDef, t: Dictionary) -> Control:
 	head.add_theme_constant_override("separation", UI.fs(8))
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(head)
-	head.add_child(UIKit.text_label(str(def.display_name), 13, UIKit.GOLD if sel else UIKit.TEXT))
+	head.add_child(UIKit.text_label(str(def.display_name), 13, Palette.GOLD if sel else Palette.TEXT))
 	head.add_child(UIKit.dim("占地 %.1f" % float(def.land), 10))
 	var count := Buildings.tile_buildings_of(t, def.id).size()
 	if count > 0:
-		head.add_child(UIKit.text_label("已有 ×%d" % count, 10, UIKit.OK))
+		head.add_child(UIKit.text_label("已有 ×%d" % count, 10, Palette.OK))
 
 	var cost := def.upgrade_cost(1)
 	var can_now := Res.amount(GameState.state, "production") >= float(cost.get("production", 0.0))
@@ -130,7 +130,7 @@ func _row(def: BuildingDef, t: Dictionary) -> Control:
 		v.add_child(info)
 		var chk := Buildings.can_build(GameState.state, t, def)
 		if not bool(chk["ok"]):
-			v.add_child(UIKit.text_label("不能修建：%s" % str(chk["why"]), 10, UIKit.BAD))
+			v.add_child(UIKit.text_label("不能修建：%s" % str(chk["why"]), 10, Palette.BAD))
 	return row
 
 

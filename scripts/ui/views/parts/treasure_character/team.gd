@@ -16,8 +16,8 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		var idx := i
 		var team: Dictionary = teams[i]
 		var members := Units.team_units(GameState.state, idx)
-		var pane := UIKit.panel(UIKit.BG_PANEL_2,
-			UIKit.GOLD if idx == cur_team else UIKit.LINE_SOFT, 6)
+		var pane := UIKit.panel(Palette.BG_PANEL_2,
+			Palette.GOLD if idx == cur_team else Palette.LINE_SOFT, 6)
 		pane.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tg.add_child(pane)
 		var pv := VBoxContainer.new()
@@ -25,7 +25,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		pane.add_child(pv)
 		pv.add_child(UIKit.text_label("%s（%d/%d）" % [str(team["name"]),
 			members.size(), UnitDB.UNITS_PER_TEAM], 13,
-			UIKit.GOLD if idx == cur_team else UIKit.TEXT))
+			Palette.GOLD if idx == cur_team else Palette.TEXT))
 		if members.is_empty():
 			pv.add_child(UIKit.dim("（空）", 11))
 		for m in members:
@@ -62,7 +62,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	detail_host.add_child(UIKit.title("地块派驻（每格最多 %d 个单位）" % UnitDB.UNITS_PER_TILE, 15))
 	detail_host.add_child(UIKit.text_label("当前状态：%s" % (
 		"驻守 %s" % cur_tile if cur_tile != "" else "未派驻（在营地待命）"), 12,
-		UIKit.OK if cur_tile != "" else UIKit.TEXT_DIM))
+		Palette.OK if cur_tile != "" else Palette.TEXT_DIM))
 
 	var own := TileManager.owned_tiles(GameState.state)
 	var list := VBoxContainer.new()
@@ -74,7 +74,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		var on_tile := Units.units_on_tile(GameState.state, key)
 		var is_here := key == cur_tile
 		var row := PanelContainer.new()
-		UIKit.apply_panel(row, UIKit.BG_PANEL_2, UIKit.GOLD if is_here else UIKit.LINE_SOFT, 5)
+		UIKit.apply_panel(row, Palette.BG_PANEL_2, Palette.GOLD if is_here else Palette.LINE_SOFT, 5)
 		list.add_child(row)
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", UI.fs(6))
@@ -82,7 +82,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		var label := "%s　[%s]　驻军 %d/%d" % [
 			str(t.get("name", key)) if str(t.get("name", "")) != "" else key,
 			key, on_tile.size(), UnitDB.UNITS_PER_TILE]
-		var ll := UIKit.text_label(label, 12, UIKit.TEXT)
+		var ll := UIKit.text_label(label, 12, Palette.TEXT)
 		ll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(ll)
 		if is_here:

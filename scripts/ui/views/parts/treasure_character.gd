@@ -107,7 +107,7 @@ func _build() -> void:
 	mid.add_child(mv)
 
 	var pic_frame := PanelContainer.new()
-	UIKit.apply_panel(pic_frame, UIKit.BG_SLOT, UIKit.LINE, 8)
+	UIKit.apply_panel(pic_frame, Palette.BG_SLOT, Palette.LINE, 8)
 	pic_frame.custom_minimum_size = Vector2(UI.px(210), UI.px(190))
 	mv.add_child(pic_frame)
 	# v1.7：立绘槽 —— 有美术就放立绘，没有就回落到几何占位（每帧重建，随选中单位切换）
@@ -115,7 +115,7 @@ func _build() -> void:
 	portrait_host.custom_minimum_size = Vector2(UI.px(190), UI.px(170))
 	pic_frame.add_child(portrait_host)
 
-	name_label = UIKit.text_label("未选择单位", 19, UIKit.GOLD)
+	name_label = UIKit.text_label("未选择单位", 19, Palette.GOLD)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mv.add_child(name_label)
 
@@ -124,7 +124,7 @@ func _build() -> void:
 	badge_row.add_theme_constant_override("separation", UI.fs(4))
 	mv.add_child(badge_row)
 
-	meta_label = UIKit.text_label("", 12, UIKit.TEXT_DIM)
+	meta_label = UIKit.text_label("", 12, Palette.TEXT_DIM)
 	meta_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	meta_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mv.add_child(meta_label)
@@ -178,21 +178,21 @@ func _refresh_bars() -> void:
 		if c is Button:
 			var active: bool = SUB_TABS[i]["id"] == sub_tab
 			UIKit.style_button(c as Button, active)
-			(c as Button).add_theme_color_override("font_color", UIKit.GOLD if active else UIKit.TEXT)
+			(c as Button).add_theme_color_override("font_color", Palette.GOLD if active else Palette.TEXT)
 			i += 1
 	i = 0
 	for c2 in type_bar.get_children():
 		if c2 is Button:
 			var active2: bool = TYPE_FILTERS[i]["id"] == type_filter
 			UIKit.style_button(c2 as Button, active2)
-			(c2 as Button).add_theme_color_override("font_color", UIKit.GOLD if active2 else UIKit.TEXT)
+			(c2 as Button).add_theme_color_override("font_color", Palette.GOLD if active2 else Palette.TEXT)
 			i += 1
 	i = 0
 	for c3 in status_bar.get_children():
 		if c3 is Button:
 			var active3: bool = STATUS_FILTERS[i]["id"] == status_filter
 			UIKit.style_button(c3 as Button, active3)
-			(c3 as Button).add_theme_color_override("font_color", UIKit.GOLD if active3 else UIKit.TEXT)
+			(c3 as Button).add_theme_color_override("font_color", Palette.GOLD if active3 else Palette.TEXT)
 			i += 1
 
 
@@ -307,10 +307,10 @@ func _refresh_portrait() -> void:
 	if u.is_empty():
 		var ph := GeoIcon.new()
 		ph.custom_minimum_size = Vector2(UI.px(190), UI.px(170))
-		ph.setup("circle", UIKit.TEXT_FAINT)
+		ph.setup("circle", Palette.TEXT_FAINT)
 		portrait_host.add_child(ph)
 		name_label.text = "未选择单位"
-		name_label.add_theme_color_override("font_color", UIKit.GOLD)
+		name_label.add_theme_color_override("font_color", Palette.GOLD)
 		meta_label.text = ""
 		_refresh_status_actions({})
 		return
@@ -325,7 +325,7 @@ func _refresh_portrait() -> void:
 	# v1.5：客人 / 公民 徽记
 	var st := str(u.get("status", UnitDB.STATUS_CITIZEN))
 	badge_row.add_child(_badge(UnitDB.status_name(st),
-		UIKit.WARN if st == UnitDB.STATUS_GUEST else UIKit.OK))
+		Palette.WARN if st == UnitDB.STATUS_GUEST else Palette.OK))
 	meta_label.text = "性别：%s　特质：%s　%s" % [
 		_gender_of(u), _trait_of(u), UnitDB.unit_type_name(str(u.get("unit_type", "character")))]
 	_refresh_status_actions(u)

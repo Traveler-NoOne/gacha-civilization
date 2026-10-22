@@ -60,7 +60,7 @@ func refresh() -> void:
 	detail.add_child(g)
 	for k in Consts.RES_KEYS:
 		g.add_child(UIKit.dim(Consts.res_name(k), 12))
-		g.add_child(UIKit.text_label(UIKit.fmt_num(Res.amount(GameState.state, k)), 12, UIKit.TEXT))
+		g.add_child(UIKit.text_label(UIKit.fmt_num(Res.amount(GameState.state, k)), 12, Palette.TEXT))
 	detail.add_child(UIKit.spacer(6))
 	var note := UIKit.dim("说明：材料用于发展营地与养成角色。\n某一组内角色的高级材料，只有在「轮换」处于该卡组期间，才能在资源页抽出。", 11)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -69,7 +69,7 @@ func refresh() -> void:
 
 func _card_for(id: String, count: int) -> Control:
 	var def := _find(id)
-	var col := UIKit.TEXT_DIM
+	var col := Palette.TEXT_DIM
 	var kind := "circle"
 	var nm := id
 	var rarity := 1
@@ -79,7 +79,7 @@ func _card_for(id: String, count: int) -> Control:
 		col = Consts.rarity_color(rarity)
 		nm = str(def.get("name", id))
 	var p := PanelContainer.new()
-	UIKit.apply_panel(p, UIKit.BG_SLOT, col, 6)
+	UIKit.apply_panel(p, Palette.BG_SLOT, col, 6)
 	p.custom_minimum_size = Vector2(UI.px(96), UI.px(108))
 	var v := UIKit.vbox(2)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -92,7 +92,7 @@ func _card_for(id: String, count: int) -> Control:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(l)
-	var c := UIKit.text_label("x%d" % count, 12, UIKit.TEXT)
+	var c := UIKit.text_label("x%d" % count, 12, Palette.TEXT)
 	c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(c)
 	return p

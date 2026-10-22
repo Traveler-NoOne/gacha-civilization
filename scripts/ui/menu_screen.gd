@@ -111,7 +111,7 @@ func _build() -> void:
 	disclaimer.position = Vector2(16, -34)
 	disclaimer.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	disclaimer.add_theme_font_size_override("font_size", UI.fs(11))
-	disclaimer.add_theme_color_override("font_color", UIKit.TEXT_FAINT)
+	disclaimer.add_theme_color_override("font_color", Palette.TEXT_FAINT)
 	add_child(disclaimer)
 
 	_refresh_buttons()
@@ -468,7 +468,7 @@ func _open_feedback() -> void:
 	var ver := Label.new()
 	ver.text = "当前版本：%s" % Consts.DEMO_VERSION_FULL
 	ver.add_theme_font_size_override("font_size", UI.fs(13))
-	ver.add_theme_color_override("font_color", UIKit.GOLD)
+	ver.add_theme_color_override("font_color", Palette.GOLD)
 	v.add_child(ver)
 	v.add_child(UIKit.spacer(2.0))
 
@@ -490,7 +490,7 @@ func _open_feedback() -> void:
 	# v1.2：作弊功能勾选框
 	v.add_child(UIKit.spacer(6.0))
 	var rule := ColorRect.new()
-	rule.color = UIKit.LINE_SOFT
+	rule.color = Palette.LINE_SOFT
 	rule.custom_minimum_size = Vector2(UI.px(0), UI.px(1))
 	v.add_child(rule)
 	v.add_child(UIKit.spacer(4.0))
