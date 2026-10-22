@@ -110,33 +110,16 @@ static func apply_panel(p: Control, bg: Color = BG_PANEL, border: Color = LINE,
 		(p as Panel).add_theme_stylebox_override("panel", sb)
 
 
-## 给按钮套上统一外观：一次设好 normal / hover / pressed / focus / disabled 五种状态。
-## accent=true 走金色强调样式，danger=true 走红色危险样式（两者同时为真时 danger 优先）。
-## ⚠️ 2026-10-22 起：**普通按钮交给主题**（`Button` 的五个状态在 `ui_theme.tres` 里）；
-##    这里只剩"强调 / 危险"两种特殊皮肤 ✓
+## 给按钮套上统一外观：按 accent / danger 切换**主题类型变体**。
+## 五种状态（normal / hover / pressed / focus / disabled）都在 `ui_theme.tres` 里 ✓
+## 两者同时为真时 danger 优先 ✓
 static func style_button(b: Button, accent: bool = false, danger: bool = false) -> void:
-	if not accent and not danger:
-		return
-	var base := BG_PANEL_2
-	var hover := Color(0.20, 0.21, 0.29)
-	var line := LINE
-	if accent:
-		base = Color(0.24, 0.19, 0.09)
-		hover = Color(0.34, 0.27, 0.12)
-		line = GOLD
+	# 2026-10-22 起皮肤全在主题里（ui_theme.tres）：
+	# 普通按钮 = Button；金色强调 = AccentButton 变体；红色危险 = DangerButton 变体 ✓
 	if danger:
-		base = Color(0.26, 0.11, 0.12)
-		hover = Color(0.36, 0.15, 0.16)
-		line = BAD
-	b.add_theme_stylebox_override("normal", panel_style(base, line, 5))
-	b.add_theme_stylebox_override("hover", panel_style(hover, GOLD if not danger else BAD, 5))
-	b.add_theme_stylebox_override("pressed", panel_style(hover.darkened(0.25), line, 5))
-	b.add_theme_stylebox_override("focus", panel_style(Color(0, 0, 0, 0), GOLD, 5))
-	var dis := panel_style(Color(0.09, 0.09, 0.12), LINE_SOFT, 5)
-	b.add_theme_stylebox_override("disabled", dis)
-	b.add_theme_color_override("font_color", TEXT)
-	b.add_theme_color_override("font_hover_color", GOLD if not danger else BAD)
-	b.add_theme_color_override("font_disabled_color", TEXT_FAINT)
+		b.theme_type_variation = &"DangerButton"
+	elif accent:
+		b.theme_type_variation = &"AccentButton"
 
 
 # ---------------------------------------------------------------------------
