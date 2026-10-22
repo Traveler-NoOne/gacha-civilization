@@ -136,7 +136,7 @@ static func _page_misc(d: DialogLayer) -> Control:
 	var pg := UIKit.vbox(8)
 	pg.add_child(UIKit.title("摧毁敌对单位", 15))
 	pg.add_child(UIKit.dim("可以选中大世界中的任何敌对单位直接摧毁。"))
-	var enemies := GameState.enemy_tiles()
+	var enemies := TileManager.enemy_tiles(GameState.state)
 	pg.add_child(UIKit.dim("当前大世界敌对单位：%d 个" % enemies.size()))
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", UI.fs(3))

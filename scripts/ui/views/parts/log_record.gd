@@ -116,7 +116,7 @@ func refresh() -> void:
 	var cur2 := _selected_slot()
 	info_label.text = "当前进度位于：%s\n周期 %d　地块 %d　角色 %d" % [
 		("槽位 %d" % (cur2 + 1)) if cur2 >= 0 else "（尚未保存）",
-		int(GameState.state["cycle"]), GameState.owned_tiles().size(),
+		int(GameState.state["cycle"]), TileManager.owned_tiles(GameState.state).size(),
 		(GameState.state["units"] as Array).size()]
 
 

@@ -142,7 +142,7 @@ func storage_cap(key: String) -> float:
 ## 经典仓储带来的具体资源上限提升（v1.4）
 func warehouse_bonus() -> float:
 	var lv := 0
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
 			if str(b.get("id", "")) == "classic_warehouse":
 				lv += int(b.get("level", 1))
@@ -172,13 +172,6 @@ func cost_to_text(cost: Dictionary) -> String:
 		var t := Consts.res_name(k)
 		parts.append("%s %.1f" % [t, v] if v != floorf(v) else "%s %d" % [t, int(v)])
 	return "、".join(parts)
-
-
-func tile_at(key: String) -> Dictionary:
-	var tiles: Dictionary = state["tiles"]
-	if tiles.has(key):
-		return tiles[key]
-	return {}
 
 
 # ===========================================================================
@@ -247,7 +240,7 @@ func stronghold_of(tile: Dictionary) -> String:
 ## 某据点包含的地块（仅我方领地）
 func stronghold_tiles(sid: String) -> Array:
 	var out := []
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		if str(t.get("stronghold", "")) == sid:
 			out.append(t)
 	return out
@@ -281,49 +274,12 @@ func control_of(stronghold: Dictionary) -> float:
 	return float(stronghold.get("control", 1.0))
 
 
-func owned_tiles() -> Array:
-	var out := []
-	for k in state["tiles"].keys():
-		var t: Dictionary = state["tiles"][k]
-		if t.get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
-			out.append(t)
-	return out
-
-
-func discovered_tiles() -> Array:
-	var out := []
-	for k in state["tiles"].keys():
-		var t: Dictionary = state["tiles"][k]
-		if t.get("discovered", false):
-			out.append(t)
-	return out
-
-
-func free_tiles() -> Array:
-	var out := []
-	for k in state["tiles"].keys():
-		var t: Dictionary = state["tiles"][k]
-		if t.get("discovered", false) and t.get("owner", Consts.Owner.NONE) == Consts.Owner.NONE:
-			out.append(t)
-	return out
-
-
-func enemy_tiles() -> Array:
-	var out := []
-	for k in state["tiles"].keys():
-		var t: Dictionary = state["tiles"][k]
-		var o: int = t.get("owner", Consts.Owner.NONE)
-		if o != Consts.Owner.NONE and o != Consts.Owner.PLAYER:
-			out.append(t)
-	return out
-
-
 # ===========================================================================
 # 派生数值
 # ===========================================================================
 func assigned_pop() -> int:
 	var n := 0
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
 			n += int(b.get("workers", 0))
 	return n
@@ -335,8 +291,8 @@ func free_pop() -> int:
 
 func housing_capacity() -> int:
 	# 基础住房 + 每块领地若干 + 民居等级
-	var cap := Consts.BASE_HOUSING + Consts.HOUSING_PER_TILE * owned_tiles().size()
-	for t in owned_tiles():
+	var cap := Consts.BASE_HOUSING + Consts.HOUSING_PER_TILE * TileManager.owned_tiles(state).size()
+	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
 			if b.get("id", "") == "classic_house":
 				cap += Consts.HOUSING_PER_HOUSE_LEVEL * int(b.get("level", 1))
@@ -345,7 +301,7 @@ func housing_capacity() -> int:
 
 func culture_rate() -> float:
 	var c := 0.0
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
 			var def := find_building(b.get("id", ""))
 			if def == null:
@@ -357,7 +313,7 @@ func culture_rate() -> float:
 ## 幸福度是「基础 + 建筑 + 制度 - 民怨」
 func happiness() -> float:
 	var h := 50.0
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
 			var def := find_building(b.get("id", ""))
 			if def == null:
@@ -392,11 +348,11 @@ func _housing_ratio() -> float:
 
 func player_force() -> float:
 	var f := float(state["pop_total"]) * Consts.FORCE_PER_POP
-	f += float(owned_tiles().size()) * Consts.FORCE_PER_TILE
+	f += float(TileManager.owned_tiles(state).size()) * Consts.FORCE_PER_TILE
 	# v1.1：单位战力按「位阶倍率修正后的属性」换算，越精锐贡献越大
 	for u in state["units"]:
 		f += UnitDB.power_of(u)
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
 			var id: String = b.get("id", "")
 			if id == "classic_training_ground":
@@ -406,7 +362,7 @@ func player_force() -> float:
 
 func enemy_force() -> float:
 	var f := 0.0
-	for t in enemy_tiles():
+	for t in TileManager.enemy_tiles(state):
 		f += float(t.get("force", Consts.WANDER_FORCE))
 	for _t in state["threats"]:
 		f += Consts.THREAT_FORCE
@@ -426,11 +382,11 @@ func stability() -> float:
 		ratio = 2.0   # 没有敌人时视为非常稳定
 	ratio = clampf(ratio, 0.0, 2.0)
 
-	var blank := float(free_tiles().size())
+	var blank := float(TileManager.free_tiles(state).size())
 	var blank_factor := blank / (blank + 1.0)
 
 	var total_tiles := maxi(1, state["tiles"].size())
-	var enemy_count := float(enemy_tiles().size() + state["threats"].size())
+	var enemy_count := float(TileManager.enemy_tiles(state).size() + state["threats"].size())
 	var pressure := 1.0 - (enemy_count / float(total_tiles)) * 0.5
 
 	var s := (ratio * blank_factor) * pressure
@@ -484,7 +440,7 @@ func deploy_unit(uid: String, key: String) -> Dictionary:
 	var u := unit_by_uid(uid)
 	if u.is_empty():
 		return {"ok": false, "why": "找不到该单位"}
-	var tile := tile_at(key)
+	var tile := TileManager.tile_at(state, key)
 	if tile.is_empty():
 		return {"ok": false, "why": "地块不存在"}
 	if tile.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
@@ -540,7 +496,7 @@ func citizen_units() -> Array:
 ## 地块掌控力 = 该地块所属据点的 control_of()。
 ## v1.5：据点 control 仍恒 1.0（衰减留待后续），所以门槛先挂着、暂不拦人。
 func tile_control(key: String) -> float:
-	var t := tile_at(key)
+	var t := TileManager.tile_at(state, key)
 	if t.is_empty():
 		return 0.0
 	var sid := str(t.get("stronghold", ""))
@@ -556,7 +512,7 @@ func control_ok(key: String) -> bool:
 ## 合法部署地块：我方领地 + 掌控力达标 + 未驻满
 func deployable_keys() -> Array[String]:
 	var out: Array[String] = []
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		var k := TileManager.tile_key(t)
 		if k == "" or not control_ok(k):
 			continue
@@ -605,7 +561,7 @@ func confirm_recruit(uid: String, key: String) -> Dictionary:
 		return {"ok": false, "why": "找不到该单位"}
 	if str(u.get("status", "")) != UnitDB.STATUS_GUEST:
 		return {"ok": false, "why": "只有客人可以招募"}
-	var t := tile_at(key)
+	var t := TileManager.tile_at(state, key)
 	if t.is_empty() or t.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
 		return {"ok": false, "why": "只能部署到我方领地"}
 	if not control_ok(key):
@@ -660,7 +616,7 @@ func toggle_garrison(uid: String) -> Dictionary:
 
 
 func tile_passable(key: String) -> bool:
-	var t := tile_at(key)
+	var t := TileManager.tile_at(state, key)
 	if t.is_empty():
 		return false
 	if t.get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY:
@@ -750,7 +706,7 @@ func unit_attack(uid: String, key: String) -> Dictionary:
 		return {"ok": false, "why": "该单位不在大世界上"}
 	if Hex.distance(TileManager.coord_of(from), TileManager.coord_of(key)) != 1:
 		return {"ok": false, "why": "只能攻击相邻地块"}
-	var t := tile_at(key)
+	var t := TileManager.tile_at(state, key)
 	if t.is_empty() or t.get("owner", Consts.Owner.NONE) != Consts.Owner.ENEMY:
 		return {"ok": false, "why": "目标不是敌方地块"}
 	if bool(u.get("garrisoned", false)):
@@ -922,7 +878,7 @@ func grow_unit_exp(report: Dictionary) -> void:
 func unit_upkeep_of(u: Dictionary) -> Dictionary:
 	if UnitDB.is_guest(u):
 		return {"food": Consts.GUEST_FOOD_PER_CYCLE, "currency": 0.0}
-	var t := tile_at(str(u.get("tile", "")))
+	var t := TileManager.tile_at(state, str(u.get("tile", "")))
 	var own: bool = (not t.is_empty()) and t.get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER
 	# v1.6.1：只有「驻军」状态才享受维护费折扣（领地内 −60% / 领地外 −10%）；行军时全额
 	var mul := 1.0
@@ -990,7 +946,7 @@ func recruit_blocked_reason(profession: String) -> String:
 		return "未知职业"
 	# 需要一座训练场地
 	var has_ground := false
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
 			if str(b.get("id", "")) == "classic_training_ground":
 				has_ground = true
@@ -1025,7 +981,7 @@ func recruit_soldier(profession: String) -> Dictionary:
 ## 战斗模拟：让某单位的队伍去打一块敌方地块（抽象结算，替代战棋）
 ## 返回详细的战斗日志，供 UI 展示
 func simulate_battle(key: String) -> Dictionary:
-	var tile := tile_at(key)
+	var tile := TileManager.tile_at(state, key)
 	if tile.is_empty():
 		return {"ok": false, "why": "地块不存在"}
 	var owner: int = tile.get("owner", Consts.Owner.NONE)
@@ -1105,7 +1061,7 @@ func units_on_tile_neighbors(key: String) -> Array:
 	var out := []
 	for n in Hex.neighbors(TileManager.coord_of(key)):
 		var nk := TileManager.key_of(n)
-		var t := tile_at(nk)
+		var t := TileManager.tile_at(state, nk)
 		if t.is_empty() or t.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
 			continue
 		out.append_array(units_on_tile(nk))
@@ -1116,7 +1072,7 @@ func units_on_tile_neighbors(key: String) -> Array:
 ## 以前这段在 4 个地方各写了一遍，口径已经漂移。返回"清空之前是否为终极威胁"，
 ## 便于调用方决定文案与威胁列表的处理。
 func clear_enemy_tile(key: String) -> bool:
-	var t := tile_at(key)
+	var t := TileManager.tile_at(state, key)
 	if t.is_empty():
 		return false
 	var was_threat: bool = t.get("threat", false)
@@ -1184,7 +1140,7 @@ func request_build(tile_key: String, id: String) -> Dictionary:
 	var def := find_building(id)
 	if def == null:
 		return {"ok": false, "why": "未知建筑"}
-	var tile := tile_at(tile_key)
+	var tile := TileManager.tile_at(state, tile_key)
 	var chk := can_build(tile, def)
 	if not chk["ok"]:
 		return chk
@@ -1206,7 +1162,7 @@ func request_build(tile_key: String, id: String) -> Dictionary:
 
 ## 入队：先把现有储量生产力灌进该项，够则立刻完成，否则 append 到据点队列
 func _enqueue(item: Dictionary, tile_key: String) -> bool:
-	var tile := tile_at(tile_key)
+	var tile := TileManager.tile_at(state, tile_key)
 	var sh := stronghold_by_id(stronghold_of(tile))
 	if sh.is_empty():
 		sh = current_stronghold()
@@ -1226,7 +1182,7 @@ func _enqueue(item: Dictionary, tile_key: String) -> bool:
 
 ## 完成一个队列项（真正落地建筑 / 升级）
 func _execute_queue_item(item: Dictionary) -> void:
-	var tile := tile_at(str(item.get("tile", "")))
+	var tile := TileManager.tile_at(state, str(item.get("tile", "")))
 	if tile.is_empty():
 		return
 	var def := find_building(str(item.get("id", "")))
@@ -1389,7 +1345,7 @@ func _non_production_cost(cost: Dictionary) -> Dictionary:
 
 
 func request_upgrade_by_bid(tile_key: String, bid: String) -> Dictionary:
-	var tile := tile_at(tile_key)
+	var tile := TileManager.tile_at(state, tile_key)
 	var b := tile_building_by_bid(tile, bid)
 	if b.is_empty():
 		return {"ok": false, "why": "该地块没有此建筑"}
@@ -1424,7 +1380,7 @@ func _request_upgrade_instance(tile_key: String, b: Dictionary) -> Dictionary:
 
 ## 指派 / 撤回人力（delta 可正可负）；按 id 命中首个同种建筑
 func assign_worker(tile_key: String, id: String, delta: int) -> Dictionary:
-	var tile := tile_at(tile_key)
+	var tile := TileManager.tile_at(state, tile_key)
 	var b := tile_building(tile, id)
 	if b.is_empty():
 		return {"ok": false, "why": "该地块没有此建筑"}
@@ -1432,7 +1388,7 @@ func assign_worker(tile_key: String, id: String, delta: int) -> Dictionary:
 
 
 func assign_worker_by_bid(tile_key: String, bid: String, delta: int) -> Dictionary:
-	var tile := tile_at(tile_key)
+	var tile := TileManager.tile_at(state, tile_key)
 	var b := tile_building_by_bid(tile, bid)
 	if b.is_empty():
 		return {"ok": false, "why": "该地块没有此建筑"}
@@ -1509,18 +1465,18 @@ func end_cycle() -> Dictionary:
 
 	# 1. 建筑产出
 	var income := {}
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		var y := tile_yield(t)
 		for k in y.keys():
 			income[k] = float(income.get(k, 0.0)) + float(y[k])
 	# 民居金币
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
 			if b.get("id", "") == "classic_house":
 				income["currency"] = float(income.get("currency", 0.0)) + _housing_gold(int(b.get("level", 1)))
 
 	# 2. 领地基础产出与建筑维护
-	var owned_list := owned_tiles()
+	var owned_list := TileManager.owned_tiles(state)
 	if not owned_list.is_empty():
 		income["production"] = float(income.get("production", 0.0)) \
 			+ Consts.PRODUCTION_PER_TILE * float(owned_list.size())
@@ -1651,7 +1607,7 @@ func _report_line(income: Dictionary, upkeep: Dictionary, pop_change: int) -> St
 
 ## 玩家等级：由科技、领地、周期共同决定（用于秩序结晶的周期结算）
 func player_level() -> int:
-	return 1 + int(state["techs"].size()) + int(float(owned_tiles().size()) / 4.0) \
+	return 1 + int(state["techs"].size()) + int(float(TileManager.owned_tiles(state).size()) / 4.0) \
 		+ int(float(state["cycle"]) / 10.0)
 
 
@@ -1680,11 +1636,11 @@ func settle_gacha_currency(report: Dictionary) -> void:
 ## 当期经济各资源净收支（用于行政点数的收支项判定）
 func _balance_lines() -> Array[float]:
 	var inc := {}
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		var y := tile_yield(t)
 		for k in y.keys():
 			inc[k] = float(inc.get(k, 0.0)) + float(y[k])
-	var owned := owned_tiles()
+	var owned := TileManager.owned_tiles(state)
 	if not owned.is_empty():
 		inc["production"] = float(inc.get("production", 0.0)) \
 			+ Consts.PRODUCTION_PER_TILE * float(owned.size())
@@ -1770,7 +1726,7 @@ func resource_breakdown(key: String) -> Dictionary:
 	var inc: Array = []
 	var upk: Array = []
 	var building_out := 0.0
-	for t in owned_tiles():
+	for t in TileManager.owned_tiles(state):
 		var y := tile_yield(t)
 		building_out += float(y.get(key, 0.0))
 		if key == "currency":
@@ -1780,7 +1736,7 @@ func resource_breakdown(key: String) -> Dictionary:
 	if absf(building_out) > 0.0001:
 		inc.append({"label": "建筑产出", "amount": building_out})
 	if key == "production":
-		var territory := Consts.PRODUCTION_PER_TILE * float(owned_tiles().size())
+		var territory := Consts.PRODUCTION_PER_TILE * float(TileManager.owned_tiles(state).size())
 		if territory > 0.0001:
 			inc.append({"label": "领地", "amount": territory})
 	# 周期结算类（抽卡货币 / 行政）
@@ -1812,7 +1768,7 @@ func resource_breakdown(key: String) -> Dictionary:
 	# 维护 / 消耗
 	if key == "production":
 		var bup := 0.0
-		for t in owned_tiles():
+		for t in TileManager.owned_tiles(state):
 			for b in t.get("buildings", []):
 				bup += Consts.BUILDING_UPKEEP_PRODUCTION * float(int(b.get("level", 1)))
 		if bup > 0.0001:

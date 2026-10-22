@@ -64,7 +64,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		"驻守 %s" % cur_tile if cur_tile != "" else "未派驻（在营地待命）"), 12,
 		UIKit.OK if cur_tile != "" else UIKit.TEXT_DIM))
 
-	var own := GameState.owned_tiles()
+	var own := TileManager.owned_tiles(GameState.state)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", UI.fs(3))
 	detail_host.add_child(list)

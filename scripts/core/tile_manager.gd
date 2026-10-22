@@ -71,25 +71,69 @@ static func discover_all(state: Dictionary) -> int:
 
 
 # ===========================================================================
-# 计数
+# 取地块 / 计数
 # ===========================================================================
+## 取一格（没有就返回空字典）✓ 只读 ✓
+static func tile_at(state: Dictionary, key: String) -> Dictionary:
+	var tiles: Dictionary = state["tiles"]
+	if tiles.has(key):
+		return tiles[key]
+	return {}
+
+
+## 我方地块（返回 tile 字典的数组 ✓ 老接口沿用 ✓）
+static func owned_tiles(state: Dictionary) -> Array:
+	var out := []
+	var tiles: Dictionary = state["tiles"]
+	for k in tiles.keys():
+		var t: Dictionary = tiles[k]
+		if t.get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
+			out.append(t)
+	return out
+
+
+## 已点亮的地块
+static func discovered_tiles(state: Dictionary) -> Array:
+	var out := []
+	var tiles: Dictionary = state["tiles"]
+	for k in tiles.keys():
+		var t: Dictionary = tiles[k]
+		if t.get("discovered", false):
+			out.append(t)
+	return out
+
+
+## 已点亮、且无主（可以占领的候选）
+static func free_tiles(state: Dictionary) -> Array:
+	var out := []
+	var tiles: Dictionary = state["tiles"]
+	for k in tiles.keys():
+		var t: Dictionary = tiles[k]
+		if t.get("discovered", false) and t.get("owner", Consts.Owner.NONE) == Consts.Owner.NONE:
+			out.append(t)
+	return out
+
+
+## 敌方地块（不属于玩家、也不是无主）
+static func enemy_tiles(state: Dictionary) -> Array:
+	var out := []
+	var tiles: Dictionary = state["tiles"]
+	for k in tiles.keys():
+		var t: Dictionary = tiles[k]
+		var o: int = t.get("owner", Consts.Owner.NONE)
+		if o != Consts.Owner.NONE and o != Consts.Owner.PLAYER:
+			out.append(t)
+	return out
+
+
 ## 扩张基础消耗（未打折的行政点数）
 ## 注意保持"只读传入的 state"这一约定，不去读全局 GameState.state。
 static func owned_tile_count(state: Dictionary) -> int:
-	var n := 0
-	for k in (state["tiles"] as Dictionary).keys():
-		if (state["tiles"][k] as Dictionary).get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
-			n += 1
-	return n
+	return owned_tiles(state).size()
 
 
 static func enemy_tile_count(state: Dictionary) -> int:
-	var n := 0
-	for k in (state["tiles"] as Dictionary).keys():
-		var o: int = (state["tiles"][k] as Dictionary).get("owner", Consts.Owner.NONE)
-		if o != Consts.Owner.NONE and o != Consts.Owner.PLAYER:
-			n += 1
-	return n
+	return enemy_tiles(state).size()
 
 
 # ===========================================================================

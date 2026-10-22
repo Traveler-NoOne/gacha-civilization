@@ -448,8 +448,8 @@ func _refresh() -> void:
 	var iv := GameState.autosave_interval()
 	detail_label.text = "幸福度 %.0f　文化率 %.2f　稳定度 %.0f%%　地块 %d(我) / %d(敌) / %d(无主)　卡组 %s　自动存档 每%d周期" % [
 		hp, GameState.culture_rate(), st * 100.0,
-		GameState.owned_tiles().size(), GameState.enemy_tiles().size(),
-		GameState.free_tiles().size(), str(GameState.state.get("active_group", "")),
+		TileManager.owned_tiles(GameState.state).size(), TileManager.enemy_tiles(GameState.state).size(),
+		TileManager.free_tiles(GameState.state).size(), str(GameState.state.get("active_group", "")),
 		iv,
 	]
 	detail_label.add_theme_color_override("font_color",

@@ -225,7 +225,7 @@ func _draw_tile_border(v: Dictionary) -> void:
 func unit_icon_positions(key: String) -> Array:
 	var out: Array = []
 	# 敌方地块不画单位标记，所以也没有可点的图标
-	if GameState.tile_at(key).get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY:
+	if TileManager.tile_at(GameState.state, key).get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY:
 		return out
 	var units := GameState.units_on_tile(key)
 	var n := units.size()
@@ -434,7 +434,7 @@ func tile_center(key: String) -> Vector2:
 ## 点中的是不是这一格的首都星？**收全局坐标**（转换放在这里，调用方不用操心）。
 ## 半径与绘制共用 _draw_tile_stronghold() 里的 hex_size * 0.42 —— 看到多大，就能点多中。
 func capital_star_hit(key: String, global_pos: Vector2) -> bool:
-	var t := GameState.tile_at(key)
+	var t := TileManager.tile_at(GameState.state, key)
 	if not bool(t.get("discovered", false)):
 		return false
 	if not bool(t.get("is_capital", false)) and key != str(GameState.state.get("capital", "")):

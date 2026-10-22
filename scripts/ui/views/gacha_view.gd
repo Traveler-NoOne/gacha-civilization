@@ -181,7 +181,7 @@ func refresh() -> void:
 	var limit := Gacha.check(GameState.state, pe)
 	if limit["ok"]:
 		limit_label.text = "✔ 当前可以进行世界泡操作（稳定度 %.0f%%，无主地块 %d）" % [
-			GameState.stability() * 100.0, GameState.free_tiles().size()]
+			GameState.stability() * 100.0, TileManager.free_tiles(GameState.state).size()]
 		limit_label.add_theme_color_override("font_color", UIKit.OK)
 	else:
 		limit_label.text = "✖ " + str(limit["why"])

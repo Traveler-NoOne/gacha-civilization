@@ -34,7 +34,7 @@ static func check(state: Dictionary, p: int) -> Dictionary:
 	var st := GameState.stability()
 	if st < Consts.STABILITY_MIN_BLOCK:
 		return {"ok": false, "why": "稳定度仅 %.0f%%，低于 10%%，无法进行世界泡操作" % (st * 100.0)}
-	var free := GameState.free_tiles().size()
+	var free := TileManager.free_tiles(GameState.state).size()
 	if free < Consts.FREE_TILE_MIN_BLOCK:
 		return {"ok": false, "why": "无主地块仅 %d 个（少于 10），无法进行世界泡操作" % free}
 	var cost := pool_cost(p)

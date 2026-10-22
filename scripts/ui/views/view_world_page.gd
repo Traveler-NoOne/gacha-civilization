@@ -172,7 +172,7 @@ func _on_tile_clicked(key: String, uid: String, gpos: Vector2) -> void:
 		_open_stronghold_panel(key)
 		return
 	# ④ 我方其它格子 → 只更新选中，不弹面板、不弹信息
-	if GameState.tile_at(key).get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
+	if TileManager.tile_at(GameState.state, key).get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
 		selected = key
 		sel_uid = ""
 		_refresh_after_select()
@@ -395,7 +395,7 @@ func _show_tile_info(key: String, gpos: Vector2) -> void:
 	for c in tile_info_box.get_children():
 		c.free()
 
-	var t := GameState.tile_at(key)
+	var t := TileManager.tile_at(GameState.state, key)
 	tile_info_box.add_child(UIKit.title("地块 %s" % key, 13))
 	var discovered := bool(t.get("discovered", false))
 	if not discovered:
@@ -495,7 +495,7 @@ func _attack_targets(uid: String) -> Array[String]:
 	var a := TileManager.coord_of(from)
 	for d in Hex.DIRECTIONS:
 		var k := TileManager.key_of(a + d)
-		var t := GameState.tile_at(k)
+		var t := TileManager.tile_at(GameState.state, k)
 		if not t.is_empty() and t.get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY:
 			out.append(k)
 	return out

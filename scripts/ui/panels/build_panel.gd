@@ -69,7 +69,7 @@ func refresh() -> void:
 		return
 	for c in list_box.get_children():
 		c.queue_free()
-	var t := GameState.tile_at(tile_key)
+	var t := TileManager.tile_at(GameState.state, tile_key)
 	title.text = "修建建筑　[%s]" % tile_key
 	if t.is_empty():
 		list_box.add_child(UIKit.dim("（没有这块地）"))

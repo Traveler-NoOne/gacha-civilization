@@ -103,7 +103,7 @@ func refresh() -> void:
 		c.queue_free()
 	_refresh_tabs()
 	# v1.8.20.4：按"被点的那一格"找据点（认格子）；没给格子时退回旧的"默认据点"
-	var sh := GameState.stronghold_by_id(GameState.stronghold_of(GameState.tile_at(key)))
+	var sh := GameState.stronghold_by_id(GameState.stronghold_of(TileManager.tile_at(GameState.state, key)))
 	if sh.is_empty():
 		sh = GameState.current_stronghold()
 	if sh.is_empty():

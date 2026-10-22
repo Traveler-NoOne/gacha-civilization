@@ -288,7 +288,7 @@ static func _goal_progress(g: Dictionary) -> int:
 		"kill":
 			return int(GameState.state.get("enemy_killed", 0))
 		"tile":
-			return GameState.owned_tiles().size()
+			return TileManager.owned_tiles(GameState.state).size()
 		"cycle":
 			return int(GameState.state["cycle"])
 		_:

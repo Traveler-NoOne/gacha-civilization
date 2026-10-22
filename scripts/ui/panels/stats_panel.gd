@@ -208,14 +208,14 @@ func _fill_tiles() -> void:
 	_section("按地形")
 	var by_terrain := {}
 	for k in tiles.keys():
-		var tr := str(GameState.tile_at(str(k)).get("terrain", "?"))
+		var tr := str(TileManager.tile_at(GameState.state, str(k)).get("terrain", "?"))
 		by_terrain[tr] = int(by_terrain.get(tr, 0)) + 1
 	for tr2 in by_terrain.keys():
 		content_box.add_child(_row(str(tr2), str(int(by_terrain[tr2]))))
 	_section("资源点")
 	var by_res := {}
 	for k2 in tiles.keys():
-		var r := str(GameState.tile_at(str(k2)).get("resource", ""))
+		var r := str(TileManager.tile_at(GameState.state, str(k2)).get("resource", ""))
 		if r != "":
 			by_res[r] = int(by_res.get(r, 0)) + 1
 	if by_res.is_empty():
@@ -229,9 +229,9 @@ func _fill_tiles() -> void:
 # ---------------------------------------------------------------------------
 func _fill_land() -> void:
 	_section("领地口径")
-	content_box.add_child(_row("我方领地", str(GameState.owned_tiles().size()), UIKit.OK))
-	content_box.add_child(_row("敌方据点", str(GameState.enemy_tiles().size()), UIKit.BAD))
-	content_box.add_child(_row("无主地块", str(GameState.free_tiles().size())))
+	content_box.add_child(_row("我方领地", str(TileManager.owned_tiles(GameState.state).size()), UIKit.OK))
+	content_box.add_child(_row("敌方据点", str(TileManager.enemy_tiles(GameState.state).size()), UIKit.BAD))
+	content_box.add_child(_row("无主地块", str(TileManager.free_tiles(GameState.state).size())))
 	content_box.add_child(_row("扩张消耗", "%d 行政点数" % int(TileManager.claim_cost(GameState.state))))
 	_section("可扩张的格数")
 	content_box.add_child(_row("与领地相邻的无主格", str(TileManager.claimable_keys(GameState.state).size())))
