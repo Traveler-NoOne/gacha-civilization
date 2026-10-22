@@ -48,7 +48,7 @@
 
 > ⚠️ **这是踩过的坑** ✗：`load("x.gd").build(...)` 和 `dict["k"].build(...)` 都是**动态调用** ✗，
 > 而**静态函数只能按"类名"直接调** ✓ —— 想让它能跑，就给文件一个 `class_name` ✓
-> （`UnitDB.rank_name()` / `WorldGen.key_of()` / `Cheat.set_enabled()` 全是这个道理 ✓）
+> （`UnitDB.rank_name()` / `TileManager.key_of()` / `Cheat.set_enabled()` 全是这个道理 ✓）
 
 ---
 

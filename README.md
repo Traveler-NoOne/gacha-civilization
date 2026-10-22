@@ -237,8 +237,8 @@ scripts/
     app_settings.gd               Autoload 单例：全局设置（作弊开关 / 自动存档周期 / 分辨率 / 全屏），存 user://settings.cfg
     game_state.gd                 Autoload 单例：存档状态、周期结算、建筑、科技、存读档
     ui_scale.gd                  Autoload 单例（名 UI）：**UI 尺寸词典** —— 所有尺寸与字号都从这里取
-    world_gen.gd                  六边形地图生成（高程噪声 → 地形、湿度 → 地物、大陆形状、侵蚀、河流；**只管造格子**）
-    tile_manager.gd               地块的读 / 改（归属、迷雾、扩张、清剿、资源点、首都初始化）
+    world_gen.gd（已删）            旧生成器，2026-10-22 换代时删除；现在只有 scripts/worldgen/builder.gd
+    tile_manager.gd               地块的读 / 改（归属、迷雾、扩张、清剿、资源点、首都初始化；地块键 ↔ 坐标）
     threats.gd                    敌人：高危据点刷怪、游荡移动、终极威胁推进、破坏地块
     cheat.gd                      作弊开关（配合顶部红色「作弊」按钮）
     gacha.gd                      三个卡池、保底、权重、卡片落地、卡组轮换
@@ -251,8 +251,8 @@ scripts/
     unit_db.gd                    单位系统：职业 / 位阶 / 克制 / 经验 / 伤害结算
     term_db.gd                    手册的专有名词与世界观设定数据
     decree_db.gd                  政事表（可排队的据点级事务，第一条是**征兵**）
-    tile_def.gd                   旧系统地块定义（地形 / 地物查表 + `make` / `make_from`）
-    tile_lib.gd                   新系统地块库（0~10 高度标尺；只给 `WorldgenBuilder` 用）
+    tile_def.gd（已删）            旧地块定义，2026-10-22 换代时删除；现在地块定义只有 tile_lib.gd
+    tile_lib.gd                   地块库（高度 0~10 标尺 → 地形 / 地物查表；生成器只调它）
   ui/
     main.gd                       入口：启动时应用分辨率 + 主页面 ↔ 游戏主页切换 + 全局提示
     menu_screen.gd                主页面
@@ -270,7 +270,8 @@ scripts/
       log_view.gd                 日志浮窗（+ parts/task_page, record_page, codex_page, manual_page）
       view_world_page.gd          世界页（地图 + 右键菜单 + **悬停 1 秒**的简约信息小窗 + 据点管理窗口 + 底部单位条）
 scripts/worldgen/
-  builder.gd                     新一代世界生成（噪声版）：fBm 大结构 + 山脊噪声 → 高度 / 湿度（**尚未接进 new_game**）
+  builder.gd                     世界生成（噪声版）：fBm + 山脊噪声 → 高度 / 湿度；管首都挑选与扩图
+  peaks.gd                       山脉瘦身：把太胖的山团一轮一轮削到 ≤2 格宽（降级成高原 / 山地）
   preview.gd                     「只出图看看」：生成一次世界 → 离屏渲染成 PNG（落在项目 preview/）
 scripts/util/hex.gd               六边形坐标换算（轴向 <-> 像素、邻居、距离、螺旋）
 tests/                            **空目录**（自检套件已于 2026-10-17 删除，改为读代码 + 编辑器手检）
