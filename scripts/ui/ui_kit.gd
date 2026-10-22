@@ -97,8 +97,12 @@ static func panel_style(bg: Color = BG_PANEL, border: Color = LINE,radius: int =
 
 ## 把一个已经存在的 PanelContainer / Panel 的背景换成统一面板样式。
 ## （传进其它类型的控件不会报错，什么也不做。）
+## ⚠️ 2026-10-22 起：**默认面板交给主题**（`ui_theme.tres` 里的 `panel` 样式盒），
+##    只有调用方明确传了别的颜色/圆角时才在代码里覆盖 ✓
 static func apply_panel(p: Control, bg: Color = BG_PANEL, border: Color = LINE,
 		radius: int = 6) -> void:
+	if bg == BG_PANEL and border == LINE and radius == 6:
+		return
 	var sb := panel_style(bg, border, radius)
 	if p is PanelContainer:
 		(p as PanelContainer).add_theme_stylebox_override("panel", sb)
@@ -108,7 +112,11 @@ static func apply_panel(p: Control, bg: Color = BG_PANEL, border: Color = LINE,
 
 ## 给按钮套上统一外观：一次设好 normal / hover / pressed / focus / disabled 五种状态。
 ## accent=true 走金色强调样式，danger=true 走红色危险样式（两者同时为真时 danger 优先）。
+## ⚠️ 2026-10-22 起：**普通按钮交给主题**（`Button` 的五个状态在 `ui_theme.tres` 里）；
+##    这里只剩"强调 / 危险"两种特殊皮肤 ✓
 static func style_button(b: Button, accent: bool = false, danger: bool = false) -> void:
+	if not accent and not danger:
+		return
 	var base := BG_PANEL_2
 	var hover := Color(0.20, 0.21, 0.29)
 	var line := LINE
