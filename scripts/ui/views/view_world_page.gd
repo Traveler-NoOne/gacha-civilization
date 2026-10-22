@@ -482,7 +482,7 @@ func on_cycle_finished(_rep: Dictionary) -> void:
 # ===========================================================================
 ## v1.7：直接复用 GameState 的同一份规则（此前这里自己判一遍、且漏了中继格检查）
 func _move_targets(uid: String) -> Array[String]:
-	return GameState.move_candidates(uid)
+	return Combat.move_candidates(GameState.state, uid)
 
 func _attack_targets(uid: String) -> Array[String]:
 	var out: Array[String] = []
@@ -511,12 +511,12 @@ func _pick_tile(key: String) -> void:
 		_refresh_unit_panel()
 		return
 	if pick_mode == "move":
-		var r := GameState.move_unit(pick_unit, key)
+		var r := Combat.move_unit(GameState.state, pick_unit, key)
 		GameState.toast.emit("移动完成" if bool(r["ok"]) else str(r["why"]))
 		_end_pick()
 		return
 	if pick_mode == "attack":
-		var r2 := GameState.unit_attack(pick_unit, key)
+		var r2 := Combat.unit_attack(GameState.state, pick_unit, key)
 		if bool(r2["ok"]):
 			GameState.toast.emit("清剿成功" if bool(r2["won"]) else "战斗未决")
 		else:
