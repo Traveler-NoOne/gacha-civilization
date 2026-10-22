@@ -143,9 +143,9 @@ func _fill_resources() -> void:
 				continue
 			var cap := GameState.storage_cap(key)
 			var net := 0.0
-			for e in (GameState.resource_breakdown(key)["income"] as Array):
+			for e in (Admin.resource_breakdown(GameState.state, key)["income"] as Array):
 				net += float(e["amount"])
-			for e2 in (GameState.resource_breakdown(key)["upkeep"] as Array):
+			for e2 in (Admin.resource_breakdown(GameState.state, key)["upkeep"] as Array):
 				net += float(e2["amount"])
 			var h := HBoxContainer.new()
 			h.add_theme_constant_override("separation", UI.fs(6))

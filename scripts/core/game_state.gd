@@ -643,7 +643,7 @@ func unit_attack(uid: String, key: String) -> Dictionary:
 
 	var won := force <= 0.0
 	if won:
-		on_enemy_killed(t)
+		Admin.on_enemy_killed(state, t)
 		clear_enemy_tile(key)
 		lines.append("战斗胜利：%s 的敌人被清剿。" % key)
 		add_log("战斗胜利：%s 被 %s 清剿。" % [key, str(u["name"])], "combat")
@@ -656,7 +656,7 @@ func unit_attack(uid: String, key: String) -> Dictionary:
 		if int(u.get("hp", 1)) <= 0:
 			lines.append("%s 阵亡。" % str(u["name"]))
 			add_log("%s 在进攻 %s 时阵亡。" % [str(u["name"]), key], "combat")
-			on_unit_died(str(u.get("rank", UnitDB.RECRUIT)))
+			Admin.on_unit_died(state, str(u.get("rank", UnitDB.RECRUIT)))
 			state["units"].erase(u)
 		else:
 			add_log("战斗未决：%s 的敌人仍在顽抗。" % key, "combat")
@@ -956,7 +956,7 @@ func simulate_battle(key: String) -> Dictionary:
 
 	var won := enemy_hp <= 0.0
 	if won:
-		on_enemy_killed(tile)   # 依据击杀时的敌人类型给行政产出 buff（须在清空标记前）
+		Admin.on_enemy_killed(state, tile)   # 依据击杀时的敌人类型给行政产出 buff（须在清空标记前）
 		clear_enemy_tile(key)
 		log_lines.append("战斗胜利：%s 被清剿。" % key)
 		add_log("战斗胜利：%s 的%s被消灭。" % [key, UnitDB.enemy_label(tile)], "combat")
@@ -1006,120 +1006,6 @@ func clear_enemy_tile(key: String) -> bool:
 				keep.append(th)
 		state["threats"] = keep
 	return was_threat
-
-
-# ===========================================================================
-# ===========================================================================
-# v1.8.3：政事队列（吃行政点数）
-# ===========================================================================
-## 政事能不能排？"" 表示可以。同样**只检查，不改状态**。
-func decree_blocked_reason(id: String) -> String:
-	if not DecreeDB.exists(id):
-		return "没有这条政事"
-	if id == DecreeDB.RECRUIT:
-		return recruit_blocked_reason(UnitDB.MELEE)
-	return ""
-
-
-## 把一条政事排进据点队列
-func enqueue_decree(id: String, profession: String = UnitDB.MELEE) -> Dictionary:
-	if not DecreeDB.exists(id):
-		return {"ok": false, "why": "没有这条政事"}
-	var why := decree_blocked_reason(id)
-	if why != "":
-		return {"ok": false, "why": why}
-	var sh := Strongholds.current(state)
-	if sh.is_empty():
-		return {"ok": false, "why": "没有据点"}
-	if not sh.has("decrees"):
-		sh["decrees"] = []
-	(sh["decrees"] as Array).append({
-		"id": id,
-		"profession": profession,
-		"cost": DecreeDB.cost_of(id),
-		"paid": 0.0,
-	})
-	add_log("政事「%s」已排入队列。" % DecreeDB.display_name(id), "admin")
-	state_changed.emit()
-	return {"ok": true, "why": ""}
-
-
-## 每周期用**当期入账的行政点数**推进政事队列。
-## 结构与 _process_build_queue 一致：**队首没办完，后面的不推进**（避免摊薄）。
-func _process_decree_queue(avail: float) -> void:
-	for sh in Strongholds.all(state):
-		var q: Array = sh.get("decrees", [])
-		var i := 0
-		while i < q.size():
-			if avail <= 0.0:
-				break
-			var item: Dictionary = q[i]
-			var need := float(item.get("cost", 0.0)) - float(item.get("paid", 0.0))
-			var put := minf(avail, maxf(0.0, need))
-			item["paid"] = float(item.get("paid", 0.0)) + put
-			avail -= put
-			if float(item["paid"]) + 0.0001 >= float(item.get("cost", 0.0)):
-				q.remove_at(i)
-				_execute_decree(item)
-			else:
-				break
-
-
-## 政事完成时执行效果。
-## 若效果**执行不了**（前置在这期间变了，比如首都已驻满），
-## **把已投入的行政点数退还**并记日志 —— 不白吞玩家的点数。
-func _execute_decree(item: Dictionary) -> void:
-	var id := str(item.get("id", ""))
-	var paid := float(item.get("paid", 0.0))
-	if id == DecreeDB.RECRUIT:
-		var r := recruit_soldier(str(item.get("profession", UnitDB.MELEE)))
-		if bool(r["ok"]):
-			add_log("政事「征兵」完成：%s 进驻首都。" % str((r["unit"] as Dictionary).get("name", "")), "admin")
-		else:
-			add_res("admin", paid)
-			add_log("政事「征兵」未能执行（%s），已退还行政点数 %.1f。" % [str(r["why"]), paid], "admin")
-	else:
-		add_res("admin", paid)
-		add_log("未知政事「%s」，已退还行政点数 %.1f。" % [id, paid], "admin")
-
-
-## 队列编辑（UI 用）
-func queue_move(sid: String, index: int, delta: int) -> void:
-	var sh := Strongholds.by_id(state, sid)
-	if sh.is_empty():
-		return
-	var q: Array = sh.get("queue", [])
-	var j := index + delta
-	if index < 0 or index >= q.size() or j < 0 or j >= q.size():
-		return
-	var tmp: Variant = q[index]
-	q[index] = q[j]
-	q[j] = tmp
-	state_changed.emit()
-
-
-func queue_remove(sid: String, index: int) -> void:
-	var sh := Strongholds.by_id(state, sid)
-	if sh.is_empty():
-		return
-	var q: Array = sh.get("queue", [])
-	if index < 0 or index >= q.size():
-		return
-	q.remove_at(index)
-	state_changed.emit()
-
-
-## 移除所有指向某建筑实例的队列项（该建筑被摧毁 / 降级时用）
-func drop_queue_items_for_bid(bid: String) -> void:
-	if bid == "":
-		return
-	for sh in Strongholds.all(state):
-		var q: Array = sh.get("queue", [])
-		var kept: Array = []
-		for item in q:
-			if str(item.get("bid", "")) != bid:
-				kept.append(item)
-		sh["queue"] = kept
 
 
 ## 首都民居按照「房屋比例」给金币
@@ -1242,12 +1128,12 @@ func end_cycle() -> Dictionary:
 	settle_gacha_currency(report)
 
 	# 9.5 行政点数的周期结算（基底 + 限时 buff/debuff + 当期收支项；见 v1.3.1）
-	settle_admin(report)
+	Admin.settle(state, report)
 
 	# 9.6 v1.8.3：政事队列推进。
 	# 必须排在 9.5 之后 —— 它吃的是"本期刚入账的行政点数"
 	#（与规划队列吃当期生产力同一套手感）。
-	_process_decree_queue(float((report.get("income", {}) as Dictionary).get("admin", 0.0)))
+	Decrees.process_queue(state, float((report.get("income", {}) as Dictionary).get("admin", 0.0)))
 
 	# 10. 单位经验：通过周期循环缓缓增长（每个单位最多因此获得 100 点）
 	grow_unit_exp(report)
@@ -1310,182 +1196,6 @@ func settle_gacha_currency(report: Dictionary) -> void:
 	add_res("cohesion", cohesion)
 	report["income"]["order_crystal"] = float(report["income"].get("order_crystal", 0.0)) + crystal
 	report["income"]["cohesion"] = float(report["income"].get("cohesion", 0.0)) + cohesion
-
-
-# ===========================================================================
-# v1.3.1 行政点数
-#   基底每周期 +1（永久）；其余来源都是限时 buff / debuff（state["admin_effects"]）。
-#   另有「当期收支项」：每条为正 +0.1、每条为 0/负 -0.1（每周期按当期经济重算）。
-# ===========================================================================
-## 当期经济各资源净收支（用于行政点数的收支项判定）
-func _balance_lines() -> Array[float]:
-	var inc := {}
-	for t in TileManager.owned_tiles(state):
-		var y := Buildings.tile_yield(t)
-		for k in y.keys():
-			inc[k] = float(inc.get(k, 0.0)) + float(y[k])
-	var owned := TileManager.owned_tiles(state)
-	if not owned.is_empty():
-		inc["production"] = float(inc.get("production", 0.0)) \
-			+ Consts.PRODUCTION_PER_TILE * float(owned.size())
-	for t in owned:
-		for b in t.get("buildings", []):
-			inc["production"] = float(inc.get("production", 0.0)) \
-				- Consts.BUILDING_UPKEEP_PRODUCTION * float(b.get("level", 1))
-	inc["food"] = float(inc.get("food", 0.0)) \
-		- Consts.FOOD_UPKEEP_PER_POP * float(state["pop_total"])
-	# v1.5：单位维护费也算进当期收支（否则行政点数的收支项判定会与真实收支不符）
-	var tot2 := units_upkeep_total()
-	inc["food"] = float(inc.get("food", 0.0)) - float(tot2["food"])
-	inc["currency"] = float(inc.get("currency", 0.0)) - float(tot2["currency"])
-	var lines: Array[float] = []
-	for k in inc.keys():
-		lines.append(float(inc[k]))
-	return lines
-
-
-func settle_admin(report: Dictionary) -> void:
-	var base := Consts.ADMIN_BASE_PER_CYCLE
-	var buffs := 0.0
-	for e in state.get("admin_effects", []):
-		buffs += float(e.get("delta", 0.0))
-	var pos := 0
-	var neg := 0
-	for v in _balance_lines():
-		if v > 0.0:
-			pos += 1
-		else:
-			neg += 1
-	var lines_delta := Consts.ADMIN_PER_POSITIVE_LINE * float(pos) \
-		- Consts.ADMIN_PER_NEGATIVE_LINE * float(neg)
-	var income := maxf(0.0, base + buffs + lines_delta)
-	add_res("admin", income)
-	# 计时递减 + 清理过期项
-	var kept: Array = []
-	for e in state.get("admin_effects", []):
-		e["remaining"] = int(e.get("remaining", 0)) - 1
-		if int(e["remaining"]) > 0:
-			kept.append(e)
-	state["admin_effects"] = kept
-	if not report.has("income"):
-		report["income"] = {}
-	report["income"]["admin"] = float(report["income"].get("admin", 0.0)) + income
-	if pos > 0 or neg > 0:
-		report["events"].append("行政点数 +%.1f（基底 %.1f｜buff %+.1f｜收支 %d正/%d负）" % [
-			income, base, buffs, pos, neg])
-
-
-## 击杀敌对单位后的行政产出 buff（作弊摧毁不调用）
-func on_enemy_killed(tile: Dictionary) -> void:
-	if tile.is_empty():
-		return
-	var kind := UnitDB.enemy_admin_kind(tile)
-	if kind == "" or not Consts.ADMIN_KILL_BUFFS.has(kind):
-		return
-	var b: Dictionary = Consts.ADMIN_KILL_BUFFS[kind]
-	_add_admin_effect(float(b["delta"]), int(b["duration"]), "击杀%s" % UnitDB.enemy_admin_label(kind))
-
-
-## 友军阵亡后的行政产出 debuff（预留：当前 Demo 无单位阵亡机制）
-func on_unit_died(rank: String) -> void:
-	if not Consts.ADMIN_DEATH_DEBUFFS.has(rank):
-		return
-	var b: Dictionary = Consts.ADMIN_DEATH_DEBUFFS[rank]
-	_add_admin_effect(-float(b["delta"]), int(b["duration"]), "%s阵亡" % UnitDB.rank_name(rank))
-
-
-func _add_admin_effect(delta: float, duration: int, label: String) -> void:
-	if not state.has("admin_effects"):
-		state["admin_effects"] = []
-	(state["admin_effects"] as Array).append({
-		"delta": delta, "remaining": duration,
-		"source": "kill" if delta > 0.0 else "death", "label": label,
-	})
-	_add_log("行政影响：%s，每周期 %+.1f（持续 %d 周期）。" % [label, delta, duration], "world")
-
-
-## 某项资源的「每周期收支明细」（供顶部资源栏点击悬浮窗使用，v1.4.1）
-## 返回 { "income": [{label, amount}...], "upkeep": [{label, amount}...] }，amount 正为收入、负为支出
-func resource_breakdown(key: String) -> Dictionary:
-	var inc: Array = []
-	var upk: Array = []
-	var building_out := 0.0
-	for t in TileManager.owned_tiles(state):
-		var y := Buildings.tile_yield(t)
-		building_out += float(y.get(key, 0.0))
-		if key == "currency":
-			for b in t.get("buildings", []):
-				if str(b.get("id", "")) == "classic_house":
-					building_out += _housing_gold(int(b.get("level", 1)))
-	if absf(building_out) > 0.0001:
-		inc.append({"label": "建筑产出", "amount": building_out})
-	if key == "production":
-		var territory := Consts.PRODUCTION_PER_TILE * float(TileManager.owned_tiles(state).size())
-		if territory > 0.0001:
-			inc.append({"label": "领地", "amount": territory})
-	# 周期结算类（抽卡货币 / 行政）
-	if key == "order_crystal":
-		inc.append({"label": "周期结算", "amount":
-			Consts.CRYSTAL_PER_CYCLE + Consts.CRYSTAL_PER_LEVEL * float(player_level())})
-	elif key == "cohesion":
-		var hp := happiness()
-		inc.append({"label": "周期结算", "amount":
-			(Consts.COHESION_PER_CYCLE + Consts.COHESION_PER_HAPPINESS * hp)
-			* (1.0 + culture_rate() * Consts.COHESION_CULTURE_BONUS)})
-	elif key == "admin":
-		inc.append({"label": "行政基底", "amount": Consts.ADMIN_BASE_PER_CYCLE})
-		var buffs := 0.0
-		for e in state.get("admin_effects", []):
-			buffs += float(e.get("delta", 0.0))
-		if absf(buffs) > 0.0001:
-			inc.append({"label": "击杀/阵亡 buff", "amount": buffs})
-		var pos := 0
-		var neg := 0
-		for v in _balance_lines():
-			if v > 0.0:
-				pos += 1
-			else:
-				neg += 1
-		var ld := Consts.ADMIN_PER_POSITIVE_LINE * float(pos) - Consts.ADMIN_PER_NEGATIVE_LINE * float(neg)
-		if absf(ld) > 0.0001:
-			inc.append({"label": "收支项（%d正/%d负）" % [pos, neg], "amount": ld})
-	# 维护 / 消耗
-	if key == "production":
-		var bup := 0.0
-		for t in TileManager.owned_tiles(state):
-			for b in t.get("buildings", []):
-				bup += Consts.BUILDING_UPKEEP_PRODUCTION * float(int(b.get("level", 1)))
-		if bup > 0.0001:
-			upk.append({"label": "建筑维护", "amount": -bup})
-	elif key == "food":
-		var fup := Consts.FOOD_UPKEEP_PER_POP * float(state["pop_total"])
-		if fup > 0.0001:
-			upk.append({"label": "人口维护", "amount": -fup})
-		var uf := float(units_upkeep_total()["food"])
-		if uf > 0.0001:
-			upk.append({"label": "单位维护", "amount": -uf})
-	elif key == "currency":
-		var um := float(units_upkeep_total()["currency"])
-		if um > 0.0001:
-			upk.append({"label": "单位维护", "amount": -um})
-	return {"income": inc, "upkeep": upk}
-
-
-## v1.7：统一的「每周期收支估算」出口。
-## 直接复用 resource_breakdown()（顶部资源栏悬浮窗用的同一份口径），
-## 这样管理页、悬浮窗、真实结算三者不会再各算一套、数字打架。
-func income_estimate() -> Dictionary:
-	var out := {}
-	for k in Consts.RES_KEYS:
-		var bd := resource_breakdown(k)
-		var sum := 0.0
-		for e in bd["income"]:
-			sum += float(e["amount"])
-		for e in bd["upkeep"]:
-			sum += float(e["amount"])
-		if absf(sum) > 0.0001:
-			out[k] = sum
-	return out
 
 
 func _recompute_derived() -> void:

@@ -7,7 +7,7 @@ extends RefCounted
 ##
 ## ⚠️ 本表只描述"这条政事是什么"（id / 名字 / 说明 / 要多少点）。
 ##    "现在能不能做"（前置条件）由 GameState 判定 —— 因为那要读存档状态。
-##    判定入口：GameState.decree_blocked_reason(id)
+##    判定入口：Decrees.blocked_reason(GameState.state, id)
 
 const RECRUIT := "recruit"
 

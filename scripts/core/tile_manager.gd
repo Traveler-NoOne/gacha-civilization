@@ -256,7 +256,7 @@ static func clear_tile(state: Dictionary, key: String, rng: RandomNumberGenerato
 	var t: Dictionary = state["tiles"][key]
 	var was_threat: bool = t.get("threat", false)
 	var was_danger: bool = t.get("danger", false)
-	GameState.on_enemy_killed(t)   # 依据击杀时的敌人类型给行政产出 buff
+	Admin.on_enemy_killed(GameState.state, t)   # 依据击杀时的敌人类型给行政产出 buff
 	# 清剿消耗：损失一些人力
 	var loss := 0
 	if rng.randf() < 0.35 and int(state["pop_total"]) > 1:

@@ -548,7 +548,7 @@ func _show_res_info(key: String, rect: Rect2) -> void:
 		v.add_child(_break_row("已指派", float(GameState.assigned_pop())))
 		v.add_child(_break_row("空闲", float(GameState.free_pop())))
 	else:
-		var bd: Dictionary = GameState.resource_breakdown(key)
+		var bd: Dictionary = Admin.resource_breakdown(GameState.state, key)
 		var inc: Array = bd["income"]
 		var upk: Array = bd["upkeep"]
 		var net := 0.0

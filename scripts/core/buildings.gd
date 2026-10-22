@@ -184,6 +184,47 @@ static func non_production_cost(cost: Dictionary) -> Dictionary:
 
 
 # ===========================================================================
+# 规划队列编辑（UI 用）
+# ===========================================================================
+static func queue_move(state: Dictionary, sid: String, index: int, delta: int) -> void:
+	var sh := Strongholds.by_id(state, sid)
+	if sh.is_empty():
+		return
+	var q: Array = sh.get("queue", [])
+	var j := index + delta
+	if index < 0 or index >= q.size() or j < 0 or j >= q.size():
+		return
+	var tmp: Variant = q[index]
+	q[index] = q[j]
+	q[j] = tmp
+	GameState.state_changed.emit()
+
+
+static func queue_remove(state: Dictionary, sid: String, index: int) -> void:
+	var sh := Strongholds.by_id(state, sid)
+	if sh.is_empty():
+		return
+	var q: Array = sh.get("queue", [])
+	if index < 0 or index >= q.size():
+		return
+	q.remove_at(index)
+	GameState.state_changed.emit()
+
+
+## 移除所有指向某建筑实例的队列项（该建筑被摧毁 / 降级时用）
+static func drop_queue_items_for_bid(state: Dictionary, bid: String) -> void:
+	if bid == "":
+		return
+	for sh in Strongholds.all(state):
+		var q: Array = sh.get("queue", [])
+		var kept: Array = []
+		for item in q:
+			if str(item.get("bid", "")) != bid:
+				kept.append(item)
+		sh["queue"] = kept
+
+
+# ===========================================================================
 # 人力指派
 # ===========================================================================
 ## 指派 / 撤回人力（delta 可正可负）；按 id 命中首个同种建筑

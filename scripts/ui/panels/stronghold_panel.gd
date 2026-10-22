@@ -173,7 +173,7 @@ func _refresh_decrees(sh: Dictionary) -> void:
 	for d in DecreeDB.all():
 		var id := str(d["id"])
 		var row := PanelContainer.new()
-		var why := GameState.decree_blocked_reason(id)
+		var why := Decrees.blocked_reason(GameState.state, id)
 		UIKit.apply_panel(row, UIKit.BG_PANEL_2, UIKit.LINE if why == "" else UIKit.LINE_SOFT, 4)
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", UI.fs(2))
@@ -193,7 +193,7 @@ func _refresh_decrees(sh: Dictionary) -> void:
 			h.add_child(UIKit.dim(why, 10))
 		else:
 			b.pressed.connect(func() -> void:
-				var r: Dictionary = GameState.enqueue_decree(id)
+				var r: Dictionary = Decrees.enqueue(GameState.state, id)
 				if not r["ok"]:
 					GameState.toast.emit(str(r["why"]))
 				refresh())

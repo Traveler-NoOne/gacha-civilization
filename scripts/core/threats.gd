@@ -345,7 +345,7 @@ static func _damage_tile(state: Dictionary, key: String, rng: RandomNumberGenera
 		bs.remove_at(idx)
 		report["events"].append("%s 的 %s 被彻底摧毁。" % [key, lname])
 	# 该建筑若在规划队列里有项目（升级等），一并作废
-	GameState.drop_queue_items_for_bid(str(lost.get("bid", "")))
+	Buildings.drop_queue_items_for_bid(GameState.state, str(lost.get("bid", "")))
 	if bs.is_empty():
 		t["owner"] = Consts.Owner.NONE
 		t["force"] = 0.0
