@@ -122,12 +122,15 @@ const PRODUCTION_PER_TILE := 0.6
 ##   deep_water 深海 ✓（和浅海分开 ✓ 登陆/洪水/洋流都要用 ✓）
 ##   plateau    高原 ✓（原来 0.62~0.72 全算丘陵 ✗ 被吞了 ✓）
 ##   valley     谷地 ✓（裂谷的谷底 ✓ 高度看不出"比四周低" ✗ 只能由生成器打标 ✓）
+## 2026-10-22：新增 upland 山地 ✓（用户定："山地和山脉相比，可以通行" ✓）
+##   它不是"高度"能表达的东西 ✗ 由 `Peaks.thin_mountains()` 把**太胖的山团**降级打出来 ✓
 const TERRAIN_NAMES := {
 	"deep_water": "深海",
 	"water": "水域",
 	"plain": "平原",
 	"hill": "丘陵",
 	"plateau": "高原",
+	"upland": "山地",
 	"valley": "谷地",
 	"mountain": "山脉",
 	"dune": "沙丘",
@@ -141,6 +144,7 @@ const TERRAIN_COLORS := {
 	"plain": Color(0.30, 0.42, 0.26),
 	"hill": Color(0.40, 0.36, 0.28),
 	"plateau": Color(0.58, 0.52, 0.42),
+	"upland": Color(0.45, 0.48, 0.38),
 	"valley": Color(0.20, 0.30, 0.22),
 	"mountain": Color(0.48, 0.46, 0.44),
 	"dune": Color(0.58, 0.50, 0.32),

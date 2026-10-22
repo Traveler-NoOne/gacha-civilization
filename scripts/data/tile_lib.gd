@@ -23,6 +23,10 @@ const T_SEA := "water"
 const T_PLAIN := "plain"
 const T_HILL := "hill"
 const T_PLATEAU := "plateau"
+## ★ 2026-10-22：山地（`upland`）—— 山脉里**能走**的那一层 ✓
+##   ⚠️ **本表不产出它** ✗ —— 它不是"高度"能表达的东西 ✓
+##   由 `Peaks.thin_mountains()` 事后把太胖的山团降级打标 ✓（见 `scripts/worldgen/peaks.gd` ✓）
+const T_UPLAND := "upland"
 const T_VALLEY := "valley"
 const T_MOUNTAIN := "mountain"
 const T_DUNE := "dune"
