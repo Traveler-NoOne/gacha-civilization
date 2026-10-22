@@ -51,7 +51,7 @@ func center_on_axial(c: Vector2i) -> void:
 
 ## 将摄像头对准首都地块
 func _center_view() -> void:
-	center_on_axial(WorldGen.coord_of(str(GameState.state["capital"])))
+	center_on_axial(TileManager.coord_of(str(GameState.state["capital"])))
 
 ## qr坐标转场景坐标
 func axial_to_screen(c: Vector2i) -> Vector2:
@@ -79,7 +79,7 @@ func _visible_tiles() -> Array:
 	var tiles: Dictionary = tiles_v
 
 	for key in tiles.keys():
-		var c := WorldGen.coord_of(key)
+		var c := TileManager.coord_of(key)
 		var center := axial_to_screen(c)
 		if center.x < -hex_size * 2.0 or center.x > size.x + hex_size * 2.0 \
 				or center.y < -hex_size * 2.0 or center.y > size.y + hex_size * 2.0:
@@ -96,7 +96,7 @@ func _visible_tiles() -> Array:
 ##   ① 底色（地形/迷雾） ② 特征物（资源点） ③ 建筑 ④ 领地边框
 ##   ⑤ 单位（驻军）      ⑥ 据点标记（首都星） ⑦ 标记+悬浮/选中 ⑧ 文字
 func _draw() -> void:
-	var capital := WorldGen.coord_of(str(GameState.state.get("capital", "0,0")))
+	var capital := TileManager.coord_of(str(GameState.state.get("capital", "0,0")))
 	var vis := _visible_tiles()
 
 	# 1-B：按层循环 —— 一整层画完，再画下一层。
@@ -143,7 +143,7 @@ func _draw_tile_base(v: Dictionary) -> void:
 
 	var outline := pts.duplicate()
 	outline.append(pts[0])
-	# v1.8.21：河流格用**蓝色描边**标出来（河本身没有单独的地形种类，见 world_gen 的侵蚀）
+	# 河流格用**蓝色描边**标出来（河不是单独的地形种类，只是 `t["river"]` 这个标记）
 	if bool(t.get("river", false)):
 		draw_polyline(outline, Color(0.35, 0.65, 1.0, 0.95), 2.0)
 	else:
@@ -428,7 +428,7 @@ func _gui_input(event: InputEvent) -> void:
 
 ## 某一格的中心（地图本地坐标）。绘制与命中都用它，避免出现两份口径。
 func tile_center(key: String) -> Vector2:
-	return axial_to_screen(WorldGen.coord_of(key))
+	return axial_to_screen(TileManager.coord_of(key))
 
 
 ## 点中的是不是这一格的首都星？**收全局坐标**（转换放在这里，调用方不用操心）。

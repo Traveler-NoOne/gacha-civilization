@@ -1,18 +1,16 @@
 class_name Threats
 extends RefCounted
-## 敌人与威胁系统（从 world_gen.gd 拆出来的，2026-10-15）✓
+## 敌人与威胁系统 ✓
 ##
 ## 为什么单独一个文件：这些全是"**世界跑起来之后**"的事（刷怪 / 演化 / 打玩家）✗
-## 和"造格子"（world_gen）与"改格子"（tile_manager）都不是一回事 ✓
+## 和"造格子"（`scripts/worldgen/builder.gd`）与"改格子"（`tile_manager`）都不是一回事 ✓
 ##
 ## 判据：**只跟敌人有关** → 放这里 ✓
 ##   · 危险据点 / 游荡敌人 / 终极威胁的生成
 ##   · 每周期演化 `evolve()`（据点吐兵 / 游荡 / 威胁扑首都 / 打玩家 / 超上限消散）
 ##   · 攻击结算 `_damage_tile()`（破坏建筑 → 地块转无主）
 ##
-## ⚠️ 依赖方向：本文件 → `WorldGen`（只用它的常量与坐标工具 / 计数 / amount_cap）✓ **单向** ✓
-##    以后 TileManager 拆出来之后，`enemy_tile_count` / `owned_tile_count` / `amount_cap`
-##    会跟着搬去 TileManager ✓ 那时把这里的 `WorldGen.` 换成 `TileManager.` 即可 ✓
+## ⚠️ 依赖方向：本文件 → `TileManager`（坐标工具 / 计数 / amount_cap）✓ **单向** ✓
 
 
 ## 高危据点：打捞（资源池）时小概率生成 —— 直接从量子之海汲取更容易被盯上
@@ -78,7 +76,7 @@ static func spawn_ultimate_threat(state: Dictionary, rng: RandomNumberGenerator)
 	var key := ""
 	if cands.is_empty():
 		# 实在没有空地，就放在首都相邻的地块上
-		var cap0 := WorldGen.coord_of(str(state["capital"]))
+		var cap0 := TileManager.coord_of(str(state["capital"]))
 		for d in Hex.DIRECTIONS:
 			var nk := TileManager.key_of(cap0 + d)
 			if (state["tiles"] as Dictionary).has(nk):
@@ -88,10 +86,10 @@ static func spawn_ultimate_threat(state: Dictionary, rng: RandomNumberGenerator)
 			key = str(state["capital"])
 	else:
 		# 尽量远离首都生成
-		var cap := WorldGen.coord_of(str(state["capital"]))
+		var cap := TileManager.coord_of(str(state["capital"]))
 		var best := -1
 		for k in cands:
-			var d := Hex.distance(WorldGen.coord_of(k), cap)
+			var d := Hex.distance(TileManager.coord_of(k), cap)
 			if d > best:
 				best = d
 				key = k
@@ -112,14 +110,14 @@ static func spawn_ultimate_threat(state: Dictionary, rng: RandomNumberGenerator)
 static func _threat_spawn_candidates(state: Dictionary) -> Array[String]:
 	var out: Array[String] = []
 	var tiles: Dictionary = state["tiles"]
-	var cap := WorldGen.coord_of(str(state["capital"]))
+	var cap := TileManager.coord_of(str(state["capital"]))
 	for k in tiles.keys():
 		var t: Dictionary = tiles[k]
 		if t.get("owner", Consts.Owner.NONE) != Consts.Owner.NONE:
 			continue
-		if WorldGen.coord_of(k) == cap:
+		if TileManager.coord_of(k) == cap:
 			continue
-		if TileDef.is_water(t):
+		if TileLib.is_water(t):
 			continue
 		out.append(k)
 	return out
@@ -136,9 +134,9 @@ static func _enemy_spawn_candidates(state: Dictionary) -> Array[String]:
 		if t.get("owner", Consts.Owner.NONE) != Consts.Owner.NONE:
 			continue
 		# 不直接刷在首都旁边
-		if Hex.distance(WorldGen.coord_of(k), WorldGen.coord_of(str(state["capital"]))) < 2:
+		if Hex.distance(TileManager.coord_of(k), TileManager.coord_of(str(state["capital"]))) < 2:
 			continue
-		if TileDef.is_water(t):
+		if TileLib.is_water(t):
 			continue
 		out.append(k)
 	return out
@@ -188,7 +186,7 @@ static func evolve(state: Dictionary, rng: RandomNumberGenerator, report: Dictio
 		var t: Dictionary = tiles[k]
 		if not tiles.has(k) or t.get("owner", Consts.Owner.NONE) != Consts.Owner.ENEMY:
 			continue
-		var ns := Hex.neighbors(WorldGen.coord_of(k))
+		var ns := Hex.neighbors(TileManager.coord_of(k))
 		var pool: Array[String] = []
 		for n in ns:
 			var nk := TileManager.key_of(n)
@@ -219,8 +217,8 @@ static func evolve(state: Dictionary, rng: RandomNumberGenerator, report: Dictio
 		th["timer"] = int(th.get("timer", 0)) - 1
 		if int(th["timer"]) <= 0:
 			# 计时结束：朝首都直线前进
-			var cap := WorldGen.coord_of(str(state["capital"]))
-			var cur := WorldGen.coord_of(key)
+			var cap := TileManager.coord_of(str(state["capital"]))
+			var cur := TileManager.coord_of(key)
 			var best := key
 			var bestd := Hex.distance(cur, cap)
 			for n in Hex.neighbors(cur):
@@ -261,7 +259,7 @@ static func evolve(state: Dictionary, rng: RandomNumberGenerator, report: Dictio
 			enemy_keys.append(k)
 	for k in enemy_keys:
 		var t: Dictionary = tiles[k]
-		for n in Hex.neighbors(WorldGen.coord_of(k)):
+		for n in Hex.neighbors(TileManager.coord_of(k)):
 			var nk := TileManager.key_of(n)
 			if not tiles.has(nk):
 				continue
@@ -322,7 +320,7 @@ static func _damage_tile(state: Dictionary, key: String, rng: RandomNumberGenera
 	var attack := 12.0
 	for k in tiles.keys():
 		var et: Dictionary = tiles[k]
-		if et.get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY and Hex.distance(WorldGen.coord_of(k), WorldGen.coord_of(key)) <= 1:
+		if et.get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY and Hex.distance(TileManager.coord_of(k), TileManager.coord_of(key)) <= 1:
 			attack += float(et.get("force", 0.0)) * 0.5
 	var diff := attack - defense
 	if diff <= 0.0:

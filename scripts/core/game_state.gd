@@ -14,7 +14,8 @@ signal toast(text: String)
 const SAVE_MAGIC := "gacha_civilization_demo"
 ## 存档时代
 ## 按既有决策：1.0 期不做旧档兼容 —— 版本不符直接拒绝（见 load_from_slot）。
-const SAVE_VERSION := 4
+## v5（2026-10-22）：世界生成器换代（旧 WorldGen 已删），地块数据全变 → 旧档一律作废 ✓
+const SAVE_VERSION := 5
 
 
 ## 游戏状态
@@ -96,7 +97,7 @@ func new_game(seed_value: int = 0) -> void:
 		# 注意：自动存档周期数与作弊开关是**全局设置**，
 		# 存在 AppSettings（user://settings.cfg），不属于存档。
 	}
-	WorldGen.generate(state)
+	WorldgenBuilder.generate(state)
 	TileManager.setup_new_world(state)
 	_setup_capital_stronghold()
 	_recompute_derived()
@@ -683,8 +684,8 @@ func can_move_to(uid: String, key: String) -> Dictionary:
 		return {"ok": false, "why": "该单位正在驻军，先「解除驻军」才能移动"}
 	if not (state["tiles"] as Dictionary).has(key):
 		return {"ok": false, "why": "地块不存在"}
-	var a := WorldGen.coord_of(from)
-	var b := WorldGen.coord_of(key)
+	var a := TileManager.coord_of(from)
+	var b := TileManager.coord_of(key)
 	var d := Hex.distance(a, b)
 	if d < 1 or d > 2:
 		return {"ok": false, "why": "只能移动到 1~2 格内的地块"}
@@ -711,7 +712,7 @@ func move_candidates(uid: String) -> Array[String]:
 	var from := str(u.get("tile", ""))
 	if from == "":
 		return out
-	var a := WorldGen.coord_of(from)
+	var a := TileManager.coord_of(from)
 	for d in Hex.DIRECTIONS:
 		var k1 := TileManager.key_of(a + d)
 		if bool(can_move_to(uid, k1)["ok"]) and not out.has(k1):
@@ -735,7 +736,7 @@ func move_unit(uid: String, key: String) -> Dictionary:
 	u["move_left"] = int(u.get("move_left", 0)) - cost
 	u["tile"] = key
 	# v1.6.2：单位移动会点亮周围一格的迷雾
-	TileManager.discover_radius(state, WorldGen.coord_of(key), 1)
+	TileManager.discover_radius(state, TileManager.coord_of(key), 1)
 	add_log("%s 移动到 %s（消耗 %d 移动力）。" % [str(u["name"]), key, cost], "unit")
 	state_changed.emit()
 	return {"ok": true, "why": "", "cost": cost}
@@ -747,7 +748,7 @@ func unit_attack(uid: String, key: String) -> Dictionary:
 	var from := str(u.get("tile", ""))
 	if from == "":
 		return {"ok": false, "why": "该单位不在大世界上"}
-	if Hex.distance(WorldGen.coord_of(from), WorldGen.coord_of(key)) != 1:
+	if Hex.distance(TileManager.coord_of(from), TileManager.coord_of(key)) != 1:
 		return {"ok": false, "why": "只能攻击相邻地块"}
 	var t := tile_at(key)
 	if t.is_empty() or t.get("owner", Consts.Owner.NONE) != Consts.Owner.ENEMY:
@@ -1102,7 +1103,7 @@ func simulate_battle(key: String) -> Dictionary:
 ## 参与进攻的单位：与目标相邻的我方地块上的驻军
 func units_on_tile_neighbors(key: String) -> Array:
 	var out := []
-	for n in Hex.neighbors(WorldGen.coord_of(key)):
+	for n in Hex.neighbors(TileManager.coord_of(key)):
 		var nk := TileManager.key_of(n)
 		var t := tile_at(nk)
 		if t.is_empty() or t.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:

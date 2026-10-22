@@ -1,11 +1,12 @@
 class_name TileManager
 extends RefCounted
-## 地块管理（从 world_gen.gd 拆出来的，2026-10-15）✓
+## 地块管理 ✓
 ##
 ## 判据：**改**格子（归属 / 迷雾 / 资源 / 清剿 / 计数）→ 放这里 ✓
-##       **造**格子（噪声 / 高程 / 侵蚀 / 气候 / 地物表 / generate / make_tile / expand_map）→ 留在 WorldGen ✓
+##       地块**键 ↔ 坐标**的互转也在这里（`key_of` / `coord_of` / `tile_key`）✓
+##       **造**格子归生成器（`scripts/worldgen/builder.gd`）✓
 ##
-## ⚠️ 依赖方向：本文件 → `WorldGen`（只用它的 `OWNER_*` 常量与 `key_of` / `coord_of`）✓ **单向** ✓
+## ⚠️ 依赖方向：本文件**不依赖生成器** ✓
 ##    `Threats` 反过来要用本文件的 `enemy_tile_count` / `owned_tile_count` / `amount_cap` ✓（也是单向 ✓）
 ##    所以**不许**在这里反向调 `Threats.*` ✗ —— 需要"找空格"就用本文件的 `free_candidates()` ✓✓
 
@@ -16,6 +17,13 @@ extends RefCounted
 ## 将v2i坐标转换为str
 static func key_of(c: Vector2i) -> String:
 	return "%d,%d" % [c.x, c.y]
+
+## 把 "q,r" 键还原成坐标 ✓（`key_of` 的反函数 ✓）
+static func coord_of(key: String) -> Vector2i:
+	var parts := key.split(",")
+	if parts.size() != 2:
+		return Vector2i.ZERO
+	return Vector2i(int(parts[0]), int(parts[1]))
 
 ## 获取目标地块的 qr 坐标（键）
 static func tile_key(t: Dictionary) -> String:
@@ -102,7 +110,7 @@ static func claim_cost(state: Dictionary) -> float:
 ## 新占领地块归属：就近并入相邻的我方据点（本作仅首都）
 static func _stronghold_for_claim(state: Dictionary, key: String) -> String:
 	var tiles: Dictionary = state["tiles"]
-	for n in Hex.neighbors(WorldGen.coord_of(key)):
+	for n in Hex.neighbors(coord_of(key)):
 		var nk := key_of(n)
 		if tiles.has(nk) and (tiles[nk] as Dictionary).get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
 			var sid := str((tiles[nk] as Dictionary).get("stronghold", ""))
@@ -121,7 +129,7 @@ static func claimable_keys(state: Dictionary) -> Array[String]:
 			continue
 		if t.get("owner", Consts.Owner.NONE) != Consts.Owner.NONE:
 			continue
-		var c := WorldGen.coord_of(k)
+		var c := coord_of(k)
 		for n in Hex.neighbors(c):
 			var nk := key_of(n)
 			if tiles.has(nk) and (tiles[nk] as Dictionary).get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
@@ -156,7 +164,7 @@ static func claim(state: Dictionary, key: String) -> Dictionary:
 		t["land_cap"] = Consts.LAND_CAP_DEFAULT
 	if str(t.get("name", "")) == "":
 		t["name"] = "%s·领地" % Consts.terrain_name(str(t["terrain"]))
-	var c := WorldGen.coord_of(key)
+	var c := coord_of(key)
 	var revealed := discover_radius(state, c, 1)
 	GameState.add_log("占领 %s（周围点亮 %d 格）。" % [key, revealed], "world")
 	return {"ok": true, "why": "", "revealed": revealed}
@@ -189,7 +197,7 @@ static func can_clear(state: Dictionary, key: String) -> Dictionary:
 
 static func _adjacent_to_player(state: Dictionary, key: String) -> bool:
 	var tiles: Dictionary = state["tiles"]
-	for n in Hex.neighbors(WorldGen.coord_of(key)):
+	for n in Hex.neighbors(coord_of(key)):
 		var nk := key_of(n)
 		if tiles.has(nk) and (tiles[nk] as Dictionary).get("owner", Consts.Owner.NONE) == Consts.Owner.PLAYER:
 			return true
@@ -224,14 +232,14 @@ static func clear_tile(state: Dictionary, key: String, rng: RandomNumberGenerato
 static func free_candidates(state: Dictionary, min_capital_dist: int = 2) -> Array[String]:
 	var out: Array[String] = []
 	var tiles: Dictionary = state["tiles"]
-	var cap := WorldGen.coord_of(str(state.get("capital", "")))
+	var cap := coord_of(str(state.get("capital", "")))
 	for k in tiles.keys():
 		var t: Dictionary = tiles[k]
 		if t.get("owner", Consts.Owner.NONE) != Consts.Owner.NONE:
 			continue
-		if TileDef.is_water(t):
+		if TileLib.is_water(t):
 			continue
-		if min_capital_dist > 0 and Hex.distance(WorldGen.coord_of(k), cap) < min_capital_dist:
+		if min_capital_dist > 0 and Hex.distance(coord_of(k), cap) < min_capital_dist:
 			continue
 		out.append(k)
 	return out
@@ -268,12 +276,12 @@ static func amount_cap(t: Dictionary) -> float:
 # ===========================================================================
 # 新世界落成后的地块初始化
 # ===========================================================================
-## 标记首都 + 初始点亮（从 `WorldGen.generate()` 末尾搬出来的 ✓ 2026-10-15）
+## 标记首都 + 初始点亮 ✓
 ## 生成层只管"造出格子" ✗ "把格子改成我方首都 / 点亮"属于改格子 → 归这里 ✓
-## 调用时机：`WorldGen.generate(state)` **之后**（那时 `state["capital"]` 已经挑好了 ✓）
+## 调用时机：`WorldgenBuilder.generate(state)` **之后**（那时 `state["capital"]` 已经挑好了 ✓）
 static func setup_new_world(state: Dictionary) -> void:
 	var tiles: Dictionary = state["tiles"]
-	var cap := WorldGen.coord_of(str(state["capital"]))
+	var cap := coord_of(str(state["capital"]))
 	var cap_tile: Dictionary = tiles[key_of(cap)]
 	cap_tile["owner"] = Consts.Owner.PLAYER
 	cap_tile["discovered"] = true

@@ -63,7 +63,7 @@ static func thin_mountains(tiles: Dictionary) -> int:
 
 		for k in layer:
 			var t: Dictionary = tiles[k]
-			if _near_plateau(WorldGen.coord_of(k), plateau):
+			if _near_plateau(TileManager.coord_of(k), plateau):
 				t["terrain"] = TileLib.T_PLATEAU
 			else:
 				t["terrain"] = TileLib.T_UPLAND
@@ -76,7 +76,7 @@ static func thin_mountains(tiles: Dictionary) -> int:
 static func _runs(mt: Dictionary) -> Dictionary:
 	var out := {}
 	for k in mt.keys():
-		var c := WorldGen.coord_of(str(k))
+		var c := TileManager.coord_of(str(k))
 		out[k] = [_run(c, AXES[0], mt), _run(c, AXES[1], mt), _run(c, AXES[2], mt)]
 	return out
 
@@ -85,7 +85,7 @@ static func _runs(mt: Dictionary) -> Dictionary:
 static func _edge_layer(mt: Dictionary, runs: Dictionary, dir: Vector2i) -> Array[String]:
 	var out: Array[String] = []
 	for k in mt.keys():
-		var c := WorldGen.coord_of(str(k))
+		var c := TileManager.coord_of(str(k))
 		if mt.has(TileManager.key_of(c + dir)):
 			continue
 		if _min_run(runs[k]) <= FAT_WIDTH:

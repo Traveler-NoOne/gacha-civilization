@@ -1,6 +1,6 @@
 class_name WorldgenBuilder
 extends RefCounted
-## 世界生成**总控**（噪声版）✓
+## 世界生成**总控**（噪声版）✓ 2026-10-22 起是**唯一的**生成器（旧 `WorldGen` 已删）✓
 ##
 ## 做法（经典骨架 ＋ 三处修正 ✓）：
 ##   ① **大结构**：fBm 噪声 —— 决定**海陆**和**高原 / 丘陵**的大块形状 ✓
@@ -8,16 +8,15 @@ extends RefCounted
 ##      只叠在**内陆高地**上 ✓（平原和海洋不加 ✓）→ 山是"狭长的脊" ✓ 大片高地留作高原 ✓
 ##   ③ 湿度：第三路低频噪声 ✓
 ##   ④ 从地图中心向外衰减 → 四周必成海 ✓
-##   ★ ⑤ **海平面按"目标陆地占比"定**（分位数）✓ 不再手调水线 ✓
-##   ★ ⑥ **山脉瘦身**：太胖的山团降级成高原 / 山地（`Peaks`）✓
+##   ⑤ **海平面按"目标陆地占比"定**（分位数）✓ 不用手调水线 ✓
+##   ⑥ **山脉瘦身**：太胖的山团降级成高原 / 山地（`Peaks`）✓
 ##
 ## 高度标尺 = **0~10**：0 = 海沟底 ✓ **1.0 = 海平面** ✓ 5.0 = 珠峰 ✓ 10.0 = 大气层顶 ✓
-## ⚠️ **纯函数** ✓：地形 = f(坐标, 种子) ✓ 同种子同地图 ✓
-## ⚠️ 分位数依赖"整张图有哪些格子" ✗ → 这份生成器目前**只做一次性生成**（扩图还没接它 ✗）
+## ⚠️ **纯函数** ✓：地形 = f(坐标, 种子) ＋ 两个**全图参数**（`lift` / `sea_gain`）✓
+##    这两个数在 `generate()` 里算出来，存进 `state["gen"]` ✓ —— `expand_map()` 靠它们复算新格 ✓
 
 ## ---- 大结构 / 海陆 ----
 ## 噪声频率 = 这个数 ÷ 半径 ✓（**跟着地图大小走** ✓ 改半径不用改这里 ✓）
-## 越低地形越完整和平缓，越高地形越破碎和陡峭。
 const FREQ_BASE := 0.9
 ## 水线在噪声上的位置 ✓：噪声高于它 = 陆 ✓
 ## ⚠️ 它**不再**是"陆地占多少"的旋钮 ✗ —— 海岸线现在由下面的 `LAND_RATIO` 定 ✓
@@ -45,8 +44,6 @@ const RIDGE_START := 2.20      ## 从多高开始叠山脊 ✓（**高原带里*
 ##   ✗ 旧版是"连续叠加"（inland 一接近 1 就整片被抬 ✗）→ 山还是成团 ✗
 ##   ✓ 现在用阈值**卡出"脊线"**✓ 再配"单层 ridged"（多层叠加会把线糊成片 ✗）
 const RIDGE_THRESHOLD := 0.55
-## ⚠️ 如果图上出现"山长在该是谷的地方"✗ → 把下面判断里的 `rv > RIDGE_THRESHOLD`
-##    改成 `rv < -RIDGE_THRESHOLD`（ridged 噪声的"脊"也可能在负值侧 ✓ 看实际效果调 ✓）
 
 ## ---- 高度上下限（**刻意不碰 0 和 5.0** ✓）----
 const H_MIN := 0.22
@@ -56,62 +53,22 @@ const FALLOFF_START := 0.62
 const FALLOFF_DEPTH := 4.0
 
 
-## 生成一整个世界，填进 `state` ✓（写 `tiles` ＋ `capital` ✓）
+## 生成一整个世界，填进 `state` ✓（写 `tiles` / `capital` / `gen` ✓）
 static func generate(state: Dictionary) -> void:
-	var seed := int(state["seed"]) # 读取种子
-	var radius := Consts.MAP_START_RADIUS # 地图大小
-
-	# ① 大结构：fBm ✓ 决定海陆 / 高原 / 丘陵的大块形状 ✓
-	var n_base := FastNoiseLite.new()
-	n_base.seed = seed
-	n_base.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	n_base.frequency = FREQ_BASE / float(radius)
-	n_base.fractal_type = FastNoiseLite.FRACTAL_FBM
-	n_base.fractal_octaves = 4      # 4 层够了 ✓ 层数越多海岸线越碎 ✗
-	n_base.fractal_gain = 0.5
-
-	# ② 山脊：**脊状噪声** ✓ 它的正值天然是**狭长的脊** ✓✓（用 fBm 做山必然成团 ✗）
-	var n_ridge := FastNoiseLite.new()
-	n_ridge.seed = seed + 5551
-	n_ridge.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	n_ridge.frequency = FREQ_RIDGE / float(radius)
-	n_ridge.fractal_type = FastNoiseLite.FRACTAL_RIDGED
-	# ⚠️ **单层** ✓ —— 多层 ridged 叠加会把"线状的脊"糊成"片" ✗（这也是山成团的原因之一 ✓）
-	n_ridge.fractal_octaves = 1
-	n_ridge.fractal_gain = 0.5
-
-	# ③ 湿度：另一路低频噪声 ✓（与高度无关 ✓ 以后再考虑"地形雨"之类的耦合 ✓）
-	var n_moist := FastNoiseLite.new()
-	n_moist.seed = seed + 9871
-	n_moist.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	n_moist.frequency = 0.8 / float(radius)
-	n_moist.fractal_type = FastNoiseLite.FRACTAL_FBM
-	n_moist.fractal_octaves = 3
+	var seed := int(state["seed"])
+	var radius := Consts.MAP_START_RADIUS
+	var ns := _noises(seed, radius)
 
 	# 【第 1 步】先算**基准高度**（1.0 = 旧海平面）＋ 湿度；山脊留到定完海平面再加 ✓
 	var cells := Hex.spiral(radius)
 	var raw := {}
 	var moist := {}
 	for c: Vector2i in cells:
-		# 用**像素坐标**取噪声 ✓ —— 地形只跟坐标和种子有关 ✓
-		var p := Hex.axial_to_pixel(c.x, c.y, 1.0)
-		var dv := n_base.get_noise_2d(p.x, p.y) - SEA_NOISE
-		var h := 1.0
-		if dv < 0.0:
-			# 水下：**放慢** ✓ → 浅海带变宽 ✓（不然一离开水线就掉到 clamp 下限、全是深海 ✗）
-			h = 1.0 + dv * SEA_SCALE
-		else:
-			# 陆上：**幂次压缩** ✓ → 只有极端高的才成山 ✓ 大片中高地留在高原 / 丘陵 ✓✓
-			h = 1.0 + pow(dv, LAND_POW) * LAND_SCALE
-		# ④ 从中心向外衰减 → 四周必成海 ✓
-		var d := float(Hex.distance(c, Vector2i.ZERO)) / float(radius)
-		if d > FALLOFF_START:
-			h -= FALLOFF_DEPTH * (d - FALLOFF_START) / (1.0 - FALLOFF_START)
 		var k := TileManager.key_of(c)
-		raw[k] = h
-		moist[k] = (n_moist.get_noise_2d(p.x, p.y) + 1.0) * 0.5    # 0 ~ 1 ✓
+		raw[k] = _raw_height(c, ns)
+		moist[k] = _moisture_at(c, ns)
 
-	# 【第 2 步】定海平面：取分位数 → 恰好 LAND_RATIO 的格子在水面之上 ✓（同种子同结果 ✓ 不用手调阈值 ✓）
+	# 【第 2 步】定海平面：取分位数 → 恰好 LAND_RATIO 的格子在水面之上 ✓（同种子同结果 ✓）
 	var lift := 1.0 - _quantile(raw, 1.0 - LAND_RATIO)
 
 	# 【第 3 步】海深补偿：陆地一抬，海水就浅了 ✗ → 把水下那一段按 SEA_DEPTH 拉回去 ✓（海岸线不动 ✓）
@@ -125,26 +82,146 @@ static func generate(state: Dictionary) -> void:
 	var tiles := {}
 	for c: Vector2i in cells:
 		var k := TileManager.key_of(c)
-		var h := float(raw[k]) + lift
-		if h < 1.0:
-			h = 1.0 - (1.0 - h) * sea_gain
-		elif h >= RIDGE_START:
-			# ★ 山脊：**阈值卡出"脊线"** ✓ 而且只在**高原之上**才叠 ✓✓
-			#   → "山"是细长的一条条脊 ✓ 大片高地的身份是"高原"✓ 不会被顶成山 ✗
-			var p := Hex.axial_to_pixel(c.x, c.y, 1.0)
-			var rv := n_ridge.get_noise_2d(p.x, p.y)
-			if rv > RIDGE_THRESHOLD:
-				var up := (rv - RIDGE_THRESHOLD) / (1.0 - RIDGE_THRESHOLD)      # 0~1 ✓
-				var inland := clampf((h - RIDGE_START) / 0.8, 0.0, 1.0)         # 越往高叠得越多 ✓
-				h += RIDGE_AMP * up * inland
-		h = clampf(h, H_MIN, H_MAX)
+		var h := _normalize(float(raw[k]), c, ns, lift, sea_gain)
 		tiles[k] = TileLib.make(c, seed, {"height": h, "moisture": float(moist[k])})
 
-	# ⑤ 山脉瘦身：太胖的山团降级（靠高原的转高原、其余转山地）✓ 嫌太碎就删这一行 ✓
+	# 山脉瘦身：太胖的山团降级（靠高原的转高原、其余转山地）✓ 嫌太碎就删这一行 ✓
 	Peaks.thin_mountains(tiles)
 
 	state["tiles"] = tiles
-	state["capital"] = WorldGen.choose_capital(tiles)   # 纯函数 ✓ 用 is_water ✓ 新地块照样能用 ✓
+	state["capital"] = choose_capital(tiles)
+	# ⚠️ 扩图要靠这两个数复算新格 ✓ 所以必须进存档 ✓
+	state["gen"] = {"lift": lift, "sea_gain": sea_gain}
+
+
+## 生成之后追加 `rings` 圈新格子（发展系统 / 营地扩建）✓
+## ⚠️ 新格必须与"一开始就生成这么大"一致 ✓ → 用 `generate()` 存下的 `lift` / `sea_gain` 复算 ✓
+##    ✗ **不能**重跑 `generate()` —— 那会按新地图重算海平面，**老格子全变** ✗
+static func expand_map(state: Dictionary, rings: int = 1) -> int:
+	var tiles: Dictionary = state["tiles"]
+	var seed := int(state["seed"])
+	var cur := _radius_of(tiles)
+	var target := mini(cur + rings, Consts.MAP_MAX_RADIUS)
+	if target <= cur:
+		return 0
+	var gen: Dictionary = state["gen"]
+	var lift := float(gen["lift"])
+	var sea_gain := float(gen["sea_gain"])
+	var ns := _noises(seed, Consts.MAP_START_RADIUS)
+	var added := 0
+	for c: Vector2i in Hex.spiral(target):
+		var k := TileManager.key_of(c)
+		if tiles.has(k):
+			continue
+		var h := _normalize(_raw_height(c, ns), c, ns, lift, sea_gain)
+		tiles[k] = TileLib.make(c, seed, {"height": h, "moisture": _moisture_at(c, ns)})
+		added += 1
+	return added
+
+
+## 挑出生点（首都）：非水、不贴边境、周围 3 格资源越多越好 ✓ 不含随机 → 同一张图永远同一格 ✓
+static func choose_capital(tiles: Dictionary) -> String:
+	var limit := int(float(Consts.MAP_START_RADIUS) * 0.78)
+	var best_key := ""
+	var best_score := -1
+	var best_dist := 9999
+	for k in tiles.keys():
+		var t: Dictionary = tiles[k]
+		if TileLib.is_water(t):
+			continue
+		var c := TileManager.coord_of(str(k))
+		var d := Hex.distance(c, Vector2i.ZERO)
+		if d > limit:
+			continue
+		var score := 0
+		for nb: Vector2i in Hex.spiral(3):
+			var nk := TileManager.key_of(c + nb)
+			if not tiles.has(nk):
+				continue
+			var nt: Dictionary = tiles[nk]
+			if TileLib.is_water(nt):
+				continue
+			if str(nt.get("resource", "")) != "":
+				score += 1
+		if score > best_score or (score == best_score and d < best_dist):
+			best_score = score
+			best_dist = d
+			best_key = str(k)
+	return best_key
+
+
+# ===========================================================================
+# 内部：噪声 / 单格高度 / 湿度 / 分位数
+# ===========================================================================
+## 三路噪声 ✓（大结构 / 山脊 / 湿度 ✓）
+static func _noises(seed: int, radius: int) -> Dictionary:
+	var base := FastNoiseLite.new()
+	base.seed = seed
+	base.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	base.frequency = FREQ_BASE / float(radius)
+	base.fractal_type = FastNoiseLite.FRACTAL_FBM
+	base.fractal_octaves = 4      # 4 层够了 ✓ 层数越多海岸线越碎 ✗
+	base.fractal_gain = 0.5
+
+	var ridge := FastNoiseLite.new()
+	ridge.seed = seed + 5551
+	ridge.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	ridge.frequency = FREQ_RIDGE / float(radius)
+	ridge.fractal_type = FastNoiseLite.FRACTAL_RIDGED
+	# ⚠️ **单层** ✓ —— 多层 ridged 叠加会把"线状的脊"糊成"片" ✗
+	ridge.fractal_octaves = 1
+	ridge.fractal_gain = 0.5
+
+	var moist := FastNoiseLite.new()
+	moist.seed = seed + 9871
+	moist.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	moist.frequency = 0.8 / float(radius)
+	moist.fractal_type = FastNoiseLite.FRACTAL_FBM
+	moist.fractal_octaves = 3
+
+	return {"base": base, "ridge": ridge, "moist": moist}
+
+
+## 基准高度（1.0 = 旧海平面；含边缘衰减；不含 lift / 海深补偿 / 山脊）✓
+static func _raw_height(c: Vector2i, ns: Dictionary) -> float:
+	var n_base: FastNoiseLite = ns["base"]
+	var p := Hex.axial_to_pixel(c.x, c.y, 1.0)
+	var dv := n_base.get_noise_2d(p.x, p.y) - SEA_NOISE
+	var h := 1.0
+	if dv < 0.0:
+		# 水下：**放慢** ✓ → 浅海带变宽 ✓（不然一离开水线就掉到 clamp 下限、全是深海 ✗）
+		h = 1.0 + dv * SEA_SCALE
+	else:
+		# 陆上：**幂次压缩** ✓ → 只有极端高的才成山 ✓ 大片中高地留在高原 / 丘陵 ✓✓
+		h = 1.0 + pow(dv, LAND_POW) * LAND_SCALE
+	# 从中心向外衰减 → 四周必成海 ✓（半径用**起始半径**：扩图的新格才与"一开始就生成这么大"一致 ✓）
+	var d := float(Hex.distance(c, Vector2i.ZERO)) / float(Consts.MAP_START_RADIUS)
+	if d > FALLOFF_START:
+		h -= FALLOFF_DEPTH * (d - FALLOFF_START) / (1.0 - FALLOFF_START)
+	return h
+
+
+## 基准高度 → 最终高度（海平面平移 + 海深补偿 + 山脊）✓
+static func _normalize(raw: float, c: Vector2i, ns: Dictionary, lift: float, sea_gain: float) -> float:
+	var h := raw + lift
+	if h < 1.0:
+		h = 1.0 - (1.0 - h) * sea_gain
+	elif h >= RIDGE_START:
+		# ★ 山脊：**阈值卡出"脊线"** ✓ 而且只在**高原之上**才叠 ✓✓
+		var n_ridge: FastNoiseLite = ns["ridge"]
+		var p := Hex.axial_to_pixel(c.x, c.y, 1.0)
+		var rv := n_ridge.get_noise_2d(p.x, p.y)
+		if rv > RIDGE_THRESHOLD:
+			var up := (rv - RIDGE_THRESHOLD) / (1.0 - RIDGE_THRESHOLD)      # 0~1 ✓
+			var inland := clampf((h - RIDGE_START) / 0.8, 0.0, 1.0)         # 越往高叠得越多 ✓
+			h += RIDGE_AMP * up * inland
+	return clampf(h, H_MIN, H_MAX)
+
+
+static func _moisture_at(c: Vector2i, ns: Dictionary) -> float:
+	var n_moist: FastNoiseLite = ns["moist"]
+	var p := Hex.axial_to_pixel(c.x, c.y, 1.0)
+	return (n_moist.get_noise_2d(p.x, p.y) + 1.0) * 0.5    # 0 ~ 1 ✓
 
 
 ## 取分位数（0~1）：返回值 v，使约 q 比例的格子 ≤ v ✓（排序 → 与遍历顺序无关 ✓）
@@ -155,3 +232,10 @@ static func _quantile(table: Dictionary, q: float) -> float:
 	vals.sort()
 	var i := clampi(int(floor(q * float(vals.size()))), 0, vals.size() - 1)
 	return vals[i]
+
+
+static func _radius_of(tiles: Dictionary) -> int:
+	var r := 0
+	for k in tiles.keys():
+		r = maxi(r, Hex.distance(TileManager.coord_of(str(k)), Vector2i.ZERO))
+	return r

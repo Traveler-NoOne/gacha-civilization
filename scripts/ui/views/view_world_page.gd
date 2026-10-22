@@ -64,7 +64,7 @@ func _build() -> void:
 	toolbar.add_child(UIKit.title("大世界", 16))
 	var b_center := UIKit.small("回到首都", 12)
 	b_center.pressed.connect(func() -> void:
-		map.center_on_axial(WorldGen.coord_of(str(GameState.state["capital"]))))
+		map.center_on_axial(TileManager.coord_of(str(GameState.state["capital"]))))
 	toolbar.add_child(b_center)
 	var b_fit := UIKit.small("重置缩放", 12)
 	b_fit.pressed.connect(func() -> void: map.reset_view())
@@ -77,7 +77,7 @@ func _build() -> void:
 	toolbar.add_child(b_axis)
 	var b_expand := UIKit.small("扩建地图（发展系统功能）", 12)
 	b_expand.pressed.connect(func() -> void:
-		var added := WorldGen.expand_map(GameState.state, 1)
+		var added := WorldgenBuilder.expand_map(GameState.state, 1)
 
 		if added > 0:
 			GameState.add_log("营地扩建：地图上限扩大，新增 %d 格。" % added, "world")
@@ -141,11 +141,11 @@ func _build() -> void:
 
 func _init_map() -> void:
 	if is_instance_valid(map):
-		map.center_on_axial(WorldGen.coord_of(str(GameState.state["capital"])))
+		map.center_on_axial(TileManager.coord_of(str(GameState.state["capital"])))
 		# 布局稳定后再居中一次，保证地图恰好落在可见区域中央
 		await get_tree().process_frame
 		await get_tree().process_frame
-		map.center_on_axial(WorldGen.coord_of(str(GameState.state["capital"])))
+		map.center_on_axial(TileManager.coord_of(str(GameState.state["capital"])))
 
 
 func _on_tile_clicked(key: String, uid: String, gpos: Vector2) -> void:
@@ -492,7 +492,7 @@ func _attack_targets(uid: String) -> Array[String]:
 	var from := str(u.get("tile", ""))
 	if from == "":
 		return out
-	var a := WorldGen.coord_of(from)
+	var a := TileManager.coord_of(from)
 	for d in Hex.DIRECTIONS:
 		var k := TileManager.key_of(a + d)
 		var t := GameState.tile_at(k)
