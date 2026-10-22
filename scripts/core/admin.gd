@@ -108,7 +108,7 @@ static func resource_breakdown(state: Dictionary, key: String) -> Dictionary:
 		if key == "currency":
 			for b in t.get("buildings", []):
 				if str(b.get("id", "")) == "classic_house":
-					building_out += GameState._housing_gold(int(b.get("level", 1)))
+					building_out += Derived.housing_gold(state, int(b.get("level", 1)))
 	if absf(building_out) > 0.0001:
 		inc.append({"label": "建筑产出", "amount": building_out})
 	if key == "production":
@@ -120,10 +120,10 @@ static func resource_breakdown(state: Dictionary, key: String) -> Dictionary:
 		inc.append({"label": "周期结算", "amount":
 			Consts.CRYSTAL_PER_CYCLE + Consts.CRYSTAL_PER_LEVEL * float(GameState.player_level())})
 	elif key == "cohesion":
-		var hp := GameState.happiness()
+		var hp := Derived.happiness(GameState.state)
 		inc.append({"label": "周期结算", "amount":
 			(Consts.COHESION_PER_CYCLE + Consts.COHESION_PER_HAPPINESS * hp)
-			* (1.0 + GameState.culture_rate() * Consts.COHESION_CULTURE_BONUS)})
+			* (1.0 + Derived.culture_rate(GameState.state) * Consts.COHESION_CULTURE_BONUS)})
 	elif key == "admin":
 		inc.append({"label": "行政基底", "amount": Consts.ADMIN_BASE_PER_CYCLE})
 		var buffs := 0.0

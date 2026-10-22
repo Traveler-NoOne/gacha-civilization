@@ -137,9 +137,9 @@ func _fill_resources() -> void:
 			if key == "pop":
 				# 人力不是产出资源：受住房上限约束（和资源栏的写法保持一致）
 				content_box.add_child(_row(label_text, "%d / %d" % [
-					int(GameState.state["pop_total"]), int(GameState.housing_capacity())]))
+					int(GameState.state["pop_total"]), int(Derived.housing_capacity(GameState.state))]))
 				content_box.add_child(_row("　已指派 / 空闲", "%d / %d" % [
-					int(GameState.assigned_pop()), int(GameState.free_pop())]))
+					int(Derived.assigned_pop(GameState.state)), int(Derived.free_pop(GameState.state))]))
 				continue
 			var cap := GameState.storage_cap(key)
 			var net := 0.0
@@ -176,7 +176,7 @@ func _fill_units() -> void:
 		else:
 			n_citizen += 1
 	content_box.add_child(_row("客人 / 公民", "%d / %d" % [n_guest, n_citizen]))
-	content_box.add_child(_row("空闲 / 已指派人力", "%d / %d" % [int(GameState.free_pop()), int(GameState.assigned_pop())]))
+	content_box.add_child(_row("空闲 / 已指派人力", "%d / %d" % [int(Derived.free_pop(GameState.state)), int(Derived.assigned_pop(GameState.state))]))
 	# 按职业
 	_section("按职业")
 	var by_prof := {}

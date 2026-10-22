@@ -406,7 +406,7 @@ const RECRUIT_COST := {"food": 20.0, "currency": 60.0}
 ## v1.8.3：把这套检查抽出来，好让"直接征兵"与"政事：征兵"两条路**共用同一份判定**
 ## （两处各写一遍的话，迟早一边改了另一边没改）。返回 "" 表示可以。
 static func recruit_blocked_reason(state: Dictionary, profession: String) -> String:
-	if GameState.free_pop() <= 0:
+	if Derived.free_pop(GameState.state) <= 0:
 		return "没有空闲人力"
 	if not UnitDB.PROFESSIONS.has(profession):
 		return "未知职业"

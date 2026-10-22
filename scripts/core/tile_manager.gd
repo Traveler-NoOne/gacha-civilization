@@ -234,8 +234,8 @@ static func can_clear(state: Dictionary, key: String) -> Dictionary:
 	if not _adjacent_to_player(state, key):
 		return {"ok": false, "why": "该地块不与你的领地相邻"}
 	var need := clear_requirement(t)
-	if GameState.player_force() < need:
-		return {"ok": false, "why": "战力不足：需要 %.0f，当前 %.0f" % [need, GameState.player_force()]}
+	if Derived.player_force(GameState.state) < need:
+		return {"ok": false, "why": "战力不足：需要 %.0f，当前 %.0f" % [need, Derived.player_force(GameState.state)]}
 	return {"ok": true, "why": ""}
 
 

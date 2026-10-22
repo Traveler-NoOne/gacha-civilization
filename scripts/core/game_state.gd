@@ -100,7 +100,7 @@ func new_game(seed_value: int = 0) -> void:
 	WorldgenBuilder.generate(state)
 	TileManager.setup_new_world(state)
 	Strongholds.setup_capital(state)
-	_recompute_derived()
+	Derived.recompute(state)
 	Units.grant_starting(state)
 	_add_log("建立部落，营地落在 %s。" % str(state["capital"]), "info")
 	_add_log("初始点亮营地周围 %d 格，其余被迷雾覆盖。" % (1 + 6 * Consts.CAMP_START_RADIUS), "info")
@@ -175,124 +175,8 @@ func cost_to_text(cost: Dictionary) -> String:
 
 
 # ===========================================================================
-# 派生数值
+# 地块收尾：清空一块敌方地块（击杀 / 清剿 / 作弊摧毁共用）
 # ===========================================================================
-func assigned_pop() -> int:
-	var n := 0
-	for t in TileManager.owned_tiles(state):
-		for b in t.get("buildings", []):
-			n += int(b.get("workers", 0))
-	return n
-
-
-func free_pop() -> int:
-	return maxi(0, int(state["pop_total"]) - assigned_pop())
-
-
-func housing_capacity() -> int:
-	# 基础住房 + 每块领地若干 + 民居等级
-	var cap := Consts.BASE_HOUSING + Consts.HOUSING_PER_TILE * TileManager.owned_tiles(state).size()
-	for t in TileManager.owned_tiles(state):
-		for b in t.get("buildings", []):
-			if b.get("id", "") == "classic_house":
-				cap += Consts.HOUSING_PER_HOUSE_LEVEL * int(b.get("level", 1))
-	return mini(cap, Consts.POP_HARD_CAP)
-
-
-func culture_rate() -> float:
-	var c := 0.0
-	for t in TileManager.owned_tiles(state):
-		for b in t.get("buildings", []):
-			var def := BuildingDB.find(b.get("id", ""))
-			if def == null:
-				continue
-			c += float(BuildingDB.meta_of(def, "culture", 0.0)) * float(b.get("level", 1))
-	return c
-
-
-## 幸福度是「基础 + 建筑 + 制度 - 民怨」
-func happiness() -> float:
-	var h := 50.0
-	for t in TileManager.owned_tiles(state):
-		for b in t.get("buildings", []):
-			var def := BuildingDB.find(b.get("id", ""))
-			if def == null:
-				continue
-			var lv := int(b.get("level", 1))
-			if def.id == "classic_house":
-				h += _housing_happiness(def, lv)
-			else:
-				h += def.happiness_now(lv)
-	# 人力过剩会不满（对应民居描述里的「人力停止增长」）
-	var over := assigned_pop()
-	if over > housing_capacity():
-		h -= 3.0 * float(over - housing_capacity())
-	# 粮食短缺
-	if res("food") <= 0.0:
-		h -= 15.0
-	return clampf(h, 0.0, 100.0)
-
-
-func _housing_happiness(def: BuildingDef, level: int) -> float:
-	var rng: Dictionary = BuildingDB.meta_of(def, "housing_ratio_happy", {"min": 10.0, "max": -10.0})
-	var t := _housing_ratio()
-	return lerpf(float(rng["min"]), float(rng["max"]), t) * float(level) / 5.0
-
-
-## 人力 / 住房比：0 = 房屋极少人力极多，1 = 房屋极多人手不足
-func _housing_ratio() -> float:
-	var cap := maxi(1, housing_capacity())
-	var ratio := float(state["pop_total"]) / float(cap)
-	return clampf(ratio, 0.0, 1.0)
-
-
-func player_force() -> float:
-	var f := float(state["pop_total"]) * Consts.FORCE_PER_POP
-	f += float(TileManager.owned_tiles(state).size()) * Consts.FORCE_PER_TILE
-	# v1.1：单位战力按「位阶倍率修正后的属性」换算，越精锐贡献越大
-	for u in state["units"]:
-		f += UnitDB.power_of(u)
-	for t in TileManager.owned_tiles(state):
-		for b in t.get("buildings", []):
-			var id: String = b.get("id", "")
-			if id == "classic_training_ground":
-				f += 4.0 * float(b.get("level", 1))
-	return f
-
-
-func enemy_force() -> float:
-	var f := 0.0
-	for t in TileManager.enemy_tiles(state):
-		f += float(t.get("force", Consts.WANDER_FORCE))
-	for _t in state["threats"]:
-		f += Consts.THREAT_FORCE
-	return f
-
-
-## 文档公式：稳定度
-##   ((玩家总战斗力 / 敌人总战斗力) * (空白格子数 / (空白格子数 + 1)))
-##   * (1 - (敌人数量 / 地图总格子数) * 0.5)
-func stability() -> float:
-	var pf := player_force()
-	var ef := enemy_force()
-	var ratio := 1.0
-	if ef > 0.0:
-		ratio = pf / ef
-	else:
-		ratio = 2.0   # 没有敌人时视为非常稳定
-	ratio = clampf(ratio, 0.0, 2.0)
-
-	var blank := float(TileManager.free_tiles(state).size())
-	var blank_factor := blank / (blank + 1.0)
-
-	var total_tiles := maxi(1, state["tiles"].size())
-	var enemy_count := float(TileManager.enemy_tiles(state).size() + state["threats"].size())
-	var pressure := 1.0 - (enemy_count / float(total_tiles)) * 0.5
-
-	var s := (ratio * blank_factor) * pressure
-	return clampf(s, 0.0, 1.0)
-
-
 ## v1.7：清空一块敌方地块（击杀 / 清剿 / 作弊摧毁共用同一份 teardown）。
 ## 以前这段在 4 个地方各写了一遍，口径已经漂移。返回"清空之前是否为终极威胁"，
 ## 便于调用方决定文案与威胁列表的处理。
@@ -317,17 +201,6 @@ func clear_enemy_tile(key: String) -> bool:
 	return was_threat
 
 
-## 首都民居按照「房屋比例」给金币
-func _housing_gold(level: int) -> float:
-	var def := BuildingDB.find("classic_house")
-	if def == null:
-		return 0.0
-	var rng: Dictionary = BuildingDB.meta_of(def, "housing_ratio_gold", {"min": 1.0, "max": 10.0})
-	# 人力越多（ratio 越小）-> 金币越多
-	var t := 1.0 - _housing_ratio()
-	return lerpf(float(rng["min"]), float(rng["max"]), t) * float(level)
-
-
 # ===========================================================================
 # 周期结算
 # ===========================================================================
@@ -338,8 +211,8 @@ func end_cycle() -> Dictionary:
 		"upkeep": {},
 		"pop_change": 0,
 		"events": [],
-		"happiness": happiness(),
-		"stability": stability(),
+		"happiness": Derived.happiness(state),
+		"stability": Derived.stability(state),
 	}
 
 	# 1. 建筑产出
@@ -352,7 +225,7 @@ func end_cycle() -> Dictionary:
 	for t in TileManager.owned_tiles(state):
 		for b in t.get("buildings", []):
 			if b.get("id", "") == "classic_house":
-				income["currency"] = float(income.get("currency", 0.0)) + _housing_gold(int(b.get("level", 1)))
+				income["currency"] = float(income.get("currency", 0.0)) + Derived.housing_gold(state, int(b.get("level", 1)))
 
 	# 2. 领地基础产出与建筑维护
 	var owned_list := TileManager.owned_tiles(state)
@@ -405,8 +278,8 @@ func end_cycle() -> Dictionary:
 	report["upkeep"] = upkeep
 
 	# 5. 人口增长（受幸福度与住房上限影响）
-	var happy := happiness()
-	var cap := housing_capacity()
+	var happy := Derived.happiness(state)
+	var cap := Derived.housing_capacity(state)
 	var growth := 0
 	if pop < cap:
 		var chance := 0.0
@@ -428,7 +301,7 @@ func end_cycle() -> Dictionary:
 	state["playtime"] = float(state.get("playtime", 0.0)) + 1.0
 
 	# 8. 稳定度过低会流失人力（保留保底人口与最低稳定度，避免死亡螺旋）
-	var st := stability()
+	var st := Derived.stability(state)
 	if st < 0.30 and int(state["pop_total"]) > Consts.POP_FLOOR and _rng.randf() < 0.5:
 		state["pop_total"] = maxi(Consts.POP_FLOOR, int(state["pop_total"]) - 1)
 		report["events"].append("稳定度 %.0f%%，人力流失。" % (st * 100.0))
@@ -451,9 +324,9 @@ func end_cycle() -> Dictionary:
 	Units.guest_leave_tick(state, _rng, report)
 	Units.reset_unit_moves(state)
 
-	_recompute_derived()
-	report["happiness"] = happiness()
-	report["stability"] = stability()
+	Derived.recompute(state)
+	report["happiness"] = Derived.happiness(state)
+	report["stability"] = Derived.stability(state)
 	_add_log("第 %d 周期结束：%s" % [report["cycle"], _report_line(income, upkeep, growth)], "cycle")
 	for e in report["events"]:
 		_add_log(e, "warn")
@@ -495,8 +368,8 @@ func settle_gacha_currency(report: Dictionary) -> void:
 	var lv := player_level()
 	var crystal := Consts.CRYSTAL_PER_CYCLE + Consts.CRYSTAL_PER_LEVEL * float(lv)
 	add_res("order_crystal", crystal)
-	var hp := happiness()
-	var culture := culture_rate()
+	var hp := Derived.happiness(state)
+	var culture := Derived.culture_rate(state)
 	var cohesion := (Consts.COHESION_PER_CYCLE + Consts.COHESION_PER_HAPPINESS * hp) \
 		* (1.0 + culture * Consts.COHESION_CULTURE_BONUS)
 	# v1.5：未招募的客人也会提供一点凝聚力
@@ -505,11 +378,6 @@ func settle_gacha_currency(report: Dictionary) -> void:
 	add_res("cohesion", cohesion)
 	report["income"]["order_crystal"] = float(report["income"].get("order_crystal", 0.0)) + crystal
 	report["income"]["cohesion"] = float(report["income"].get("cohesion", 0.0)) + cohesion
-
-
-func _recompute_derived() -> void:
-	# 当前没有需要缓存的重型派生量，占位以便后续扩展
-	pass
 
 
 ## 系统自动创建的任务组与任务（文档说这些不能被玩家删除）

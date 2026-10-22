@@ -72,7 +72,7 @@ static func request_build(state: Dictionary, tile_key: String, id: String) -> Di
 	}
 	var queued := _enqueue(state, item, tile_key)
 	GameState.add_log("%s：%s" % ["已加入规划队列" if queued else "建造", def.display_name], "build")
-	GameState._recompute_derived()
+	Derived.recompute(GameState.state)
 	GameState.state_changed.emit()
 	return {"ok": true, "why": "", "queued": queued}
 
@@ -106,7 +106,7 @@ static func _request_upgrade_instance(state: Dictionary, tile_key: String, b: Di
 	var queued := _enqueue(state, item, tile_key)
 	GameState.add_log("%s → Lv.%d：%s" % [def.display_name, target,
 		"已加入规划队列" if queued else "升级完成"], "build")
-	GameState._recompute_derived()
+	Derived.recompute(GameState.state)
 	GameState.state_changed.emit()
 	return {"ok": true, "why": "", "queued": queued}
 
@@ -253,10 +253,10 @@ static func _assign_worker_instance(state: Dictionary, b: Dictionary, delta: int
 	if delta > 0:
 		if cur >= cap:
 			return {"ok": false, "why": "已达该等级人力上限（%d）" % cap}
-		if GameState.free_pop() <= 0:
+		if Derived.free_pop(GameState.state) <= 0:
 			return {"ok": false, "why": "没有空闲人力"}
 	b["workers"] = clampi(cur + delta, 0, cap)
-	GameState._recompute_derived()
+	Derived.recompute(GameState.state)
 	GameState.state_changed.emit()
 	return {"ok": true, "why": ""}
 

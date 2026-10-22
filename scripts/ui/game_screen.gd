@@ -443,11 +443,11 @@ func _refresh() -> void:
 	_fill_group(concrete_box, Consts.RES_CONCRETE, 5, true)
 
 	cycle_label.text = "周期 %d" % int(GameState.state["cycle"])
-	var st := GameState.stability()
-	var hp := GameState.happiness()
+	var st := Derived.stability(GameState.state)
+	var hp := Derived.happiness(GameState.state)
 	var iv := GameState.autosave_interval()
 	detail_label.text = "幸福度 %.0f　文化率 %.2f　稳定度 %.0f%%　地块 %d(我) / %d(敌) / %d(无主)　卡组 %s　自动存档 每%d周期" % [
-		hp, GameState.culture_rate(), st * 100.0,
+		hp, Derived.culture_rate(GameState.state), st * 100.0,
 		TileManager.owned_tiles(GameState.state).size(), TileManager.enemy_tiles(GameState.state).size(),
 		TileManager.free_tiles(GameState.state).size(), str(GameState.state.get("active_group", "")),
 		iv,
@@ -543,10 +543,10 @@ func _show_res_info(key: String, rect: Rect2) -> void:
 	v.add_child(UIKit.title("%s · 每周期收支" % Consts.res_name(key), 14))
 	if key == "pop":
 		v.add_child(UIKit.dim("人力不是产出资源，受住房上限约束。"))
-		var cap := GameState.housing_capacity()
+		var cap := Derived.housing_capacity(GameState.state)
 		v.add_child(_break_row("住房上限", float(cap)))
-		v.add_child(_break_row("已指派", float(GameState.assigned_pop())))
-		v.add_child(_break_row("空闲", float(GameState.free_pop())))
+		v.add_child(_break_row("已指派", float(Derived.assigned_pop(GameState.state))))
+		v.add_child(_break_row("空闲", float(Derived.free_pop(GameState.state))))
 	else:
 		var bd: Dictionary = Admin.resource_breakdown(GameState.state, key)
 		var inc: Array = bd["income"]

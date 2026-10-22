@@ -31,7 +31,7 @@ static func pool_cost(p: int) -> Dictionary:
 
 ## 抽卡限制检查
 static func check(state: Dictionary, p: int) -> Dictionary:
-	var st := GameState.stability()
+	var st := Derived.stability(GameState.state)
 	if st < Consts.STABILITY_MIN_BLOCK:
 		return {"ok": false, "why": "稳定度仅 %.0f%%，低于 10%%，无法进行世界泡操作" % (st * 100.0)}
 	var free := TileManager.free_tiles(GameState.state).size()
