@@ -72,7 +72,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 			GameState.toast.emit("货币不足")
 			return
 		GameState.add_res("currency", -80.0)
-		var r := GameState.gain_exp(str(u["uid"]), 15, "combat")
+		var r := Units.gain_exp(GameState.state, str(u["uid"]), 15, "combat")
 		GameState.toast.emit("获得经验 %d（%d/%d）" % [int(r.get("gain", 0)),
 			int(r.get("exp", 0)), int(r.get("cap", 0))] if r["ok"] else str(r["why"]))
 		on_changed.call())
@@ -87,7 +87,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		else:
 			prom.tooltip_text = "经验未满（%d/%d）" % [exp, cap]
 	prom.pressed.connect(func() -> void:
-		var r := GameState.promote_unit(str(u["uid"]))
+		var r := Units.promote_unit(GameState.state, str(u["uid"]))
 		if not r["ok"]:
 			GameState.toast.emit(str(r["why"]))
 		else:

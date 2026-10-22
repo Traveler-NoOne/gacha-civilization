@@ -27,7 +27,7 @@ static func balance_lines(state: Dictionary) -> Array[float]:
 	inc["food"] = float(inc.get("food", 0.0)) \
 		- Consts.FOOD_UPKEEP_PER_POP * float(state["pop_total"])
 	# 单位维护费也算进当期收支（否则收支项判定会与真实收支不符）
-	var tot2 := GameState.units_upkeep_total()
+	var tot2 := Units.units_upkeep_total(GameState.state)
 	inc["food"] = float(inc.get("food", 0.0)) - float(tot2["food"])
 	inc["currency"] = float(inc.get("currency", 0.0)) - float(tot2["currency"])
 	var lines: Array[float] = []
@@ -153,11 +153,11 @@ static func resource_breakdown(state: Dictionary, key: String) -> Dictionary:
 		var fup := Consts.FOOD_UPKEEP_PER_POP * float(state["pop_total"])
 		if fup > 0.0001:
 			upk.append({"label": "人口维护", "amount": -fup})
-		var uf := float(GameState.units_upkeep_total()["food"])
+		var uf := float(Units.units_upkeep_total(GameState.state)["food"])
 		if uf > 0.0001:
 			upk.append({"label": "单位维护", "amount": -uf})
 	elif key == "currency":
-		var um := float(GameState.units_upkeep_total()["currency"])
+		var um := float(Units.units_upkeep_total(GameState.state)["currency"])
 		if um > 0.0001:
 			upk.append({"label": "单位维护", "amount": -um})
 	return {"income": inc, "upkeep": upk}

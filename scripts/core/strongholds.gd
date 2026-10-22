@@ -81,3 +81,19 @@ static func new_bid() -> String:
 ## 掌控力（预留接口：只保留数据结构与骨架，本版不接行为）✓
 static func control_of(stronghold: Dictionary) -> float:
 	return float(stronghold.get("control", 1.0))
+
+
+## 地块掌控力 = 该地块所属据点的 control ✓
+## v1.5：据点 control 仍恒 1.0（衰减留待后续），所以门槛先挂着、暂不拦人 ✓
+static func tile_control(state: Dictionary, key: String) -> float:
+	var t := TileManager.tile_at(state, key)
+	if t.is_empty():
+		return 0.0
+	var sid := str(t.get("stronghold", ""))
+	if sid == "":
+		return 0.0
+	return control_of(by_id(state, sid))
+
+
+static func control_ok(state: Dictionary, key: String) -> bool:
+	return tile_control(state, key) >= Consts.CONTROL_SELF_OPERATE

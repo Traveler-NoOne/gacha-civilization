@@ -227,7 +227,7 @@ func _refresh_list() -> void:
 		return
 	for u in units:
 		list_box.add_child(_unit_row(u))
-	if selected_id == "" or GameState.unit_by_uid(selected_id).is_empty():
+	if selected_id == "" or Units.unit_by_uid(GameState.state, selected_id).is_empty():
 		if not units.is_empty():
 			selected_id = str(units[0]["uid"])
 		else:
@@ -295,7 +295,7 @@ func _unit_row(u: Dictionary) -> Control:
 
 
 func _selected() -> Dictionary:
-	return GameState.unit_by_uid(selected_id)
+	return Units.unit_by_uid(GameState.state, selected_id)
 
 
 func _refresh_portrait() -> void:
@@ -346,7 +346,7 @@ func _refresh_status_actions(u: Dictionary) -> void:
 	var b_recruit := UIKit.primary("招募", 13)
 	b_recruit.tooltip_text = "接受招募后成为公民，需要在世界系统里选一块领地进行部署"
 	b_recruit.pressed.connect(func() -> void:
-		var r := GameState.begin_recruit(uid)
+		var r := Units.begin_recruit(GameState.state, uid)
 		if not bool(r["ok"]):
 			GameState.toast.emit(str(r["why"]))
 			return
@@ -357,7 +357,7 @@ func _refresh_status_actions(u: Dictionary) -> void:
 	var b_dismiss := UIKit.normal("遣返", 13)
 	b_dismiss.tooltip_text = "把他送回自己的世界（从库存中移除）"
 	b_dismiss.pressed.connect(func() -> void:
-		var r := GameState.dismiss_guest(uid)
+		var r := Units.dismiss_guest(GameState.state, uid)
 		if not bool(r["ok"]):
 			GameState.toast.emit(str(r["why"]))
 			return

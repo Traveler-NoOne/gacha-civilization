@@ -11,7 +11,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 
 	# 基础属性 vs 位阶修正后的实际战斗属性
 	var base: Dictionary = u.get("attr", {})
-	var eff: Dictionary = GameState.unit_combat_attr(u)
+	var eff: Dictionary = Units.unit_combat_attr(GameState.state, u)
 	var mul := UnitDB.rank_multiplier(str(u.get("rank", "")), UnitDB.progress_of(u))
 	var names := {
 		"atk": "攻击力", "def": "防御力", "hp": "生命值",

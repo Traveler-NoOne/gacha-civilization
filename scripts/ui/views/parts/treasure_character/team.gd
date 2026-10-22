@@ -15,7 +15,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	for i in teams.size():
 		var idx := i
 		var team: Dictionary = teams[i]
-		var members := GameState.team_units(idx)
+		var members := Units.team_units(GameState.state, idx)
 		var pane := UIKit.panel(UIKit.BG_PANEL_2,
 			UIKit.GOLD if idx == cur_team else UIKit.LINE_SOFT, 6)
 		pane.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -43,15 +43,15 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 			mr.add_child(ml)
 			var x := UIKit.tiny("✕", 10, true)
 			x.pressed.connect(func() -> void:
-				GameState.remove_from_team(str(m["uid"]))
+				Units.remove_from_team(GameState.state, str(m["uid"]))
 				on_changed.call())
 			mr.add_child(x)
 		var join := UIKit.small("加入此队" if idx != cur_team else "退出队伍", 11)
 		join.pressed.connect(func() -> void:
 			if idx == cur_team:
-				GameState.remove_from_team(uid)
+				Units.remove_from_team(GameState.state, uid)
 			else:
-				var r := GameState.assign_team(uid, idx)
+				var r := Units.assign_team(GameState.state, uid, idx)
 				if not r["ok"]:
 					GameState.toast.emit(str(r["why"]))
 			on_changed.call())
@@ -71,7 +71,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	var shown := 0
 	for t in own:
 		var key := TileManager.tile_key(t)
-		var on_tile := GameState.units_on_tile(key)
+		var on_tile := Units.units_on_tile(GameState.state, key)
 		var is_here := key == cur_tile
 		var row := PanelContainer.new()
 		UIKit.apply_panel(row, UIKit.BG_PANEL_2, UIKit.GOLD if is_here else UIKit.LINE_SOFT, 5)
@@ -88,7 +88,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		if is_here:
 			var wb := UIKit.small("撤回", 11)
 			wb.pressed.connect(func() -> void:
-				GameState.withdraw_unit(uid)
+				Units.withdraw_unit(GameState.state, uid)
 				on_changed.call())
 			h.add_child(wb)
 		else:
@@ -97,7 +97,7 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 			if db.disabled:
 				db.tooltip_text = "该地块已驻满"
 			db.pressed.connect(func() -> void:
-				var r := GameState.deploy_unit(uid, key)
+				var r := Units.deploy_unit(GameState.state, uid, key)
 				if not r["ok"]:
 					GameState.toast.emit(str(r["why"]))
 				on_changed.call())

@@ -227,7 +227,7 @@ func unit_icon_positions(key: String) -> Array:
 	# 敌方地块不画单位标记，所以也没有可点的图标
 	if TileManager.tile_at(GameState.state, key).get("owner", Consts.Owner.NONE) == Consts.Owner.ENEMY:
 		return out
-	var units := GameState.units_on_tile(key)
+	var units := Units.units_on_tile(GameState.state, key)
 	var n := units.size()
 	if n == 0:
 		return out

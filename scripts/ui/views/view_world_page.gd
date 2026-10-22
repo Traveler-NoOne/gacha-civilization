@@ -219,7 +219,7 @@ func refresh() -> void:
 	if not is_instance_valid(map):
 		return
 	# v1.5：从至宝点「招募」跳过来时，自动进入选地模式
-	var pr := GameState.pending_recruit_uid()
+	var pr := Units.pending_recruit_uid(GameState.state)
 	if pr != "" and pick_mode == "":
 		pick_mode = "recruit"
 		pick_unit = pr
@@ -236,7 +236,7 @@ func refresh() -> void:
 func _refresh_marks() -> void:
 	map.marks.clear()
 	if pick_mode == "recruit":
-		for k in GameState.deployable_keys():
+		for k in Units.deployable_keys(GameState.state):
 			map.marks[k] = Color(0.55, 0.95, 0.65)
 		if pending_tile != "":
 			map.marks[pending_tile] = UIKit.GOLD
@@ -486,7 +486,7 @@ func _move_targets(uid: String) -> Array[String]:
 
 func _attack_targets(uid: String) -> Array[String]:
 	var out: Array[String] = []
-	var u := GameState.unit_by_uid(uid)
+	var u := Units.unit_by_uid(GameState.state, uid)
 	if u.is_empty() or int(u.get("move_left", 0)) <= 0:
 		return out
 	var from := str(u.get("tile", ""))
@@ -503,7 +503,7 @@ func _attack_targets(uid: String) -> Array[String]:
 
 func _pick_tile(key: String) -> void:
 	if pick_mode == "recruit":
-		if not GameState.deployable_keys().has(key):
+		if not Units.deployable_keys(GameState.state).has(key):
 			GameState.toast.emit("该地块不可部署（已驻满或掌控力不足），请另选")
 			return
 		pending_tile = key
@@ -536,20 +536,20 @@ func _end_pick() -> void:
 
 ## 招募取消：客人保持客人（不做任何转换）
 func _cancel_recruit() -> void:
-	GameState.cancel_recruit()
+	Units.cancel_recruit(GameState.state)
 	_end_pick()
 
 
 ## 招募确认：唯一的状态转换点
 func _confirm_recruit() -> void:
-	var uid := GameState.pending_recruit_uid()
+	var uid := Units.pending_recruit_uid(GameState.state)
 	if uid == "":
 		GameState.toast.emit("没有待招募的客人")
 		return
 	if pending_tile == "":
 		GameState.toast.emit("请先点选一块高亮的领地进行部署")
 		return
-	var r := GameState.confirm_recruit(uid, pending_tile)
+	var r := Units.confirm_recruit(GameState.state, uid, pending_tile)
 	if not bool(r["ok"]):
 		GameState.toast.emit(str(r["why"]))
 		return
@@ -564,7 +564,7 @@ func _refresh_unit_strip() -> void:
 		c.queue_free()
 	var units: Array = []
 	if selected != "":
-		for u in GameState.units_on_tile(selected):
+		for u in Units.units_on_tile(GameState.state, selected):
 			if UnitDB.is_citizen(u):
 				units.append(u)
 	unit_strip.visible = units.size() >= 2
@@ -591,7 +591,7 @@ func _refresh_unit_panel() -> void:
 		c.queue_free()
 	if pick_mode == "recruit":
 		unit_panel.visible = true
-		var gu := GameState.unit_by_uid(pick_unit)
+		var gu := Units.unit_by_uid(GameState.state, pick_unit)
 		unit_panel_box.add_child(UIKit.title("招募 · 部署", 13))
 		var info := UIKit.dim("客人：%s\n点选绿色高亮的领地，然后确认。" % str(gu.get("name", "?")), 11)
 		info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -616,7 +616,7 @@ func _refresh_unit_panel() -> void:
 		cb2.pressed.connect(func() -> void: _end_pick())
 		unit_panel_box.add_child(cb2)
 		return
-	var u := GameState.unit_by_uid(sel_uid)
+	var u := Units.unit_by_uid(GameState.state, sel_uid)
 	if sel_uid == "" or u.is_empty():
 		unit_panel.visible = false
 		return
@@ -640,7 +640,7 @@ func _refresh_unit_panel() -> void:
 		"　［驻军中］" if garrisoned else ""], 10))
 	col.add_child(UIKit.text_label("攻击 %.0f　血量 %d / %d　移动力 %d / %d" % [
 		float(eff.get("atk", 0.0)), int(u.get("hp", 0)), UnitDB.max_hp(u),
-		int(u.get("move_left", 0)), GameState.max_move(u)], 11, UIKit.TEXT))
+		int(u.get("move_left", 0)), Units.max_move(GameState.state, u)], 11, UIKit.TEXT))
 	var row2 := HBoxContainer.new()
 	row2.add_theme_constant_override("separation", UI.fs(6))
 	var no_act := int(u.get("move_left", 0)) <= 0 or garrisoned
@@ -667,7 +667,7 @@ func _refresh_unit_panel() -> void:
 	bg.tooltip_text = ("解除驻军后才能移动 / 攻击" if garrisoned
 		else "驻军：维护费打折（领地内 −60% / 领地外 −10%），但不能移动或攻击")
 	bg.pressed.connect(func() -> void:
-		var r := GameState.toggle_garrison(sel_uid)
+		var r := Units.toggle_garrison(GameState.state, sel_uid)
 		if not bool(r["ok"]):
 			GameState.toast.emit(str(r["why"]))
 		_refresh_marks()
@@ -679,7 +679,7 @@ func _refresh_unit_panel() -> void:
 ## 离开世界页 = 放弃招募（客人保持客人，不做任何转换）
 func _on_visibility_changed() -> void:
 	if not visible and pick_mode == "recruit":
-		GameState.cancel_recruit()
+		Units.cancel_recruit(GameState.state)
 		_end_pick()
 
 

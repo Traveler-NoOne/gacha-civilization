@@ -252,7 +252,7 @@ static func _apply_card(state: Dictionary, c: Dictionary) -> void:
 			# v1.5：召唤来的角色以「客人」身份进入至宝
 			var nu := UnitDB.from_card(c)
 			nu["acquired_cycle"] = int(state["cycle"])
-			nu["move_left"] = GameState.max_move(nu)
+			nu["move_left"] = Units.max_move(GameState.state, nu)
 			units.append(nu)
 		"weapon", "relic":
 			var eq: Array = state["equipment"]

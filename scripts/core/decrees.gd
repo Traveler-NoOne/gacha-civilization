@@ -11,7 +11,7 @@ static func blocked_reason(state: Dictionary, id: String) -> String:
 	if not DecreeDB.exists(id):
 		return "没有这条政事"
 	if id == DecreeDB.RECRUIT:
-		return GameState.recruit_blocked_reason(UnitDB.MELEE)
+		return Units.recruit_blocked_reason(GameState.state, UnitDB.MELEE)
 	return ""
 
 
@@ -65,7 +65,7 @@ static func _execute(state: Dictionary, item: Dictionary) -> void:
 	var id := str(item.get("id", ""))
 	var paid := float(item.get("paid", 0.0))
 	if id == DecreeDB.RECRUIT:
-		var r := GameState.recruit_soldier(str(item.get("profession", UnitDB.MELEE)))
+		var r := Units.recruit_soldier(GameState.state, str(item.get("profession", UnitDB.MELEE)))
 		if bool(r["ok"]):
 			GameState.add_log("政事「征兵」完成：%s 进驻首都。" % str((r["unit"] as Dictionary).get("name", "")), "admin")
 		else:
