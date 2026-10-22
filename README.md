@@ -235,9 +235,20 @@ art/                              美术素材（codeart2d 代码绘制，14 格
 scripts/
   core/
     app_settings.gd               Autoload 单例：全局设置（作弊开关 / 自动存档周期 / 分辨率 / 全屏），存 user://settings.cfg
-    game_state.gd                 Autoload 单例：存档状态、周期结算、建筑、科技、存读档
-    ui_scale.gd                  Autoload 单例（名 UI）：**UI 尺寸词典** —— 所有尺寸与字号都从这里取
-    world_gen.gd（已删）            旧生成器，2026-10-22 换代时删除；现在只有 scripts/worldgen/builder.gd
+    game_state.gd                 Autoload 单例：**只**持有 state + 两个信号 + 开新档 / 装读档（2026-10-22 解耦后剩 ~190 行）
+    ui_scale.gd                   Autoload 单例（名 UI）：**UI 尺寸词典** —— 所有尺寸与字号都从这里取
+    resources.gd                  资源：读 / 加 / 存储上限 / 支付 / 花费文案（上限夹取只在这里生效）
+    derived.gd                    派生数值：人口 / 住房 / 幸福度 / 文化率 / 双方战力 / 稳定度
+    techs.gd                      科技：查名 / 解锁判定 / 研究
+    strongholds.gd                据点：据点表、据点地块、可用土地、掌控力门槛
+    buildings.gd                  建筑：实例查询 / 修建与升级（即时或规划队列）/ 人力指派 / 产出预览
+    decrees.gd                    政事队列（吃行政点数；第一条是征兵）
+    admin.gd                      行政点数收支与限时 buff / 收支明细
+    units.gd                      单位：仓库 / 派驻 / 编队 / 招募 / 维护费 / 经验晋升 / 客人
+    combat.gd                     战斗：通行 / 移动 / 可达格 / 攻击 / 结算
+    cycle.gd                      周期结算：一次「结束周期」的全部十步
+    journal.gd                    日志：写 state["log"] / manual_log
+    save.gd                       存档槽：路径 / 摘要 / 写 / 读（版本不符直接删档）/ 删 / 自动存档
     tile_manager.gd               地块的读 / 改（归属、迷雾、扩张、清剿、资源点、首都初始化；地块键 ↔ 坐标）
     threats.gd                    敌人：高危据点刷怪、游荡移动、终极威胁推进、破坏地块
     cheat.gd                      作弊开关（配合顶部红色「作弊」按钮）
