@@ -480,8 +480,8 @@ func _add_chip(row: HBoxContainer, key: String, label_text: String, color: Color
 	if key == "pop":
 		value = float(GameState.state["pop_total"])
 	else:
-		value = GameState.res(key)
-		cap = GameState.storage_cap(key)
+		value = Res.amount(GameState.state, key)
+		cap = Res.storage_cap(GameState.state, key)
 	var chip := PanelContainer.new()
 	UIKit.apply_panel(chip, Color(0.12, 0.12, 0.17), Color(color.r, color.g, color.b, 0.45), 4)
 	var h := HBoxContainer.new()

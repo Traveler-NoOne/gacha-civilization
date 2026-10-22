@@ -194,9 +194,9 @@ static func claim(state: Dictionary, key: String) -> Dictionary:
 	if not claimable_keys(state).has(key):
 		return {"ok": false, "why": "该地块不与你的领地相邻"}
 	var cost := {"admin": claim_cost(state)}
-	if not GameState.can_afford(cost):
+	if not Res.can_afford(GameState.state, cost):
 		return {"ok": false, "why": "行政点数不足（需要 %.0f）" % float(cost["admin"])}
-	GameState.pay(cost)
+	Res.pay(GameState.state, cost)
 	t["owner"] = Consts.Owner.PLAYER
 	t["force"] = 0.0
 	t["danger"] = false

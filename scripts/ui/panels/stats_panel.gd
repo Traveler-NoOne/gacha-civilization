@@ -141,7 +141,7 @@ func _fill_resources() -> void:
 				content_box.add_child(_row("　已指派 / 空闲", "%d / %d" % [
 					int(Derived.assigned_pop(GameState.state)), int(Derived.free_pop(GameState.state))]))
 				continue
-			var cap := GameState.storage_cap(key)
+			var cap := Res.storage_cap(GameState.state, key)
 			var net := 0.0
 			for e in (Admin.resource_breakdown(GameState.state, key)["income"] as Array):
 				net += float(e["amount"])
@@ -152,7 +152,7 @@ func _fill_resources() -> void:
 			var l := UIKit.text_label(label_text, 11, UIKit.TEXT_DIM)
 			l.custom_minimum_size = Vector2(UI.px(74), UI.px(0))
 			h.add_child(l)
-			h.add_child(UIKit.text_label(("%s / %s" % [UIKit.fmt_num(GameState.res(key)), UIKit.fmt_num(cap)]) if cap >= 0.0 else UIKit.fmt_num(GameState.res(key)), 12, UIKit.TEXT))
+			h.add_child(UIKit.text_label(("%s / %s" % [UIKit.fmt_num(Res.amount(GameState.state, key)), UIKit.fmt_num(cap)]) if cap >= 0.0 else UIKit.fmt_num(Res.amount(GameState.state, key)), 12, UIKit.TEXT))
 			var sp := Control.new()
 			sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			h.add_child(sp)

@@ -119,8 +119,8 @@ func _row(def: BuildingDef, t: Dictionary) -> Control:
 		head.add_child(UIKit.text_label("已有 ×%d" % count, 10, UIKit.OK))
 
 	var cost := def.upgrade_cost(1)
-	var can_now := GameState.res("production") >= float(cost.get("production", 0.0))
-	v.add_child(UIKit.dim("消耗 %s%s" % [GameState.cost_to_text(cost),
+	var can_now := Res.amount(GameState.state, "production") >= float(cost.get("production", 0.0))
+	v.add_child(UIKit.dim("消耗 %s%s" % [Res.cost_text(cost),
 		"" if can_now else "（生产力不足，将进入队列）"], 10))
 
 	if sel:
@@ -153,7 +153,7 @@ func _update_build_btn(t: Dictionary) -> void:
 	build_btn.disabled = not bool(chk["ok"])
 	build_btn.tooltip_text = "" if bool(chk["ok"]) else str(chk["why"])
 	# 生产力够就叫「修建」，不够就叫「加入队列」（沿用旧面板的说法）
-	var can_now := GameState.res("production") >= float(def.upgrade_cost(1).get("production", 0.0))
+	var can_now := Res.amount(GameState.state, "production") >= float(def.upgrade_cost(1).get("production", 0.0))
 	build_btn.text = "修建" if can_now else "加入队列"
 
 

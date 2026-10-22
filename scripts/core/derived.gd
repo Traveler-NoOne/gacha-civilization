@@ -56,7 +56,7 @@ static func happiness(state: Dictionary) -> float:
 	if over > housing_capacity(state):
 		h -= 3.0 * float(over - housing_capacity(state))
 	# 粮食短缺
-	if GameState.res("food") <= 0.0:
+	if Res.amount(GameState.state, "food") <= 0.0:
 		h -= 15.0
 	return clampf(h, 0.0, 100.0)
 

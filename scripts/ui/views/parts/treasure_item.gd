@@ -60,7 +60,7 @@ func refresh() -> void:
 	detail.add_child(g)
 	for k in Consts.RES_KEYS:
 		g.add_child(UIKit.dim(Consts.res_name(k), 12))
-		g.add_child(UIKit.text_label(UIKit.fmt_num(GameState.res(k)), 12, UIKit.TEXT))
+		g.add_child(UIKit.text_label(UIKit.fmt_num(Res.amount(GameState.state, k)), 12, UIKit.TEXT))
 	detail.add_child(UIKit.spacer(6))
 	var note := UIKit.dim("说明：材料用于发展营地与养成角色。\n某一组内角色的高级材料，只有在「轮换」处于该卡组期间，才能在资源页抽出。", 11)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

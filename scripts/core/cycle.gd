@@ -55,24 +55,24 @@ static func end_cycle(state: Dictionary, rng: RandomNumberGenerator) -> Dictiona
 	var prod_upk := float(upkeep.get("production", 0.0))
 	for k in income.keys():
 		if str(k) != "production":
-			GameState.add_res(k, float(income[k]))
+			Res.add(GameState.state, k, float(income[k]))
 	for k in upkeep.keys():
 		if str(k) != "production":
-			GameState.add_res(k, -float(upkeep[k]))
+			Res.add(GameState.state, k, -float(upkeep[k]))
 	var prod_avail := prod_in - prod_upk
 	if prod_avail < 0.0:
 		var short := -prod_avail
-		GameState.add_res("currency", -short * 2.0)
+		Res.add(GameState.state, "currency", -short * 2.0)
 		report["events"].append("生产力不足，用货币抵付维护 %.0f" % short)
 		prod_avail = 0.0
 	var leftover := Buildings.process_queue(state, prod_avail)
-	var room := maxf(0.0, Consts.PRODUCTION_STORE_CAP - GameState.res("production"))
+	var room := maxf(0.0, Consts.PRODUCTION_STORE_CAP - Res.amount(GameState.state, "production"))
 	var added := minf(leftover, room)
 	if added > 0.0:
-		GameState.add_res("production", added)
+		Res.add(GameState.state, "production", added)
 	# 夹取（含被外部直接赋值超过上限的情况）
-	if GameState.res("production") > Consts.PRODUCTION_STORE_CAP:
-		GameState.add_res("production", -(GameState.res("production") - Consts.PRODUCTION_STORE_CAP))
+	if Res.amount(GameState.state, "production") > Consts.PRODUCTION_STORE_CAP:
+		Res.add(GameState.state, "production", -(Res.amount(GameState.state, "production") - Consts.PRODUCTION_STORE_CAP))
 	if leftover - added > 0.001:
 		report["events"].append("生产力盈余超出存储上限（%d），%.1f 点作废。" % [
 			int(Consts.PRODUCTION_STORE_CAP), leftover - added])
@@ -86,11 +86,11 @@ static func end_cycle(state: Dictionary, rng: RandomNumberGenerator) -> Dictiona
 	var growth := 0
 	if pop < cap:
 		var chance := 0.0
-		if GameState.res("food") > 10.0:
+		if Res.amount(GameState.state, "food") > 10.0:
 			chance = 0.35 + (happy - 50.0) * 0.004
 		if rng.randf() < clampf(chance, 0.0, 0.95):
 			growth = 1
-	if GameState.res("food") <= 0.0 and pop > 1 and rng.randf() < 0.5:
+	if Res.amount(GameState.state, "food") <= 0.0 and pop > 1 and rng.randf() < 0.5:
 		growth = -1
 		report["events"].append("食物耗尽，有人离开了部落。")
 	state["pop_total"] = clampi(pop + growth, 1, Consts.POP_HARD_CAP)
@@ -170,7 +170,7 @@ static func player_level(state: Dictionary) -> int:
 static func settle_gacha_currency(state: Dictionary, report: Dictionary) -> void:
 	var lv := player_level(state)
 	var crystal := Consts.CRYSTAL_PER_CYCLE + Consts.CRYSTAL_PER_LEVEL * float(lv)
-	GameState.add_res("order_crystal", crystal)
+	Res.add(GameState.state, "order_crystal", crystal)
 	var hp := Derived.happiness(state)
 	var culture := Derived.culture_rate(state)
 	var cohesion := (Consts.COHESION_PER_CYCLE + Consts.COHESION_PER_HAPPINESS * hp) \
@@ -178,6 +178,6 @@ static func settle_gacha_currency(state: Dictionary, report: Dictionary) -> void
 	# v1.5：未招募的客人也会提供一点凝聚力
 	var guest_coh := Consts.GUEST_COHESION_PER_CYCLE * float(Units.guest_units(state).size())
 	cohesion += guest_coh
-	GameState.add_res("cohesion", cohesion)
+	Res.add(GameState.state, "cohesion", cohesion)
 	report["income"]["order_crystal"] = float(report["income"].get("order_crystal", 0.0)) + crystal
 	report["income"]["cohesion"] = float(report["income"].get("cohesion", 0.0)) + cohesion

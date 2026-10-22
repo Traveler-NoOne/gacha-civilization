@@ -51,7 +51,7 @@ static func settle(state: Dictionary, report: Dictionary) -> void:
 	var lines_delta := Consts.ADMIN_PER_POSITIVE_LINE * float(pos) \
 		- Consts.ADMIN_PER_NEGATIVE_LINE * float(neg)
 	var income := maxf(0.0, base + buffs + lines_delta)
-	GameState.add_res("admin", income)
+	Res.add(GameState.state, "admin", income)
 	# 计时递减 + 清理过期项
 	var kept: Array = []
 	for e in state.get("admin_effects", []):

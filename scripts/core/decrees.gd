@@ -69,8 +69,8 @@ static func _execute(state: Dictionary, item: Dictionary) -> void:
 		if bool(r["ok"]):
 			GameState.add_log("政事「征兵」完成：%s 进驻首都。" % str((r["unit"] as Dictionary).get("name", "")), "admin")
 		else:
-			GameState.add_res("admin", paid)
+			Res.add(GameState.state, "admin", paid)
 			GameState.add_log("政事「征兵」未能执行（%s），已退还行政点数 %.1f。" % [str(r["why"]), paid], "admin")
 	else:
-		GameState.add_res("admin", paid)
+		Res.add(GameState.state, "admin", paid)
 		GameState.add_log("未知政事「%s」，已退还行政点数 %.1f。" % [id, paid], "admin")

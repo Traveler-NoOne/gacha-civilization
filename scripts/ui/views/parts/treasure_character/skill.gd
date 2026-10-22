@@ -37,10 +37,10 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 		sv.add_child(UIKit.text_label("· %s Lv.%d" % [str(s.get("name", "?")), int(s.get("level", 1))], 12))
 	var add := UIKit.small("训练一次（消耗货币 200）", 12)
 	add.pressed.connect(func() -> void:
-		if GameState.res("currency") < 200.0:
+		if Res.amount(GameState.state, "currency") < 200.0:
 			GameState.toast.emit("货币不足")
 			return
-		GameState.add_res("currency", -200.0)
+		Res.add(GameState.state, "currency", -200.0)
 		var arr: Array = u.get("skills", [])
 		var nm := "%s·奥义" % u["name"]
 		var found := false

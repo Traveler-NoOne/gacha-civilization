@@ -63,9 +63,9 @@ static func request_build(state: Dictionary, tile_key: String, id: String) -> Di
 		return chk
 	var cost := def.upgrade_cost(1)
 	var non_prod := non_production_cost(cost)
-	if not GameState.can_afford(non_prod):
-		return {"ok": false, "why": "资源不足（%s）" % GameState.cost_to_text(non_prod)}
-	GameState.pay(non_prod)
+	if not Res.can_afford(GameState.state, non_prod):
+		return {"ok": false, "why": "资源不足（%s）" % Res.cost_text(non_prod)}
+	Res.pay(GameState.state, non_prod)
 	var item := {
 		"kind": "build", "tile": tile_key, "id": id, "level": 1, "bid": "",
 		"need_prod": float(cost.get("production", 0.0)), "paid_prod": 0.0,
@@ -95,9 +95,9 @@ static func _request_upgrade_instance(state: Dictionary, tile_key: String, b: Di
 	var target := lv + 1
 	var cost := def.upgrade_cost(target)
 	var non_prod := non_production_cost(cost)
-	if not GameState.can_afford(non_prod):
-		return {"ok": false, "why": "资源不足（%s）" % GameState.cost_to_text(non_prod)}
-	GameState.pay(non_prod)
+	if not Res.can_afford(GameState.state, non_prod):
+		return {"ok": false, "why": "资源不足（%s）" % Res.cost_text(non_prod)}
+	Res.pay(GameState.state, non_prod)
 	var item := {
 		"kind": "upgrade", "tile": tile_key, "id": str(b.get("id", "")),
 		"level": target, "bid": str(b.get("bid", "")),
@@ -118,9 +118,9 @@ static func _enqueue(state: Dictionary, item: Dictionary, tile_key: String) -> b
 	if sh.is_empty():
 		sh = Strongholds.current(state)
 	var need: float = float(item["need_prod"]) - float(item["paid_prod"])
-	var give := minf(GameState.res("production"), maxf(0.0, need))
+	var give := minf(Res.amount(GameState.state, "production"), maxf(0.0, need))
 	if give > 0.0:
-		GameState.add_res("production", -give)
+		Res.add(GameState.state, "production", -give)
 		item["paid_prod"] = float(item["paid_prod"]) + give
 	if float(item["paid_prod"]) + 0.0001 >= float(item["need_prod"]):
 		_execute_queue_item(state, item)

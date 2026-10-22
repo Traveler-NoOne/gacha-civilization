@@ -68,10 +68,10 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	detail_host.add_child(ops)
 	var gain := UIKit.small("模拟训练（+15 战斗经验，消耗货币 80）", 12)
 	gain.pressed.connect(func() -> void:
-		if GameState.res("currency") < 80.0:
+		if Res.amount(GameState.state, "currency") < 80.0:
 			GameState.toast.emit("货币不足")
 			return
-		GameState.add_res("currency", -80.0)
+		Res.add(GameState.state, "currency", -80.0)
 		var r := Units.gain_exp(GameState.state, str(u["uid"]), 15, "combat")
 		GameState.toast.emit("获得经验 %d（%d/%d）" % [int(r.get("gain", 0)),
 			int(r.get("exp", 0)), int(r.get("cap", 0))] if r["ok"] else str(r["why"]))

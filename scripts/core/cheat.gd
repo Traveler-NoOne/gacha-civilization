@@ -24,7 +24,7 @@ static func add_resources(amounts: Dictionary) -> Dictionary:
 			GameState.state["pop_total"] = clampi(int(GameState.state["pop_total"]) + int(v), 1, Consts.POP_HARD_CAP)
 			parts.append("人力 %+d" % int(v))
 		else: # 添加资源
-			GameState.add_res(str(k), v)
+			Res.add(GameState.state, str(k), v)
 			parts.append("%s %+d" % [Consts.res_name(str(k)), int(v)])
 	if parts.is_empty():
 		return {"ok": false, "why": "没有填写任何数量", "summary": ""}

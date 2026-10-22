@@ -418,8 +418,8 @@ static func recruit_blocked_reason(state: Dictionary, profession: String) -> Str
 				has_ground = true
 	if not has_ground:
 		return "需要先建造「经典训练场地」"
-	if not GameState.can_afford(RECRUIT_COST):
-		return "资源不足（%s）" % GameState.cost_to_text(RECRUIT_COST)
+	if not Res.can_afford(GameState.state, RECRUIT_COST):
+		return "资源不足（%s）" % Res.cost_text(RECRUIT_COST)
 	# v1.5：公民必须存在于大世界 —— 直接派驻首都；首都满员则拒绝
 	if units_on_tile(state, str(state.get("capital", ""))).size() >= UnitDB.UNITS_PER_TILE:
 		return "首都已驻满 %d 个单位，先空出位置再征兵" % UnitDB.UNITS_PER_TILE
@@ -430,7 +430,7 @@ static func recruit_soldier(state: Dictionary, profession: String) -> Dictionary
 	var why := recruit_blocked_reason(state, profession)
 	if why != "":
 		return {"ok": false, "why": why}
-	GameState.pay(RECRUIT_COST)
+	Res.pay(GameState.state, RECRUIT_COST)
 	# v1.5：公民必须存在于大世界 —— 直接派驻首都
 	var cap_key := str(state.get("capital", ""))
 	var nm := "%s·募集兵" % UnitDB.profession_name(profession)

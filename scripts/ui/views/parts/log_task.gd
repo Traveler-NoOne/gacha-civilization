@@ -284,7 +284,7 @@ static func _goal_progress(g: Dictionary) -> int:
 			var items: Dictionary = GameState.state["items"]
 			return int(items.get(str(g.get("key", "")), 0))
 		"resource":
-			return int(GameState.res(str(g.get("key", ""))))
+			return int(Res.amount(GameState.state, str(g.get("key", ""))))
 		"kill":
 			return int(GameState.state.get("enemy_killed", 0))
 		"tile":

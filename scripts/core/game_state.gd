@@ -115,67 +115,6 @@ func new_game(seed_value: int = 0) -> void:
 # ===========================================================================
 # 便捷访问
 # ===========================================================================
-func res(key: String) -> float:
-	return float(state["res"].get(key, 0.0))
-
-
-func add_res(key: String, amount: float) -> void:
-	var r: Dictionary = state["res"]
-	r[key] = float(r.get(key, 0.0)) + amount
-	if r[key] < 0.0:
-		r[key] = 0.0
-	var cap := storage_cap(key)
-	if cap >= 0.0 and r[key] > cap:
-		r[key] = cap
-
-
-## 某资源的存储上限；返回 -1 表示无上限（v1.4）
-func storage_cap(key: String) -> float:
-	match key:
-		"production":
-			return Consts.PRODUCTION_STORE_CAP
-		"research":
-			return Consts.RESEARCH_STORE_CAP
-		"currency", "admin", "order_crystal", "cohesion":
-			return -1.0
-	if Consts.CAPPED_CONCRETE.has(key):
-		return Consts.STORAGE_CAP_CONCRETE + warehouse_bonus()
-	return -1.0
-
-
-## 经典仓储带来的具体资源上限提升（v1.4）
-func warehouse_bonus() -> float:
-	var lv := 0
-	for t in TileManager.owned_tiles(state):
-		for b in t.get("buildings", []):
-			if str(b.get("id", "")) == "classic_warehouse":
-				lv += int(b.get("level", 1))
-	return float(lv) * Consts.WAREHOUSE_CAP_PER_LEVEL
-
-
-func can_afford(cost: Dictionary) -> bool:
-	for k in cost.keys():
-		if res(k) < float(cost[k]):
-			return false
-	return true
-
-
-func pay(cost: Dictionary) -> bool:
-	if not can_afford(cost):
-		return false
-	for k in cost.keys():
-		add_res(k, -float(cost[k]))
-	return true
-
-
-## 文本形式的消耗，用于按钮提示
-func cost_to_text(cost: Dictionary) -> String:
-	var parts: Array[String] = []
-	for k in cost.keys():
-		var v := float(cost[k])
-		var t := Consts.res_name(k)
-		parts.append("%s %.1f" % [t, v] if v != floorf(v) else "%s %d" % [t, int(v)])
-	return "、".join(parts)
 
 
 # ===========================================================================

@@ -38,8 +38,8 @@ static func check(state: Dictionary, p: int) -> Dictionary:
 	if free < Consts.FREE_TILE_MIN_BLOCK:
 		return {"ok": false, "why": "无主地块仅 %d 个（少于 10），无法进行世界泡操作" % free}
 	var cost := pool_cost(p)
-	if not GameState.can_afford(cost):
-		return {"ok": false, "why": "货币不足（需要 %s）" % GameState.cost_to_text(cost)}
+	if not Res.can_afford(GameState.state, cost):
+		return {"ok": false, "why": "货币不足（需要 %s）" % Res.cost_text(cost)}
 	return {"ok": true, "why": ""}
 
 
@@ -51,7 +51,7 @@ static func draw(state: Dictionary, p: int, rng: RandomNumberGenerator) -> Dicti
 
 	var cost := pool_cost(p)
 	if not cost.is_empty():
-		GameState.pay(cost)
+		Res.pay(GameState.state, cost)
 
 	var pool_cards := candidates(state, p)
 	if pool_cards.is_empty():
@@ -266,7 +266,7 @@ static func _apply_card(state: Dictionary, c: Dictionary) -> void:
 			items[c["id"]] = int(items.get(c["id"], 0)) + 1
 			if c.has("give"):
 				for k in (c["give"] as Dictionary).keys():
-					GameState.add_res(str(k), float(c["give"][k]))
+					Res.add(GameState.state, str(k), float(c["give"][k]))
 		"function":
 			var items2: Dictionary = state["items"]
 			items2[c["id"]] = int(items2.get(c["id"], 0)) + 1
@@ -280,7 +280,7 @@ static func _apply_card(state: Dictionary, c: Dictionary) -> void:
 				if not (state["techs_owned_flags"] as Array).has(flag):
 					state["techs_owned_flags"].append(flag)
 			if c.has("research"):
-				GameState.add_res("research", float(c["research"]))
+				Res.add(GameState.state, "research", float(c["research"]))
 			if c.has("regen"):
 				var rk := str(c["regen"])
 				if not (state["techs_owned_flags"] as Array).has("regen_" + rk):

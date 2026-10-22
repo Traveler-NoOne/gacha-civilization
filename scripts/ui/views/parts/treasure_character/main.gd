@@ -43,10 +43,10 @@ static func build(detail_host: VBoxContainer, u: Dictionary, on_changed: Callabl
 	var up := UIKit.small("提升等级（消耗货币）", 12)
 	up.pressed.connect(func() -> void:
 		var cost := 120.0 * float(u.get("level", 1))
-		if GameState.res("currency") < cost:
+		if Res.amount(GameState.state, "currency") < cost:
 			GameState.toast.emit("货币不足（需要 %d）" % int(cost))
 			return
-		GameState.add_res("currency", -cost)
+		Res.add(GameState.state, "currency", -cost)
 		u["level"] = int(u["level"]) + 1
 		GameState.add_log("%s 提升到 Lv.%d。" % [u["name"], int(u["level"])], "unit")
 		GameState.state_changed.emit()

@@ -38,7 +38,7 @@ static func can_research(state: Dictionary, id: String) -> Dictionary:
 		if unlocked(state, p) or has_flag(state, p):
 			continue
 		return {"ok": false, "why": "缺少前置：%s" % tech_name(p)}
-	if GameState.res("research") < float(def["cost"]):
+	if Res.amount(GameState.state, "research") < float(def["cost"]):
 		return {"ok": false, "why": "科研点不足（需要 %d）" % int(def["cost"])}
 	return {"ok": true, "why": ""}
 
@@ -49,7 +49,7 @@ static func research(state: Dictionary, id: String) -> Dictionary:
 		return chk
 	for t in Consts.TECHS:
 		if t["id"] == id:
-			GameState.add_res("research", -float(t["cost"]))
+			Res.add(GameState.state, "research", -float(t["cost"]))
 			(state["techs"] as Array).append(id)
 			var names: Array[String] = []
 			for bid in t["unlocks"]:
