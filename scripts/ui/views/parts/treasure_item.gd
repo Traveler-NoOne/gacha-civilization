@@ -99,7 +99,7 @@ func _card_for(id: String, count: int) -> Control:
 
 
 func _find(id: String) -> Dictionary:
-	for c in GameState.cards:
+	for c in CardDB.all():
 		if str(c["id"]) == id:
 			return c
 	return {}

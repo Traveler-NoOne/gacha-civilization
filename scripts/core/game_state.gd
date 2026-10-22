@@ -1,8 +1,12 @@
 extends Node
 ## 全局游戏状态（Autoload 单例名：GameState）
 ##
-## 保存一份可序列化的存档状态，并实现文档中的核心循环：
-##   周期结算 -> 建筑产出 -> 人口/幸福度/文化率 -> 稳定度 -> 敌人演化 -> 自动存档
+## 2026-10-22 解耦后，这里**只剩四件事**：
+##   ① 持有 `state` 与两个信号（state_changed / toast）
+##   ② 开新档 `new_game()` —— 存档结构 + 世界生成的接缝
+##   ③ 装读档 `load_from_slot()` —— 文件由 `Save` 读，这里负责装进来 + 播种随机数
+##   ④ 两件跨系统的小事：`clear_enemy_tile()` 与开局任务
+## 规则都在 `core/` 下的各模块里（Cycle / Res / Units / Combat / Buildings / …）
 
 ## 检测状态是否改变
 signal state_changed
@@ -10,32 +14,20 @@ signal state_changed
 ## 全局轻提示广播
 signal toast(text: String)
 
-## 存档魔数
-const SAVE_MAGIC := "gacha_civilization_demo"
-## 存档时代
-## 按既有决策：1.0 期不做旧档兼容 —— 版本不符直接拒绝（见 load_from_slot）。
-## v5（2026-10-22）：世界生成器换代（旧 WorldGen 已删），地块数据全变 → 旧档一律作废 ✓
-const SAVE_VERSION := 5
-
-
 ## 游戏状态
 var state: Dictionary = {}
-
-## 本局随机数流（外面要摇随机就借它，别自己 new —— 否则同种子复现不了 ✓）
-func rng() -> RandomNumberGenerator:
-	return _rng
-## 建筑表
-var building_defs: Array[BuildingDef] = []
-## 卡池表
-var cards: Array[Dictionary] = []
 
 ## 非序列化的运行时缓存
 var _rng := RandomNumberGenerator.new()
 
+
+## 本局随机数流（外面要摇随机就借它，别自己 new —— 否则同种子复现不了 ✓）
+func rng() -> RandomNumberGenerator:
+	return _rng
+
+
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(Consts.SAVE_DIR) # 读取存档目录
-	building_defs = BuildingDB.all() # 读取建筑
-	cards = CardDB.all() # 读取卡池
 	# v1.8.20.8：不再无条件 randomize —— 种子由 new_game() / load_from_slot() 按状态播，否则同种子复现不了。
 
 	if state.is_empty(): # 如果存档槽为空，初始化新游戏
@@ -106,15 +98,10 @@ func new_game(seed_value: int = 0) -> void:
 	Strongholds.setup_capital(state)
 	Derived.recompute(state)
 	Units.grant_starting(state)
-	Journal._add(state, "建立部落，营地落在 %s。" % str(state["capital"]), "info")
-	Journal._add(state, "初始点亮营地周围 %d 格，其余被迷雾覆盖。" % (1 + 6 * Consts.CAMP_START_RADIUS), "info")
+	Journal.add(state, "建立部落，营地落在 %s。" % str(state["capital"]), "info")
+	Journal.add(state, "初始点亮营地周围 %d 格，其余被迷雾覆盖。" % (1 + 6 * Consts.CAMP_START_RADIUS), "info")
 	_setup_default_tasks()
 	state_changed.emit()
-
-
-# ===========================================================================
-# 便捷访问
-# ===========================================================================
 
 
 # ===========================================================================
@@ -181,147 +168,20 @@ func _setup_default_tasks() -> void:
 
 
 # ===========================================================================
-# 日志
+# 读档：把存档装进本局（`Save` 只管文件；装进来 + 给随机数播种在这里）
 # ===========================================================================
-
-
-# ===========================================================================
-# 存档
-# ===========================================================================
-func slot_path(slot: int) -> String:
-	return "%s/slot_%02d.json" % [Consts.SAVE_DIR, slot]
-
-
-func slot_exists(slot: int) -> bool:
-	return FileAccess.file_exists(slot_path(slot))
-
-
-func slot_summary(slot: int) -> Dictionary:
-	if not slot_exists(slot):
-		return {}
-	var f := FileAccess.open(slot_path(slot), FileAccess.READ)
-	if f == null:
-		return {}
-	var txt := f.get_as_text()
-	f.close()
-	var parsed: Variant = JSON.parse_string(txt)
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return {}
-	var d: Dictionary = parsed
-	var st: Dictionary = d.get("state", {})
-	return {
-		"slot": slot,
-		"cycle": int(st.get("cycle", 0)),
-		"tiles": int((st.get("tiles", {}) as Dictionary).size()),
-		"chars": (st.get("units", []) as Array).size(),
-		"time": str(d.get("saved_at", "")),
-	}
-
-
-func save_to_slot(slot: int) -> bool:
-	var payload := {
-		"magic": SAVE_MAGIC,
-		"version": SAVE_VERSION,
-		"saved_at": Time.get_datetime_string_from_system(),
-		"state": state,
-	}
-	var f := FileAccess.open(slot_path(slot), FileAccess.WRITE)
-	if f == null:
-		toast.emit("存档失败：无法写入槽位 %d" % slot)
-		return false
-	f.store_string(JSON.stringify(payload, "  "))
-	f.close()
-	state["current_slot"] = slot
-	toast.emit("已保存到槽位 %d" % (slot + 1))
-	state_changed.emit()
-	return true
-
-
 func load_from_slot(slot: int) -> bool:
-	if not slot_exists(slot):
-		toast.emit("槽位 %d 没有存档" % (slot + 1))
-		return false
-	var f := FileAccess.open(slot_path(slot), FileAccess.READ)
-	if f == null:
-		return false
-	var txt := f.get_as_text()
-	f.close()
-	var parsed: Variant = JSON.parse_string(txt)
-	if typeof(parsed) != TYPE_DICTIONARY:
-		toast.emit("存档损坏")
-		return false
-	var d: Dictionary = parsed
-	if d.get("magic", "") != SAVE_MAGIC:
-		toast.emit("存档格式不匹配")
-		return false
-	# v1.7：1.0 期间不做旧档兼容（留到 2.0）—— 版本不符直接拒绝，不再尝试迁移老档
-	# 拍板（1.8.21）：版本不匹配的档**直接删掉**（地形/数据模型都换了，
-	# 留着旧档只会在地图上显示成不认识的种类）
-	if int(d.get("version", 0)) != SAVE_VERSION:
-		var was := int(d.get("version", 0))
-		delete_slot(slot)
-		toast.emit("存档已过期（该档 v%d，当前 v%d），已删除，请新开一局" % [was, SAVE_VERSION])
-		return false
-
-	var loaded: Dictionary = d.get("state", {})
+	var loaded := Save.read(slot)
 	if loaded.is_empty():
-		toast.emit("存档内容为空")
 		return false
 	state = loaded
 	state["current_slot"] = slot
-	# v1.8.20.8：读档要把种子放回 _rng，否则读回来的局与存的时候不是同一条流（get 兜底防缺字段）。
-
+	# 读档要把种子放回 _rng，否则读回来的局与存的时候不是同一条随机流 ✓
 	_rng.seed = int(state.get("seed", 0))
 	toast.emit("已读取槽位 %d" % (slot + 1))
-
 	state_changed.emit()
 	return true
-
-
-func delete_slot(slot: int) -> bool:
-	if not slot_exists(slot):
-		return false
-	var err := DirAccess.remove_absolute(ProjectSettings.globalize_path(slot_path(slot)))
-	if err != OK:
-		toast.emit("删除失败（错误 %d）" % err)
-		return false
-	toast.emit("已删除槽位 %d" % (slot + 1))
-	state_changed.emit()
-	return true
-
-
-func autosave() -> void:
-	save_to_slot(Consts.AUTOSAVE_SLOT)
-
-
-# ===========================================================================
-# 自动存档周期数
-#
-# 注意：这项是**全局设置**，存在 AppSettings 里（user://settings.cfg），
-# 不放进 state。放进来会被 new_game() / 读档 一起重建，开关就丢了 ——
-# 之前的 bug 就是这么来的（勾了作弊，一开始新游戏又变回没勾）。
-# 下面这些函数保留，只是转发到 AppSettings，方便调用方不用改。
-# ===========================================================================
-func autosave_interval() -> int:
-	return AppSettings.autosave_interval()
-
-func set_autosave_interval(n: int) -> void:
-	AppSettings.set_autosave_interval(n)
-	toast.emit("自动存档已设为每 %d 个周期一次" % autosave_interval())
-	state_changed.emit()
-
-func has_continue() -> bool:
-	return slot_exists(Consts.AUTOSAVE_SLOT)
 
 
 func continue_game() -> bool:
 	return load_from_slot(Consts.AUTOSAVE_SLOT)
-
-
-func any_save() -> bool:
-	for i in Consts.SAVE_SLOTS:
-		if slot_exists(i):
-			return true
-	return false
-
-

@@ -135,10 +135,10 @@ static func end_cycle(state: Dictionary, rng: RandomNumberGenerator) -> Dictiona
 		Journal.add(state, e, "warn")
 
 	# 11. 自动存档（按全局设置里的「自动存档周期数」，默认每周期）
-	var interval := GameState.autosave_interval()
+	var interval := AppSettings.autosave_interval()
 	var due := (int(state["cycle"]) - 1) % interval == 0
 	if due:
-		GameState.autosave()
+		Save.autosave(GameState.state)
 	report["autosaved"] = due
 	report["autosave_interval"] = interval
 	GameState.state_changed.emit()

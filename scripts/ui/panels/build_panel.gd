@@ -82,7 +82,7 @@ func refresh() -> void:
 		return
 	land_label.text = "已用土地 %.1f / %.1f" % [Strongholds.land_used(t), Strongholds.land_cap(t)]
 	var shown := 0
-	for def in GameState.building_defs:
+	for def in BuildingDB.all():
 		# v1.6 的规矩：未满足科技条件的建筑**自动隐藏**
 		if def.required_tech != "" and not Techs.unlocked(GameState.state, def.required_tech):
 			continue

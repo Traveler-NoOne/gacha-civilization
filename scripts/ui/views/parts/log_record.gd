@@ -80,7 +80,7 @@ func refresh() -> void:
 	var cur := _selected_slot()
 	for i in slot_count:
 		var slot := i
-		var summ := GameState.slot_summary(i)
+		var summ := Save.summary(i)
 		var row := PanelContainer.new()
 		var is_cur := i == cur
 		UIKit.apply_panel(row, UIKit.BG_PANEL_2, UIKit.GOLD if is_cur else UIKit.LINE_SOFT, 5)
@@ -129,16 +129,16 @@ func _save() -> void:
 
 
 func _save_to(slot: int) -> void:
-	if GameState.slot_exists(slot):
+	if Save.exists(slot):
 		var gs := UIKit.game_screen_of(self)
 		if gs != null:
 			gs.open_dialog(UIKit.confirm("覆盖存档",
 				"槽位 %d 已有存档，确定覆盖？" % (slot + 1),
 				func() -> void:
-					GameState.save_to_slot(slot)
+					Save.write(slot, GameState.state)
 					refresh()))
 			return
-	GameState.save_to_slot(slot)
+	Save.write(slot, GameState.state)
 	refresh()
 
 
@@ -166,12 +166,12 @@ func _delete() -> void:
 func _delete_at(slot: int) -> void:
 	var gs := UIKit.game_screen_of(self)
 	if gs == null:
-		GameState.delete_slot(slot)
+		Save.erase(slot)
 		refresh()
 		return
 	gs.open_dialog(UIKit.confirm("删除存档", "确定删除槽位 %d 的存档？此操作不可撤销。" % (slot + 1),
 		func() -> void:
-			GameState.delete_slot(slot)
+			Save.erase(slot)
 			refresh()))
 
 

@@ -115,7 +115,7 @@ func _build() -> void:
 		var slot := int(GameState.state.get("current_slot", -1))
 		if slot < 0:
 			slot = 1
-		GameState.save_to_slot(slot))
+		Save.write(slot, GameState.state))
 	head.add_child(btn_save)
 
 	resource_bar = HBoxContainer.new()
@@ -445,7 +445,7 @@ func _refresh() -> void:
 	cycle_label.text = "周期 %d" % int(GameState.state["cycle"])
 	var st := Derived.stability(GameState.state)
 	var hp := Derived.happiness(GameState.state)
-	var iv := GameState.autosave_interval()
+	var iv := AppSettings.autosave_interval()
 	detail_label.text = "幸福度 %.0f　文化率 %.2f　稳定度 %.0f%%　地块 %d(我) / %d(敌) / %d(无主)　卡组 %s　自动存档 每%d周期" % [
 		hp, Derived.culture_rate(GameState.state), st * 100.0,
 		TileManager.owned_tiles(GameState.state).size(), TileManager.enemy_tiles(GameState.state).size(),
@@ -614,7 +614,7 @@ func _build_exit_dialog() -> DialogLayer:
 		var slot := int(GameState.state.get("current_slot", -1))
 		if slot < 0:
 			slot = 1
-		GameState.save_to_slot(slot)
+		Save.write(slot, GameState.state)
 		exit_to_menu.emit())
 	v.add_child(to_menu)
 
@@ -625,8 +625,8 @@ func _build_exit_dialog() -> DialogLayer:
 		var slot := int(GameState.state.get("current_slot", -1))
 		if slot < 0:
 			slot = 1
-		GameState.save_to_slot(slot)
-		GameState.save_to_slot(Consts.AUTOSAVE_SLOT)
+		Save.write(slot, GameState.state)
+		Save.write(Consts.AUTOSAVE_SLOT, GameState.state)
 		get_tree().quit())
 	v.add_child(to_desktop)
 

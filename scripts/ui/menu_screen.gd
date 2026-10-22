@@ -124,12 +124,12 @@ func _spacer(h: int) -> Control:
 
 
 func _refresh_buttons() -> void:
-	var can_continue := GameState.has_continue()
+	var can_continue := Save.has_continue()
 	_btn_continue.disabled = not can_continue
 	_btn_continue.modulate = Color(1, 1, 1, 1) if can_continue else Color(0.5, 0.5, 0.55, 0.75)
 	if not can_continue:
 		_btn_continue.tooltip_text = "没有上次退出的自动存档"
-	var has_any := GameState.any_save()
+	var has_any := Save.any()
 	_btn_load.disabled = not has_any
 	_btn_load.modulate = Color(1, 1, 1, 1) if has_any else Color(0.5, 0.5, 0.55, 0.75)
 	if not has_any:
@@ -153,7 +153,7 @@ func _open_load_dialog() -> void:
 	d.set_content(list)
 	var found := false
 	for i in Consts.SAVE_SLOTS:
-		var summ := GameState.slot_summary(i)
+		var summ := Save.summary(i)
 		if summ.is_empty():
 			continue
 		found = true
@@ -336,11 +336,13 @@ func _open_settings() -> void:
 	auto_spin.min_value = Consts.AUTOSAVE_INTERVAL_MIN
 	auto_spin.max_value = Consts.AUTOSAVE_INTERVAL_MAX
 	auto_spin.step = 1
-	auto_spin.value = GameState.autosave_interval()
+	auto_spin.value = AppSettings.autosave_interval()
 	auto_spin.tooltip_text = "默认每 1 个周期自动存档一次；可以改成每 N 个周期存档一次"
 	# v1.8.20：不涉及 UI 重建 → 改一下立即生效
 	auto_spin.value_changed.connect(func(v: float) -> void:
-		GameState.set_autosave_interval(int(v)))
+		AppSettings.set_autosave_interval(int(v))
+		GameState.toast.emit("自动存档已设为每 %d 个周期一次" % AppSettings.autosave_interval())
+		GameState.state_changed.emit())
 	page_assist.add_child(_row("自动存档周期数", auto_spin))
 	var auto_hint := Label.new()
 	auto_hint.text = "默认情况下为每周期自动存档；这里可以设置自定义数量的周期进行一次自动存档（%d ~ %d）。" % [

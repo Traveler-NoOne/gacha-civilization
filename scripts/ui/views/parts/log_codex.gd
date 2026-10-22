@@ -247,7 +247,7 @@ static func _civ_color(civ: String) -> Color:
 
 func _cards_for_cat() -> Array:
 	var out: Array = []
-	for c in GameState.cards:
+	for c in CardDB.all():
 		var pool: String = str(c["pool"])
 		var match_cat := false
 		if cat == "character" and pool == "character":

@@ -132,7 +132,7 @@ static func draw_ten(state: Dictionary, p: int, rng: RandomNumberGenerator) -> D
 
 ## 当前卡池的可抽取内容
 static func candidates(state: Dictionary, p: int) -> Array[Dictionary]:
-	var cards: Array[Dictionary] = GameState.cards
+	var cards: Array[Dictionary] = CardDB.all()
 	match p:
 		Pool.ROTATION:
 			return CardDB.rotation_cards(cards)
