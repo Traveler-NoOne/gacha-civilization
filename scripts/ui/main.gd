@@ -43,6 +43,8 @@ func _ready() -> void:
 ##   （锁要放在尺寸之后 —— 反过来在 Windows 上尺寸会被忽略）。
 func _apply_resolution() -> void:
 	UI.set_resolution_key(AppSettings.resolution())
+	# 玩家改过的键位覆盖到 InputMap（必须在搭界面前，按钮提示文字要用）✓
+	KeyBinds.apply_saved()
 
 
 	_apply_window_size.call_deferred()
@@ -128,7 +130,14 @@ func show_menu() -> void:
 ## v1.8.9：加载界面的**顺序**是刻意的 —— 先出界面，再干活。
 ## 现在加载近乎瞬间所以看不出区别；等地图内容多了，慢的部分就会花在这张界面上（而不是卡在菜单上）。
 func _on_start_game(mode: String, opts: Dictionary = {}) -> void:
-	show_loading(func() -> bool:
+	if mode == "new":
+		# 新游戏：世界生成最重 → **分帧跑**，进度条走真实进度 ✓
+		var work := func(prog: Callable) -> bool:
+			await GameState.new_game_async(int(opts.get("seed", 0)), prog)
+			return true
+		show_loading_internal(work, true)
+		return
+	var simple := func() -> bool:
 		match mode:
 			"continue":
 				return GameState.continue_game()
@@ -138,11 +147,12 @@ func _on_start_game(mode: String, opts: Dictionary = {}) -> void:
 				# 2026-10-15：新游戏设置面板给的种子（0 = 随机 —— new_game 里会取时钟 ✓）
 				GameState.new_game(int(opts.get("seed", 0)))
 				return true
-	)
+	show_loading_internal(simple, false)
 
 
 ## v1.8.9：过场加载界面。ok=false 表示"这次进不去"（例如没有存档可继续）→ 回主菜单。
-func show_loading(work: Callable) -> void:
+## `chunked=true` 时 work 是协程（收 progress 回调），进度条走真实进度 ✓
+func show_loading_internal(work: Callable, chunked: bool) -> void:
 	_clear_current()
 	var scr: Control = load(LOADING_SCENE).new()
 	scr.name = "LoadingScreen"
@@ -155,7 +165,15 @@ func show_loading(work: Callable) -> void:
 			show_game()
 		else:
 			show_menu())
-	scr.begin(work)
+	if chunked:
+		scr.begin_chunked(work)
+	else:
+		scr.begin(work)
+
+
+## 旧的调用名保留（简单同步加载用）✓
+func show_loading(work: Callable) -> void:
+	show_loading_internal(work, false)
 
 
 func show_game() -> void:

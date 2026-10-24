@@ -52,14 +52,14 @@ func _build() -> void:
 	title.text = "抽 卡 文 明"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", UI.fs(54))
-	title.add_theme_color_override("font_color", Color(0.96, 0.86, 0.55))
+	title.add_theme_color_override("font_color", Palette.GOLD)
 	center.add_child(title)
 
 	var sub := Label.new()
 	sub.text = "Turn-based Roguelite Gacha Civilization · 可玩 Demo"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", UI.fs(13))
-	sub.add_theme_color_override("font_color", Color(0.55, 0.58, 0.68))
+	sub.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	center.add_child(sub)
 
 	center.add_child(_spacer(18))
@@ -168,7 +168,7 @@ func _open_load_dialog() -> void:
 	if not found:
 		var l := Label.new()
 		l.text = "没有任何存档。"
-		l.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))
+		l.add_theme_color_override("font_color", Palette.TEXT_DIM)
 		list.add_child(l)
 	add_child(d)
 
@@ -357,12 +357,32 @@ func _open_settings() -> void:
 	page_audio.add_child(_volume_row("背景音乐", "Music"))
 	page_audio.add_child(_volume_row("战斗音效", "SFX"))
 
-	# 初始化键位设置
-	var hint := Label.new()
-	hint.text = "世界地图：鼠标左键拖动平移、滚轮缩放、点击地块查看详情。\n快捷键：「1/2/3」切换功能页，空格 = 结束周期，Esc = 关闭弹窗。"
-	hint.add_theme_font_size_override("font_size", UI.fs(12))
-	hint.add_theme_color_override("font_color", Color(0.72, 0.74, 0.8))
-	page_keys.add_child(hint)
+	# 初始化键位设置：每行「名称 + 当前键 + 改键」✓
+	var keys_hint := Label.new()
+	keys_hint.text = "点「改键」后按下新按键即可（按 Esc 取消）。改动立即生效，并会记住。"
+	keys_hint.add_theme_font_size_override("font_size", UI.fs(11))
+	keys_hint.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	keys_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	page_keys.add_child(keys_hint)
+	for a in KeyBinds.ACTIONS:
+		var id := str(a["id"])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", UI.fs(8))
+		page_keys.add_child(row)
+		var nm := UIKit.text_label(str(a["name"]), 13, Palette.TEXT)
+		nm.custom_minimum_size = Vector2(UI.px(170), UI.px(0))
+		row.add_child(nm)
+		var key_btn := UIKit.small(KeyBinds.key_text(id), 12)
+		key_btn.custom_minimum_size = Vector2(UI.px(120), UI.px(30))
+		key_btn.tooltip_text = "点击后按下新按键（Esc 取消）"
+		key_btn.pressed.connect(_start_rebind.bind(id, key_btn))
+		row.add_child(key_btn)
+	var reset_btn := UIKit.small("恢复默认键位", 11)
+	reset_btn.pressed.connect(func() -> void:
+		KeyBinds.reset_defaults()
+		close_dialog()
+		_open_settings())
+	page_keys.add_child(reset_btn)
 	
 	# 弹窗确定区
 	var footer := HBoxContainer.new()
@@ -532,6 +552,36 @@ func close_dialog() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and (event as InputEventKey).pressed:
-		if (event as InputEventKey).keycode == KEY_ESCAPE:
-			_close_dialog()
+	if event.is_action_pressed("close_ui"):
+		_close_dialog()
+
+
+## --- 改键捕获（2026-10-24）---
+var _rebind_action := ""
+var _rebind_btn: Button = null
+
+
+func _start_rebind(action: String, btn: Button) -> void:
+	_rebind_action = action
+	_rebind_btn = btn
+	btn.text = "按下新键…"
+
+
+func _input(event: InputEvent) -> void:
+	if _rebind_action == "":
+		return
+	if not (event is InputEventKey) or not (event as InputEventKey).pressed:
+		return
+	get_viewport().set_input_as_handled()
+	var k := event as InputEventKey
+	if k.keycode == KEY_ESCAPE:      # Esc = 取消这次改键
+		_finish_rebind()
+		return
+	KeyBinds.rebind(_rebind_action, k)
+	_rebind_btn.text = KeyBinds.key_text(_rebind_action)
+	_finish_rebind()
+
+
+func _finish_rebind() -> void:
+	_rebind_action = ""
+	_rebind_btn = null

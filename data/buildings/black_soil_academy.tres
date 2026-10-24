@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_20qpo"]
+
+[resource]
+script = ExtResource("1_20qpo")
+id = "black_soil_academy"
+sort_index = 10
+display_name = "黑土学院"
+category = "民用建筑"
+subcategory = "教育"
+desc = "每级最多指派两个人力，每个人力每周期产出 3.2 科研点，每级额外增加 1.2 科研点。"
+max_workers_per_level = 2
+yield_per_worker = {
+"research": 3.2
+}
+yield_per_level = {
+"research": 1.2
+}
+cost_base = {
+"currency": 2400.0,
+"production": 300.0
+}
+cost_per_level = {
+"currency": 800.0,
+"production": 100.0
+}
+max_level = 3
+required_tech = "alchemy_black_soil"
+land = 0.6
+special = "culture"
+culture = 0.15

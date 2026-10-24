@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_aiiku"]
+
+[resource]
+script = ExtResource("1_aiiku")
+id = "classic_workshop"
+sort_index = 3
+display_name = "经典工坊"
+subcategory = "生产"
+desc = "每级最多指派两个人力，每个人力每周期产出 1.5 生产力、0.4 科研点，每级额外增加 0.35 生产力。"
+max_workers_per_level = 2
+yield_per_worker = {
+"production": 1.5,
+"research": 0.4
+}
+yield_per_level = {
+"production": 0.35
+}
+cost_base = {
+"production": 20.0
+}
+cost_per_level = {
+"production": 15.0
+}

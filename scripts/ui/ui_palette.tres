@@ -1,19 +1,14 @@
-[gd_resource type="Resource" script_class="UIPalette" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="UIPalette" format=3 uid="uid://6v0suuogunvm"]
 
-[ext_resource type="Script" path="res://scripts/ui/ui_palette.gd" id="1_pal"]
+[ext_resource type="Script" uid="uid://bi4wpa76xxovi" path="res://scripts/ui/ui_palette.gd" id="1_pal"]
 
 [resource]
 script = ExtResource("1_pal")
-BG_DARK = Color(0.055, 0.055, 0.08, 1)
-BG_PANEL = Color(0.1, 0.1, 0.145, 1)
-BG_PANEL_2 = Color(0.135, 0.135, 0.19, 1)
-BG_SLOT = Color(0.075, 0.075, 0.115, 1)
-LINE = Color(0.28, 0.3, 0.4, 1)
-LINE_SOFT = Color(0.2, 0.21, 0.29, 1)
-GOLD = Color(0.93, 0.8, 0.45, 1)
-TEXT = Color(0.9, 0.91, 0.95, 1)
-TEXT_DIM = Color(0.62, 0.64, 0.72, 1)
-TEXT_FAINT = Color(0.45, 0.47, 0.56, 1)
-OK = Color(0.45, 0.85, 0.55, 1)
-WARN = Color(0.95, 0.62, 0.35, 1)
-BAD = Color(0.92, 0.38, 0.4, 1)
+BG_DARK = Color(0.05490196, 0.05490196, 0.078431375, 1)
+BG_PANEL = Color(0.101960786, 0.101960786, 0.14509805, 1)
+BG_PANEL_2 = Color(0.13333334, 0.13333334, 0.1882353, 1)
+BG_SLOT = Color(0.07450981, 0.07450981, 0.11372549, 1)
+LINE = Color(0.2784314, 0.3019608, 0.4, 1)
+LINE_SOFT = Color(0.2, 0.21176471, 0.2901961, 1)
+GOLD = Color(0.92941177, 0.8, 0.4509804, 1)
+TEXT = Color(0.9019608, 0.9098039, 0.9490196, 1)

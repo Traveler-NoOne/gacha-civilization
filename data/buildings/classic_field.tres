@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_fmbo5"]
+
+[resource]
+script = ExtResource("1_fmbo5")
+id = "classic_field"
+display_name = "经典田地"
+subcategory = "食物"
+desc = "每级最多指派两个人力，每个人力每周期产出 1.3 份食物，每级额外增加 0.35 份食物，同时将 -2 幸福度。"
+max_workers_per_level = 2
+yield_per_worker = {
+"food": 1.3
+}
+yield_per_level = {
+"food": 0.35
+}
+cost_base = {
+"production": 10.0
+}
+cost_per_level = {
+"production": 10.0
+}
+happiness_base = -2.0

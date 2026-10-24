@@ -686,8 +686,7 @@ func _on_visibility_changed() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or pick_mode == "":
 		return
-	if event is InputEventKey and (event as InputEventKey).pressed \
-			and (event as InputEventKey).keycode == KEY_ESCAPE:
+	if event.is_action_pressed("close_ui"):
 		if pick_mode == "recruit":
 			_cancel_recruit()
 		else:

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_1xvsa"]
+
+[resource]
+script = ExtResource("1_1xvsa")
+id = "classic_bakery"
+sort_index = 1
+display_name = "经典面包坊"
+subcategory = "食物"
+desc = "每级最多指派一个人力，不产出食物，但是将 +6 幸福度，每级额外增加 0.6 幸福度。"
+max_workers_per_level = 1
+cost_base = {
+"production": 20.0
+}
+cost_per_level = {
+"production": 15.0
+}
+happiness_base = 6.0
+happiness_per_level = 0.6
+land = 0.3

@@ -37,13 +37,34 @@ func _ready() -> void:
 # 新游戏
 # ===========================================================================
 func new_game(seed_value: int = 0) -> void:
+	var s := _resolve_seed(seed_value)
+	_rng.seed = s
+	state = _blank_state(s)
+	WorldgenBuilder.generate(state)
+	_finish_new_game()
+
+
+## 分帧版新游戏：世界生成期间每帧让出一次，`on_progress(0~100)` 报告真实进度 ✓
+## 加载界面用这个，避免长时间阻塞导致"看着像卡死"。
+func new_game_async(seed_value: int = 0, on_progress: Callable = Callable()) -> void:
+	var s := _resolve_seed(seed_value)
+	_rng.seed = s
+	state = _blank_state(s)
+	await WorldgenBuilder.generate_async(state, on_progress)
+	_finish_new_game()
+
+
+## 种子 0 = 取时钟随机；同一个数字能复现同一张图 ✓
+func _resolve_seed(seed_value: int) -> int:
 	var s := int(seed_value)
 	if s == 0:
 		s = int(Time.get_unix_time_from_system()) & 0x7FFFFFFF
-	# v1.8.20.8：_rng 也按本局种子播（上面 s 为 0 时已取时钟种子，所以新开一局依旧是新的）。
+	# v1.8.20.8：_rng 也按本局种子播（取过时钟种子后，新开一局依旧是新的）
+	return s
 
-	_rng.seed = s
-	state = {
+
+func _blank_state(s: int) -> Dictionary:
+	return {
 
 		"seed": s,
 		"cycle": 1,
@@ -93,7 +114,10 @@ func new_game(seed_value: int = 0) -> void:
 		# 注意：自动存档周期数与作弊开关是**全局设置**，
 		# 存在 AppSettings（user://settings.cfg），不属于存档。
 	}
-	WorldgenBuilder.generate(state)
+
+
+## 世界已经生成好之后的收尾（同步 / 分帧两条路共用）✓
+func _finish_new_game() -> void:
 	TileManager.setup_new_world(state)
 	Strongholds.setup_capital(state)
 	Derived.recompute(state)

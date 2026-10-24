@@ -24,7 +24,11 @@ const SCALES := {
 	"1920x1080": 1.5,
 }
 
+## 项目主题（唯一来源）。启动时按倍率复制一份、缩放字号后挂到 root ✓
+const THEME_PATH := "res://scripts/ui/ui_theme.tres"
+
 var _key := BASE_KEY
+var _theme_base: Theme = null
 
 
 # ---------------------------------------------------------------------------
@@ -43,6 +47,27 @@ func has_key(key: String) -> bool:
 ## 切成某一档；未知的值回落到基准，避免手改 settings.cfg 把游戏弄成奇怪尺寸
 func set_resolution_key(key: String) -> void:
 	_key = key if SCALES.has(key) else BASE_KEY
+	_apply_theme()
+
+
+## 把项目主题按当前倍率**复制 + 缩放字号**，挂到 root。
+##
+## 为什么不用 `gui/theme/custom` 直接用：那套字号是写死的设计值（1280×720 基准），
+## 1080p / 2K 下用同一份就会偏小 —— 而主题里的 StyleBox 又不能"按倍率算"。
+## 所以：**主题仍然是唯一来源**，只是运行时复制一份把字号乘上倍率 ✓
+## 只缩放字号；边框 / 圆角 / 内边距保持设计值（3px 细边放大后依然好看）。
+func _apply_theme() -> void:
+	if _theme_base == null:
+		_theme_base = load(THEME_PATH) as Theme
+	if _theme_base == null:
+		return
+	var s := current_scale()
+	var t: Theme = _theme_base.duplicate(true) as Theme
+	t.default_font_size = int(round(float(_theme_base.default_font_size) * s))
+	for type in _theme_base.get_type_list():
+		for item in _theme_base.get_font_size_list(type):
+			t.set_font_size(item, type, int(round(float(_theme_base.get_font_size(item, type)) * s)))
+	get_tree().root.theme = t
 
 
 func current_key() -> String:

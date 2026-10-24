@@ -3,32 +3,29 @@ extends Control
 ##
 ## 布局：标题与立绘居中，**左下角 tips**（随机一条），**右下角进度条**。
 ##
-## ⚠️ 进度条是**仪式感，不是性能需要** —— 这点写在这里免得以后有人误会，但**顺序很重要**：
+## ⚠️ 进度条是**加载反馈，不是装饰** ✓（2026-10-24 更正：这里原来写"只是仪式感"，那是错的）
+##
+## 为什么必须有：现在加载很快，但**中后期存档会越长越大、世界会越来越复杂**，
+## 读档 / 新世界生成本身就要花时间。屏幕上如果没动静，玩家分不清"在加载"和"卡死了"——
+## 于是会反复点击、切窗口、强退，甚至在**存档正在读写的中途**杀进程（那才是真的丢档）。
+## 进度条的作用就是一句话：**系统在干活，别动它**。
+##
+## 顺序仍然是刻意的，但原因不是"仪式感"，而是**先让玩家看到反馈，再开始阻塞**：
 ##
 ##     进来 → 把界面画出来 → **然后**才干活 → 进度条走满 → finished
 ##
-## 为什么必须是这个顺序：本作现在加载近乎瞬间，但**内容还没端上来**。
-## 等玩家跑了几十个周期、地图上单位/建筑/据点堆满，加载会真的变慢 ——
-## 如果那时才做加载界面就晚了，而且如果现在是"先干活再显示界面"，慢加载会全部花在**上一屏（菜单）**上，
-## 玩家看到的是**卡住的菜单**，等于白做。
+## 两条路：
+##   · `begin(work)`         —— **同步** work（读档这类快操作），进度条"抬到 8% → 停 → 走满"
+##   · `begin_chunked(work)` —— work 是**协程**（内部 await 让帧），进度条走**真实进度** ✓
+##     新世界生成走这条：`WorldgenBuilder.generate_async` 每帧只处理一批格子 ✓
 ##
-## 所以工作通过 `begin(work)` 传进来，在界面**已经画出来之后**才执行。
-## 将来真慢了，要做的只是把进度条接上真实分块进度，**这套结构不用动**。
+##   ⚠️ 读档将来要是也变慢了，同样要给它做分帧版，否则会退回"停住不动"的观感。
 
 ## 参数 ok：work 返回 false 时说明"这次进不去"（例如继续游戏没有存档），调用方据此回主菜单。
 signal finished(ok: bool)
 
 ## 保底显示时长（秒）。调试手感就调这一个数。
 const MIN_SHOW := 1.25
-
-## 左下角的 tips。随机取一条 —— 加内容往这里加就行。
-const TIPS: Array[String] = [
-	"世界泡是承载着文明的气泡，它之外是一片量子之海。",
-	"左键点击地块看详情，右键点地块打开行动菜单。",
-	"生产力管修建，行政点数管扩张与政事，别搞混。",
-	"结束周期会结算一次产出 —— 先把规划队列排好更划算。",
-	"科技树在左上角，日志在右上角的书本图标里。",
-]
 
 var _bar: ProgressBar
 var _tip: Label
@@ -69,7 +66,7 @@ func _ready() -> void:
 	tips_h.add_theme_constant_override("separation", UI.fs(6))
 	add_child(tips_h)
 	tips_h.add_child(UIKit.dim("提示：", 13))
-	_tip = UIKit.text_label(TIPS[randi() % TIPS.size()], 13, Palette.TEXT)
+	_tip = UIKit.text_label(TipDB.random(), 13, Palette.TEXT)
 	tips_h.add_child(_tip)
 
 	# 右下角：进度条
@@ -81,7 +78,7 @@ func _ready() -> void:
 	_bar.max_value = 100.0
 	_bar.value = 0.0
 	_bar.show_percentage = false
-	_bar.add_theme_stylebox_override("background", UIKit.panel_style(Color(0.14, 0.14, 0.19), Palette.LINE_SOFT, 3))
+	_bar.add_theme_stylebox_override("background", UIKit.panel_style(Palette.BG_PANEL_2, Palette.LINE_SOFT, 3))
 	_bar.add_theme_stylebox_override("fill", UIKit.panel_style(Palette.GOLD, Palette.GOLD, 3))
 	add_child(_bar)
 
@@ -90,16 +87,38 @@ func _ready() -> void:
 ## `work` 里放真正的准备工作（生成世界 / 读档）；它会在**界面已经画出来之后**才执行。
 func begin(work: Callable = Callable()) -> void:
 	# 先让这一帧画出去（否则"加载界面"本身没机会显示，白做）
-	await get_tree().process_frame
-	await get_tree().process_frame
-
+	await _wait_frames(2)
+	# 先抬一点进度：阻塞期间帧不推进，但至少让玩家看到"已经开始"，而不是停在 0%
+	_bar.value = 8.0
 	var ok := true
 	if work.is_valid():
 		var r: Variant = work.call()
 		if typeof(r) == TYPE_BOOL:
 			ok = bool(r)
+	_finish(ok)
 
-	# 进度条按保底时长走满（仪式感）
+
+## 分帧工作：`work(progress_cb)` 必须是**协程**（内部 await），进度条走真实进度 ✓
+## 新游戏生成世界走这条路；读档这类快操作仍用 begin() ✓
+func begin_chunked(work: Callable) -> void:
+	await _wait_frames(2)
+	_bar.value = 1.0
+	var ok := true
+	if work.is_valid():
+		var r: Variant = await work.call(func(p: float) -> void:
+			_bar.value = clampf(p, 0.0, 100.0))
+		if typeof(r) == TYPE_BOOL:
+			ok = bool(r)
+	_finish(ok)
+
+
+func _wait_frames(n: int) -> void:
+	for _i in n:
+		await get_tree().process_frame
+
+
+## 收尾：走满 → 发 finished。保底时长保证玩家能看清"完成"这一步（不至于闪一下）✓
+func _finish(ok: bool) -> void:
 	var tw := create_tween()
 	tw.tween_property(_bar, "value", 100.0, MIN_SHOW)
 	tw.tween_callback(func() -> void: finished.emit(ok))

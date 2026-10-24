@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_68rsl"]
+
+[resource]
+script = ExtResource("1_68rsl")
+id = "classic_warehouse"
+sort_index = 11
+display_name = "经典仓储"
+category = "民用建筑"
+subcategory = "存储"
+desc = "每级提高所有具体资源（货币除外）的存储上限 50。"
+cost_base = {
+"production": 30.0
+}
+cost_per_level = {
+"production": 25.0
+}

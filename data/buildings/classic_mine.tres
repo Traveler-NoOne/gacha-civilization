@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_0vlkk"]
+
+[resource]
+script = ExtResource("1_0vlkk")
+id = "classic_mine"
+sort_index = 5
+display_name = "经典矿场"
+subcategory = "生产"
+desc = "每级最多指派两个人力，每个人力每周期产出 1.1 生产力，每级额外增加 0.35 生产力，同时如果所在格子存在矿物资源点，可产出对应矿产 +1，每级额外增加 0.35 份矿产。"
+max_workers_per_level = 2
+yield_per_worker = {
+"production": 1.1
+}
+yield_per_level = {
+"production": 0.35
+}
+cost_base = {
+"production": 8.0
+}
+cost_per_level = {
+"production": 12.0
+}
+required_tech = "mining"
+land = 0.5
+special = "node_bonus,node_bonus_per_level,uses_node"
+uses_node = true
+node_bonus_per_level = 0.35

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_qfe8v"]
+
+[resource]
+script = ExtResource("1_qfe8v")
+id = "classic_training_ground"
+sort_index = 7
+display_name = "经典训练场地"
+category = "军事建筑"
+subcategory = "陆军"
+desc = "每级可多一个训练槽位，每次训练需要消耗 1 个人力，将在五个周期后转变为军事单位-训练军。"
+cost_base = {
+"production": 20.0
+}
+cost_per_level = {
+"production": 15.0
+}
+land = 0.5

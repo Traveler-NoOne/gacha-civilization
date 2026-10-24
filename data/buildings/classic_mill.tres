@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_cist3"]
+
+[resource]
+script = ExtResource("1_cist3")
+id = "classic_mill"
+sort_index = 2
+display_name = "经典磨坊"
+subcategory = "食物"
+desc = "每级最多指派一个人力，每个人力每周期消耗 1 份食物，产出 2.6 份食物（净 +1.6），每级额外增加 0.35 份食物。"
+max_workers_per_level = 1
+yield_per_worker = {
+"food": 2.6
+}
+yield_per_level = {
+"food": 0.35
+}
+cost_base = {
+"production": 25.0
+}
+cost_per_level = {
+"production": 20.0
+}
+special = "upkeep_per_worker"
+upkeep_per_worker = {
+"food": 1.0
+}

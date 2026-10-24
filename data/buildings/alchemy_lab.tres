@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_td0ar"]
+
+[resource]
+script = ExtResource("1_td0ar")
+id = "alchemy_lab"
+sort_index = 6
+display_name = "炼金所"
+subcategory = "生产"
+desc = "每级最多指派一个人力，每个人力每周期产出 5.5 生产力，每级额外增加 1.5 生产力，同时允许转换基础材料。"
+max_workers_per_level = 1
+yield_per_worker = {
+"production": 5.5
+}
+yield_per_level = {
+"production": 1.5
+}
+cost_base = {
+"currency": 400.0,
+"production": 180.0
+}
+cost_per_level = {
+"currency": 100.0,
+"production": 50.0
+}
+max_level = 3
+required_tech = "alchemy_black_soil"
+land = 0.6

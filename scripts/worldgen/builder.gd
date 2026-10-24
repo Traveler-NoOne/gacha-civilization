@@ -55,43 +55,113 @@ const FALLOFF_DEPTH := 4.0
 
 ## 生成一整个世界，填进 `state` ✓（写 `tiles` / `capital` / `gen` ✓）
 static func generate(state: Dictionary) -> void:
+	# 同步版：一次跑完（测试 / 非加载路径用）✓
+	var ctx := _gen_begin(state)
+	_gen_heights(ctx, 0, (ctx["cells"] as Array).size())
+	_gen_sea(ctx)
+	_gen_tiles(ctx, 0, (ctx["cells"] as Array).size())
+	_gen_finish(ctx, state)
+
+
+## 分帧版本：每帧只处理 chunk 个格子，`on_progress(0~100)` 报告**真实进度** ✓
+## 为什么需要：同步生成会阻塞主线程，进度条不动，玩家会以为游戏卡死（见 loading_screen 的说明）。
+## 分段不改变任何计算顺序，所以同一颗种子产出的地图与同步版完全一致 ✓
+static func generate_async(state: Dictionary, on_progress: Callable = Callable(), chunk: int = 400) -> void:
+	var ctx := _gen_begin(state)
+	var cells: Array = ctx["cells"]
+	var n := cells.size()
+	# 前半：高度 + 湿度
+	var i := 0
+	while i < n:
+		var j := mini(i + chunk, n)
+		_gen_heights(ctx, i, j)
+		i = j
+		_report(on_progress, 50.0 * float(i) / float(n))
+		await (Engine.get_main_loop() as SceneTree).process_frame
+	_gen_sea(ctx)
+	# 后半：地形
+	i = 0
+	while i < n:
+		var j := mini(i + chunk, n)
+		_gen_tiles(ctx, i, j)
+		i = j
+		_report(on_progress, 50.0 + 48.0 * float(i) / float(n))
+		await (Engine.get_main_loop() as SceneTree).process_frame
+	_gen_finish(ctx, state)
+	_report(on_progress, 100.0)
+
+
+static func _report(cb: Callable, p: float) -> void:
+	if cb.is_valid():
+		cb.call(clampf(p, 0.0, 100.0))
+
+
+## ---- 分段步骤（同步版与分帧版共用；顺序不变 = 结果不变）----
+static func _gen_begin(state: Dictionary) -> Dictionary:
 	var seed := int(state["seed"])
 	var radius := Consts.MAP_START_RADIUS
-	var ns := _noises(seed, radius)
+	return {
+		"seed": seed,
+		"ns": _noises(seed, radius),
+		"cells": Hex.spiral(radius),
+		"raw": {},
+		"moist": {},
+		"tiles": {},
+		"lift": 1.0,
+		"sea_gain": 1.0,
+	}
 
-	# 【第 1 步】先算**基准高度**（1.0 = 旧海平面）＋ 湿度；山脊留到定完海平面再加 ✓
-	var cells := Hex.spiral(radius)
-	var raw := {}
-	var moist := {}
-	for c: Vector2i in cells:
+
+static func _gen_heights(ctx: Dictionary, from: int, to: int) -> void:
+	var ns: Dictionary = ctx["ns"]
+	var cells: Array = ctx["cells"]
+	var raw: Dictionary = ctx["raw"]
+	var moist: Dictionary = ctx["moist"]
+	for i in range(from, to):
+		var c: Vector2i = cells[i]
 		var k := TileManager.key_of(c)
 		raw[k] = _raw_height(c, ns)
 		moist[k] = _moisture_at(c, ns)
 
-	# 【第 2 步】定海平面：取分位数 → 恰好 LAND_RATIO 的格子在水面之上 ✓（同种子同结果 ✓）
-	var lift := 1.0 - _quantile(raw, 1.0 - LAND_RATIO)
 
-	# 【第 3 步】海深补偿：陆地一抬，海水就浅了 ✗ → 把水下那一段按 SEA_DEPTH 拉回去 ✓（海岸线不动 ✓）
+## 定海平面 + 海深补偿（依赖全部 raw 都算完，所以只能放在整段之后）
+static func _gen_sea(ctx: Dictionary) -> void:
+	var raw: Dictionary = ctx["raw"]
+	var lift := 1.0 - _quantile(raw, 1.0 - LAND_RATIO)
 	var lowest := 1.0
 	for k2 in raw.keys():
 		lowest = minf(lowest, float(raw[k2]) + lift)
 	var sea_gain := 1.0
 	if lowest < 0.999:
 		sea_gain = clampf(SEA_DEPTH / (1.0 - lowest), 1.0, 3.0)
+	ctx["lift"] = lift
+	ctx["sea_gain"] = sea_gain
 
-	var tiles := {}
-	for c: Vector2i in cells:
+
+static func _gen_tiles(ctx: Dictionary, from: int, to: int) -> void:
+	var ns: Dictionary = ctx["ns"]
+	var cells: Array = ctx["cells"]
+	var raw: Dictionary = ctx["raw"]
+	var moist: Dictionary = ctx["moist"]
+	var tiles: Dictionary = ctx["tiles"]
+	var seed := int(ctx["seed"])
+	var lift := float(ctx["lift"])
+	var sea_gain := float(ctx["sea_gain"])
+	for i in range(from, to):
+		var c: Vector2i = cells[i]
 		var k := TileManager.key_of(c)
 		var h := _normalize(float(raw[k]), c, ns, lift, sea_gain)
 		tiles[k] = TileLib.make(c, seed, {"height": h, "moisture": float(moist[k])})
 
+
+static func _gen_finish(ctx: Dictionary, state: Dictionary) -> void:
+	var tiles: Dictionary = ctx["tiles"]
 	# 山脉瘦身：太胖的山团降级（靠高原的转高原、其余转山地）✓ 嫌太碎就删这一行 ✓
 	Peaks.thin_mountains(tiles)
-
 	state["tiles"] = tiles
 	state["capital"] = choose_capital(tiles)
 	# ⚠️ 扩图要靠这两个数复算新格 ✓ 所以必须进存档 ✓
-	state["gen"] = {"lift": lift, "sea_gain": sea_gain}
+	state["gen"] = {"lift": float(ctx["lift"]), "sea_gain": float(ctx["sea_gain"])}
 
 
 ## 生成之后追加 `rings` 圈新格子（发展系统 / 营地扩建）✓
@@ -125,6 +195,8 @@ static func choose_capital(tiles: Dictionary) -> String:
 	var best_key := ""
 	var best_score := -1
 	var best_dist := 9999
+	# ⚠️ 邻域螺旋是常量：**必须提到循环外**。原来每格都重建一次（7651 × 37），实测吃掉 239ms ✓
+	var ring := Hex.spiral(3)
 	for k in tiles.keys():
 		var t: Dictionary = tiles[k]
 		if TileLib.is_water(t):
@@ -134,7 +206,7 @@ static func choose_capital(tiles: Dictionary) -> String:
 		if d > limit:
 			continue
 		var score := 0
-		for nb: Vector2i in Hex.spiral(3):
+		for nb: Vector2i in ring:
 			var nk := TileManager.key_of(c + nb)
 			if not tiles.has(nk):
 				continue

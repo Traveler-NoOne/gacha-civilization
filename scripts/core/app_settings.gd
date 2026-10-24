@@ -20,6 +20,9 @@ var _resolution := "1280x720"
 
 var _fullscreen := false
 
+## 键位覆盖：action → physical_keycode（没记录的 = 用 project.godot 的默认值）✓
+var _keys: Dictionary = {}
+
 func _ready() -> void:
 	load_settings()
 
@@ -86,6 +89,31 @@ signal changed
 
 
 # ---------------------------------------------------------------------------
+# 键位覆盖（v2026-10-24 Input Map）
+# ---------------------------------------------------------------------------
+func key_bind(action: String) -> int:
+	return int(_keys.get(action, 0))
+
+
+func set_key_bind(action: String, keycode: int) -> void:
+	if keycode <= 0:
+		_keys.erase(action)
+	else:
+		_keys[action] = keycode
+	save_settings()
+	changed.emit()
+
+
+## 恢复默认键位时清空全部覆盖 ✓
+func clear_key_binds() -> void:
+	if _keys.is_empty():
+		return
+	_keys.clear()
+	save_settings()
+	changed.emit()
+
+
+# ---------------------------------------------------------------------------
 # 读写
 # ---------------------------------------------------------------------------
 func save_settings() -> void:
@@ -94,6 +122,7 @@ func save_settings() -> void:
 	cfg.set_value("save", "autosave_interval", _autosave_interval)
 	cfg.set_value("display", "resolution", _resolution)
 	cfg.set_value("display", "fullscreen", _fullscreen)
+	cfg.set_value("keys", "bindings", _keys)
 	var err := cfg.save(SETTINGS_PATH)
 	if err != OK:
 		push_warning("全局设置保存失败（错误 %d）：%s" % [err, SETTINGS_PATH])
@@ -107,3 +136,4 @@ func load_settings() -> void:
 	_autosave_interval = int(cfg.get_value("save", "autosave_interval", Consts.AUTOSAVE_INTERVAL_DEFAULT))
 	_resolution = str(cfg.get_value("display", "resolution", "1280x720"))
 	_fullscreen = bool(cfg.get_value("display", "fullscreen", false))
+	_keys = cfg.get_value("keys", "bindings", {})

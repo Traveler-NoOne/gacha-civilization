@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_qpllr"]
+
+[resource]
+script = ExtResource("1_qpllr")
+id = "classic_market"
+sort_index = 4
+display_name = "经典市场"
+subcategory = "商业"
+desc = "每级最多指派两个人力，每个人力每周期产出 1.6 货币，每级额外增加 0.35 货币。"
+max_workers_per_level = 2
+yield_per_worker = {
+"currency": 1.6
+}
+yield_per_level = {
+"currency": 0.35
+}
+cost_base = {
+"production": 25.0
+}
+cost_per_level = {
+"production": 20.0
+}

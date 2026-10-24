@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_61v75"]
+
+[resource]
+script = ExtResource("1_61v75")
+id = "classic_academy"
+sort_index = 9
+display_name = "经典学院"
+category = "民用建筑"
+subcategory = "教育"
+desc = "每级最多指派两个人力，每个人力每周期产出 0.9 科研点。每级额外增加 0.35 科研点。"
+max_workers_per_level = 2
+yield_per_worker = {
+"research": 0.9
+}
+yield_per_level = {
+"research": 0.35
+}
+cost_base = {
+"production": 40.0
+}
+cost_per_level = {
+"production": 45.0
+}
+land = 0.6
+special = "culture"
+culture = 0.05

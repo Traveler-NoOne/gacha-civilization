@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="TechDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/tech_def.gd" id="1_4ntlp"]
+
+[resource]
+script = ExtResource("1_4ntlp")
+id = "mining"
+display_name = "开采"
+era = "远古时代"
+cost = 5.0
+unlocks = Array[String](["classic_mine"])
+desc = "前置：无。解锁建筑：经典矿场。"

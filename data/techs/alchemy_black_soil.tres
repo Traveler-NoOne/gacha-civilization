@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TechDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/tech_def.gd" id="1_7swgd"]
+
+[resource]
+script = ExtResource("1_7swgd")
+id = "alchemy_black_soil"
+display_name = "炼金-黑土"
+era = "七神时代"
+prereq = Array[String](["genesis_crystal"])
+cost = 120.0
+unlocks = Array[String](["black_soil_academy", "alchemy_lab"])
+desc = "前置：创世结晶（由发展系统获得）。解锁建筑：黑土学院、炼金所。"
+sort_index = 1

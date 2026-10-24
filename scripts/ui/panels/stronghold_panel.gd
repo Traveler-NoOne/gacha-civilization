@@ -171,15 +171,15 @@ func _refresh_info(sh: Dictionary) -> void:
 func _refresh_decrees(sh: Dictionary) -> void:
 	content_box.add_child(UIKit.dim("每周期把行政点数积累进去，攒够就执行。", 10))
 	for d in DecreeDB.all():
-		var id := str(d["id"])
+		var id := d.id
 		var row := PanelContainer.new()
 		var why := Decrees.blocked_reason(GameState.state, id)
 		UIKit.apply_panel(row, Palette.BG_PANEL_2, Palette.LINE if why == "" else Palette.LINE_SOFT, 4)
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", UI.fs(2))
 		row.add_child(v)
-		v.add_child(UIKit.text_label("%s（行政点数 %.0f）" % [str(d["name"]), float(d["cost"])], 12, Palette.TEXT))
-		var dd := UIKit.dim(str(d.get("desc", "")), 10)
+		v.add_child(UIKit.text_label("%s（行政点数 %.0f）" % [d.display_name, d.cost], 12, Palette.TEXT))
+		var dd := UIKit.dim(d.desc, 10)
 		dd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(dd)
 		var h := HBoxContainer.new()
@@ -198,7 +198,7 @@ func _refresh_decrees(sh: Dictionary) -> void:
 					GameState.toast.emit(str(r["why"]))
 				refresh())
 			h.add_child(b)
-		var hh := UIKit.dim(str(d.get("hint", "")), 9)
+		var hh := UIKit.dim(d.hint, 9)
 		hh.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(hh)
 		# ⚠️ 别忘了挂上去：节点内容建好 ≠ 已经显示（漏这行的话，界面上什么都没有，极难发现）

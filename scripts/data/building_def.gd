@@ -3,6 +3,8 @@ extends Resource
 ## 建筑定义。数值全部来自设计文档《建筑系统》。
 
 @export var id: String = ""
+## 显示排序（想调顺序改这个数字，不用动代码）✓
+@export var sort_index: int = 0
 @export var display_name: String = ""
 @export var category: String = "工业建筑"      ## 工业建筑 / 军事建筑 / 民用建筑
 @export var subcategory: String = ""           ## 食物 / 生产 / 陆军 / 居住 / 教育
@@ -29,8 +31,22 @@ extends Resource
 @export var land: float = 0.4
 ## 只能建在拥有矿物资源点的地块上
 @export var needs_resource_node: bool = false
-## 特殊效果标记，由 GameState 解释
+## 特殊效果标记（逗号分隔），由 GameState 解释；**只有声明过的才会被读到**
 @export var special: String = ""
+
+## 下面这些原来用 metadata 存，v2026-10-24 改成真字段 —— 这样才能在 Inspector 里直接改 ✓
+## 是否需要"矿物资源点"才能建造
+@export var uses_node: bool = false
+## 建在资源点上时，每级的产量倍率（基础 + 每级增量）
+@export var node_bonus: float = 1.0
+@export var node_bonus_per_level: float = 0.25
+## 每个工人的额外维护（资源 → 数量）
+@export var upkeep_per_worker: Dictionary = {}
+## 住房：每点住房换算成货币/幸福的区间
+@export var housing_ratio_gold: Dictionary = {}
+@export var housing_ratio_happy: Dictionary = {}
+## 每级提供的文化率
+@export var culture: float = 0.0
 
 
 func level_cap() -> int:

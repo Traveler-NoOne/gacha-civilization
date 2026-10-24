@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="TipLibrary" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/tip_library.gd" id="1_tip"]
+
+[resource]
+script = ExtResource("1_tip")
+tips = PackedStringArray("世界泡是承载着文明的气泡，它之外是一片量子之海。", "左键点击地块看详情，右键点地块打开行动菜单。", "生产力管修建，行政点数管扩张与政事，别搞混。", "结束周期会结算一次产出 —— 先把规划队列排好更划算。", "科技树在左上角，日志在右上角的书本图标里。")

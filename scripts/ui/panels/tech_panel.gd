@@ -38,8 +38,8 @@ func refresh() -> void:
 		return
 	for c in list_box.get_children():
 		c.queue_free()
-	for t in Consts.TECHS:
-		var id := str(t["id"])
+	for t in TechDB.all():
+		var id := t.id
 		var unlocked := Techs.unlocked(GameState.state, id)
 		var row := UIKit.panel(Palette.BG_PANEL_2, Palette.OK if unlocked else Palette.LINE_SOFT, 5)
 		list_box.add_child(row)
@@ -47,10 +47,10 @@ func refresh() -> void:
 		row.add_child(v)
 		var head := UIKit.hbox(6)
 		v.add_child(head)
-		head.add_child(UIKit.text_label(str(t["name"]), 13, Palette.OK if unlocked else Palette.GOLD))
-		head.add_child(UIKit.dim(str(t["era"]), 11))
-		head.add_child(UIKit.dim("科研点 %d" % int(t["cost"]), 11))
-		v.add_child(UIKit.dim(str(t["desc"]), 11))
+		head.add_child(UIKit.text_label(t.display_name, 13, Palette.OK if unlocked else Palette.GOLD))
+		head.add_child(UIKit.dim(t.era, 11))
+		head.add_child(UIKit.dim("科研点 %d" % int(t.cost), 11))
+		v.add_child(UIKit.dim(t.desc, 11))
 		var b := UIKit.small("已完成" if unlocked else "研究", 12)
 		b.disabled = unlocked
 		if not unlocked:

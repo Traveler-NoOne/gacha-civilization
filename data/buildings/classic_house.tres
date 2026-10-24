@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_58n7a"]
+
+[resource]
+script = ExtResource("1_58n7a")
+id = "classic_house"
+sort_index = 8
+display_name = "经典民居"
+category = "民用建筑"
+subcategory = "居住"
+desc = "如果房屋越少、人力越多，民居将提供至多 +10 个货币每级，但是幸福度 -10，人力停止增长。如果房屋越多、人力越少，民居只能提供 +1 货币，幸福度 +10。"
+cost_base = {
+"production": 20.0
+}
+cost_per_level = {
+"production": 20.0
+}
+land = 0.5
+special = "housing_ratio_gold,housing_ratio_happy"
+housing_ratio_gold = {
+"max": 10.0,
+"min": 1.0
+}
+housing_ratio_happy = {
+"max": -10.0,
+"min": 10.0
+}

@@ -353,26 +353,7 @@ const FEEDBACK_EMAIL := "3462323439@qq.com"
 # ---------------------------------------------------------------------------
 # 科技树（演示用：只做文档里出现的两条线）
 # ---------------------------------------------------------------------------
-const TECHS := [
-	{
-		"id": "mining",
-		"name": "开采",
-		"era": "远古时代",
-		"prereq": [],
-		"cost": 5.0,
-		"unlocks": ["classic_mine"],
-		"desc": "前置：无。解锁建筑：经典矿场。",
-	},
-	{
-		"id": "alchemy_black_soil",
-		"name": "炼金-黑土",
-		"era": "七神时代",
-		"prereq": ["genesis_crystal"],
-		"cost": 120.0,
-		"unlocks": ["black_soil_academy", "alchemy_lab"],
-		"desc": "前置：创世结晶（由发展系统获得）。解锁建筑：黑土学院、炼金所。",
-	},
-]
+## 科技表已搬到 `res://data/techs/*.tres`（TechDB），这里不再保留 ✓
 
 
 static func res_name(key: String) -> String:

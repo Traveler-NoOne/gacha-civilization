@@ -79,7 +79,7 @@ func _build() -> void:
 
 	# --- 顶部资源栏 ---
 	var top := PanelContainer.new()
-	UIKit.apply_panel(top, Color(0.08, 0.08, 0.12), Palette.LINE_SOFT, 0)
+	UIKit.apply_panel(top, Palette.BG_SLOT, Palette.LINE_SOFT, 0)
 	top.custom_minimum_size = Vector2(UI.px(0), UI.px(98))
 	root.add_child(top)
 
@@ -311,7 +311,7 @@ func _place_floating_ui() -> void:
 		corner_log_btn.position = Vector2(size.x - CORNER_MARGIN - bh, CORNER_TOP - 6.0)
 	# 左下角一排（至宝、世界泡），按 VIEWS 顺序相邻排开
 	var x := margin
-	var y := size.y - CORNER_MARGIN - bh
+	var y := size.y - margin - bh   # 用已缩放的 margin，别用裸常量（否则高分辨率下底部留白偏小）
 	for vid in nav_buttons:
 		var b: Button = nav_buttons[vid]
 		if not is_instance_valid(b):
@@ -483,7 +483,7 @@ func _add_chip(row: HBoxContainer, key: String, label_text: String, color: Color
 		value = Res.amount(GameState.state, key)
 		cap = Res.storage_cap(GameState.state, key)
 	var chip := PanelContainer.new()
-	UIKit.apply_panel(chip, Color(0.12, 0.12, 0.17), Color(color.r, color.g, color.b, 0.45), 4)
+	UIKit.apply_panel(chip, Palette.BG_PANEL_2, Color(color.r, color.g, color.b, 0.45), 4)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", UI.fs(4))
 	chip.add_child(h)
@@ -653,26 +653,25 @@ func close_dialog() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey) or not (event as InputEventKey).pressed:
-		return
-	var k := event as InputEventKey
-	if k.echo:
-		return
-	# v1.8.7：管理页与日志页都不再是一级入口，编号重排
-	match k.keycode:
-		KEY_1: _switch_view("treasure")
-		KEY_2: _switch_view("gacha")
-		KEY_3: _switch_view("world")
-		KEY_SPACE: _end_cycle()
-		KEY_ESCAPE:
-			# v1.8.8：浮窗能关了，所以 Esc 先关浮窗
-			if stats_panel != null and is_instance_valid(stats_panel) and stats_panel.visible:
-				stats_panel.visible = false
-			if _any_page_panel_open():
-				_close_all_panels()
-				_refresh_nav()
-			_close_res_popup()
-			close_dialog()
+	# 2026-10-24：按键改走 Input Map（项目设置 → 输入映射）✓
+	# 好处：改键 / 手柄 / 多设备都不用改这里；is_action_pressed 默认忽略长按重复 ✓
+	if event.is_action_pressed("view_treasure"):
+		_switch_view("treasure")
+	elif event.is_action_pressed("view_gacha"):
+		_switch_view("gacha")
+	elif event.is_action_pressed("view_world"):
+		_switch_view("world")
+	elif event.is_action_pressed("end_cycle"):
+		_end_cycle()
+	elif event.is_action_pressed("close_ui"):
+		# 浮窗能关了，所以 Esc 先关浮窗
+		if stats_panel != null and is_instance_valid(stats_panel) and stats_panel.visible:
+			stats_panel.visible = false
+		if _any_page_panel_open():
+			_close_all_panels()
+			_refresh_nav()
+		_close_res_popup()
+		close_dialog()
 
 
 func goto_view(id: String) -> void:

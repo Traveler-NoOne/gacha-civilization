@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="DecreeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/decree_def.gd" id="1_4xtu2"]
+
+[resource]
+script = ExtResource("1_4xtu2")
+id = "recruit"
+display_name = "征兵"
+cost = 20.0
+desc = "把一名空闲人力训练成募集军，进驻首都。"
+hint = "需要「经典训练场地」与空闲人力，且首都尚有空位；执行时消耗 食物 20、货币 60。"
