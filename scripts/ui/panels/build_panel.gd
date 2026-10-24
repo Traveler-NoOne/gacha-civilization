@@ -82,9 +82,15 @@ func refresh() -> void:
 		return
 	land_label.text = "已用土地 %.1f / %.1f" % [Strongholds.land_used(t), Strongholds.land_cap(t)]
 	var shown := 0
+	var cover := str(t.get("cover", ""))
 	for def in BuildingDB.all():
 		# v1.6 的规矩：未满足科技条件的建筑**自动隐藏**
 		if def.required_tech != "" and not Techs.unlocked(GameState.state, def.required_tech):
+			continue
+		# 2026-10-25：地物条件不满足也隐藏 —— 所以「林场 / 造林场」只会出现其一 ✓
+		if not def.needs_cover.is_empty() and not def.needs_cover.has(cover):
+			continue
+		if not def.forbids_cover.is_empty() and def.forbids_cover.has(cover):
 			continue
 		list_box.add_child(_row(def, t))
 		shown += 1

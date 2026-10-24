@@ -237,8 +237,14 @@ func _refresh_build_queue(sh: Dictionary) -> void:
 		var item: Dictionary = q[i]
 		var need := maxf(0.0001, float(item.get("need_prod", 0.0)))
 		var paid := float(item.get("paid_prod", 0.0))
-		var def := BuildingDB.find(str(item.get("bid", "")))
-		var nm := def.display_name if def != null else str(item.get("bid", "?"))
+		# build 条目没有 bid（只有 id）→ 以前一律显示 "?"，这里统一取名字 ✓
+		var ref_id := str(item.get("bid", ""))
+		if ref_id == "":
+			ref_id = str(item.get("id", ""))
+		var def := BuildingDB.find(ref_id)
+		var nm := def.display_name if def != null else "?"
+		if str(item.get("kind", "")) == "harvest":
+			nm = "破坏性采集"
 		var head := "▶ " if i == 0 else "· "
 		build_box.add_child(UIKit.text_label("%s%s　%.0f / %.0f" % [head, nm, paid, need], 11,
 			Palette.GOLD if i == 0 else Palette.TEXT_DIM))

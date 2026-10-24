@@ -1,5 +1,9 @@
 class_name Buildings
 extends RefCounted
+
+## 破坏性采集（右键菜单）：清掉树木地物，换一次性木材 ✓
+const HARVEST_PROD := 60.0
+const HARVEST_WOOD := 30.0
 ## 建筑：地块上的实例 / 可建判定 / 修建与升级（即时或进规划队列）/ 人力指派 / 产出预览 ✓
 ##
 ## ⚠️ 分界：**队列内容**归这里；**据点容器**归 `Strongholds`；**数值**归 `BuildingDB` / `BuildingDef` ✓
@@ -45,7 +49,20 @@ static func can_build(state: Dictionary, tile: Dictionary, def: BuildingDef) -> 
 	if Strongholds.land_used(tile) + def.land > Strongholds.land_cap(tile) + 0.0001:
 		return {"ok": false, "why": "可用土地不足（需 %.1f，剩余 %.1f）" % [
 			def.land, Strongholds.land_free(tile)]}
+	# 2026-10-25：地物条件（林场建在树林上、造林场建在空地上）✓
+	var cover := str(tile.get("cover", ""))
+	if not def.needs_cover.is_empty() and not def.needs_cover.has(cover):
+		return {"ok": false, "why": "地块地物不符（需要：%s）" % _covers_text(def.needs_cover)}
+	if not def.forbids_cover.is_empty() and def.forbids_cover.has(cover):
+		return {"ok": false, "why": "该地块已有%s，不能建在这里" % Consts.cover_name(cover)}
 	return {"ok": true, "why": ""}
+
+
+static func _covers_text(covers: PackedStringArray) -> String:
+	var names: Array[String] = []
+	for c in covers:
+		names.append(Consts.cover_name(c))
+	return " / ".join(names)
 
 
 ## 建造入口：生产力够则立即建成，不够则进规划队列
@@ -137,11 +154,16 @@ static func _execute_queue_item(state: Dictionary, item: Dictionary) -> void:
 	if tile.is_empty():
 		return
 	var def := BuildingDB.find(str(item.get("id", "")))
-	if str(item.get("kind", "")) == "build":
+	var kind := str(item.get("kind", ""))
+	if kind == "harvest":
+		_do_harvest(state, tile, item)
+		return
+	if kind == "build":
 		if not tile.has("buildings"):
 			tile["buildings"] = []
 		(tile["buildings"] as Array).append({
 			"bid": Strongholds.new_bid(), "id": str(item["id"]), "level": 1, "workers": 0,
+			"age": 0,
 		})
 	else:
 		var b := tile_building_by_bid(tile, str(item.get("bid", "")))
@@ -271,6 +293,9 @@ static func tile_yield(tile: Dictionary) -> Dictionary:
 		var def := BuildingDB.find(str(b.get("id", "")))
 		if def == null:
 			continue
+		# 成熟前不产出（造林场 4 个周期内没有收成，但维护费照扣）✓
+		if def.growth_cycles > 0 and int(b.get("age", 0)) < def.growth_cycles:
+			continue
 		var lv := int(b.get("level", 1))
 		var w := int(b.get("workers", 0))
 		var y := def.yield_now(lv, w)
@@ -288,3 +313,48 @@ static func tile_yield(tile: Dictionary) -> Dictionary:
 		for k in y.keys():
 			out[k] = float(out.get(k, 0.0)) + float(y[k])
 	return out
+
+
+# ---------------------------------------------------------------------------
+# 破坏性采集（v2026-10-25）
+# 右键地块 → 破坏性采集：加入规划队列，吃完生产力后清掉树木地物、一次性给木材 ✓
+# ---------------------------------------------------------------------------
+static func can_harvest(state: Dictionary, tile_key: String) -> Dictionary:
+	var t := TileManager.tile_at(state, tile_key)
+	if t.is_empty():
+		return {"ok": false, "why": "地块不存在"}
+	if t.get("owner", Consts.Owner.NONE) != Consts.Owner.PLAYER:
+		return {"ok": false, "why": "必须在自己的领地内"}
+	if not Consts.TREE_COVERS.has(str(t.get("cover", ""))):
+		return {"ok": false, "why": "这块地没有可采集的树林"}
+	return {"ok": true, "why": ""}
+
+
+static func request_harvest(state: Dictionary, tile_key: String) -> Dictionary:
+	var chk := can_harvest(state, tile_key)
+	if not chk["ok"]:
+		return chk
+	var item := {
+		"kind": "harvest", "tile": tile_key, "id": "", "level": 0, "bid": "",
+		"need_prod": HARVEST_PROD, "paid_prod": 0.0,
+	}
+	var queued := _enqueue(state, item, tile_key)
+	Journal.add(state, "破坏性采集：%s %s" % [tile_key,
+		"已加入规划队列" if queued else "已立即完成"], "build")
+	Derived.recompute(state)
+	GameState.state_changed.emit()
+	return {"ok": true, "why": "", "queued": queued}
+
+
+## 真正执行采集：地物还在才给木材；期间被弄掉了就作废并退还已投入的生产力 ✓
+static func _do_harvest(state: Dictionary, tile: Dictionary, item: Dictionary) -> void:
+	var cover := str(tile.get("cover", ""))
+	if Consts.TREE_COVERS.has(cover):
+		tile["cover"] = ""
+		Res.add(state, "wood", HARVEST_WOOD)
+		Journal.add(state, "破坏性采集完成：清掉了%s，获得木材 %.0f。" % [Consts.cover_name(cover), HARVEST_WOOD], "build")
+		return
+	var refund := float(item.get("paid_prod", 0.0))
+	if refund > 0.0:
+		Res.add(state, "production", refund)
+	Journal.add(state, "破坏性采集取消：该地块已没有树木，退还生产力 %.0f。" % refund, "warn")

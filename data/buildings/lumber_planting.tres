@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_lp"]
+
+[resource]
+script = ExtResource("1_lp")
+id = "lumber_planting"
+sort_index = 13
+display_name = "造林场"
+category = "工业建筑"
+subcategory = "木材"
+desc = "在**没有树木**的空地上造林：消耗大量生产力，建成后需要 4 个周期长成森林 —— 期间没有产出，但维护费照扣。长成后地块获得森林地物，本建筑自动转为「林场」。"
+max_workers_per_level = 0
+cost_base = {
+"production": 150.0,
+"wood": 10.0
+}
+land = 0.3
+max_level = 1
+forbids_cover = PackedStringArray("forest", "rainforest")
+growth_cycles = 4
+mature_cover = "forest"
+mature_to_id = "lumber_camp"

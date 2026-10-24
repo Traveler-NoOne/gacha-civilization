@@ -65,12 +65,17 @@ static func terrain_of(height: float, moisture: float) -> Dictionary:
 			return {"terrain": T_PLAIN, "cover": "forest"}
 		return {"terrain": T_DUNE, "cover": ""}
 	if height < H_HILL:
+		# 雨林：坡地上湿到极点才长（平地那档留给沼泽，免得抢地盘）✓
+		if moisture >= 0.78:
+			return {"terrain": T_HILL, "cover": "rainforest"}
 		if moisture > 0.45:
 			return {"terrain": T_HILL, "cover": "forest"}
 		if moisture > 0.22:
 			return {"terrain": T_HILL, "cover": "grass"}
 		return {"terrain": T_HILL, "cover": ""}
 	if height < H_PLATEAU:
+		if moisture >= 0.78:
+			return {"terrain": T_PLATEAU, "cover": "rainforest"}
 		if moisture > 0.40:
 			return {"terrain": T_PLATEAU, "cover": "forest"}
 		if moisture > 0.20:
@@ -124,12 +129,10 @@ static func make(c: Vector2i, world_seed: int, ctx: Dictionary) -> Dictionary:
 	if bool(ctx.get("is_river", false)):
 		t["river"] = true
 
-	# 基础资源点（新库自己的规则 ✓ 先沿用"森林=木材 / 丘陵=煤铜" ✓ 以后可重定 ✓）
+	# 基础资源点（新库自己的规则 ✓）
+	# 2026-10-25：**树木资源点已去掉** —— 木材改由「树木地物」产（林场 / 破坏性采集）✓
 	var rr := Hex.hash01(c, 31 + world_seed)
-	if t["cover"] == "forest" and rr < 0.55:
-		t["resource"] = "wood"
-		t["amount"] = 4.0 + rr * 8.0
-	elif t["terrain"] == T_HILL and rr < 0.45:
+	if t["terrain"] == T_HILL and rr < 0.45:
 		t["resource"] = "coal" if rr < 0.22 else "copper"
 		t["amount"] = 3.0 + rr * 8.0
 	return t

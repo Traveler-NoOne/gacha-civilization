@@ -22,6 +22,7 @@ var stronghold_panel: StrongholdPanel = null
 ## v1.8.5：右键菜单（球形图标按钮）。**数据驱动**：以后加"拆除 / 驻军 / 巡查"只要加一行。
 const TILE_ACTIONS := [
 	{"id": "build", "icon": "hammer-ball", "tip": "修建建筑"},
+	{"id": "harvest", "icon": "axe-ball", "tip": "破坏性采集（清掉树林，+30 木材）"},
 ]
 var action_menu: PanelContainer = null
 var build_panel: BuildPanel = null
@@ -308,6 +309,8 @@ func _show_tile_actions(key: String, gpos: Vector2) -> void:
 	row.add_child(UIKit.dim(key, 10))
 	for a in TILE_ACTIONS:
 		var aid := str(a["id"])
+		if not _action_available(aid, key):
+			continue   # 这块地不支持这个动作 → 整条不显示（不是灰掉）✓
 		var b := UIKit.image_button(str(a["icon"]), str(a["tip"]), 40, 40)
 		b.pressed.connect(func() -> void:
 			_hide_action_menu()
@@ -339,8 +342,21 @@ func _run_tile_action(id: String, key: String) -> void:
 	match id:
 		"build":
 			_open_build_panel(key)
+		"harvest":
+			var r: Dictionary = Buildings.request_harvest(GameState.state, key)
+			if bool(r["ok"]):
+				GameState.toast.emit("破坏性采集已加入规划队列（%.0f 生产力）" % Buildings.HARVEST_PROD)
+			else:
+				GameState.toast.emit(str(r["why"]))
 		_:
 			GameState.toast.emit("这个动作还没做：%s" % id)
+
+
+## 某个右键动作在这块地上能不能用（不能用就整条不显示）✓
+func _action_available(id: String, key: String) -> bool:
+	if id == "harvest":
+		return bool(Buildings.can_harvest(GameState.state, key)["ok"])
+	return true
 
 
 func _open_build_panel(key: String) -> void:

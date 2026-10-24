@@ -157,14 +157,19 @@ const COVER_NAMES := {
 	"": "裸地",
 	"grass": "草地",
 	"forest": "森林",
+	"rainforest": "雨林",
 	"swamp": "沼泽",
 }
 
 const COVER_COLORS := {
 	"grass": Color(0.44, 0.60, 0.30),
 	"forest": Color(0.14, 0.34, 0.20),
+	"rainforest": Color(0.07, 0.42, 0.23),
 	"swamp": Color(0.26, 0.36, 0.28),
 }
+
+## 树木类地物（林场 / 破坏性采集 都认这一份，别各写各的）✓
+const TREE_COVERS := ["forest", "rainforest"]
 
 
 # ---------------------------------------------------------------------------

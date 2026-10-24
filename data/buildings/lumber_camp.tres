@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="BuildingDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/building_def.gd" id="1_lc"]
+
+[resource]
+script = ExtResource("1_lc")
+id = "lumber_camp"
+sort_index = 12
+display_name = "林场"
+category = "工业建筑"
+subcategory = "木材"
+desc = "每级最多指派两个人手，每个人手每周期产 0.8 生产力与 0.4 木材，每级额外 +0.2 生产力。只能建在森林或雨林地块上 —— 木材来自这片林子本身。"
+max_workers_per_level = 2
+yield_per_worker = {
+"production": 0.8,
+"wood": 0.4
+}
+yield_per_level = {
+"production": 0.2
+}
+cost_base = {
+"production": 60.0,
+"wood": 10.0
+}
+cost_per_level = {
+"production": 40.0,
+"wood": 5.0
+}
+land = 0.4
+max_level = 5
+needs_cover = PackedStringArray("forest", "rainforest")

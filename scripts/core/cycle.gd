@@ -77,6 +77,10 @@ static func end_cycle(state: Dictionary, rng: RandomNumberGenerator) -> Dictiona
 		report["events"].append("生产力盈余超出存储上限（%d），%.1f 点作废。" % [
 			int(Consts.PRODUCTION_STORE_CAP), leftover - added])
 
+	# 4.5 v2026-10-25：建筑成熟（造林场 4 个周期后长成树林 → 转成林场）
+	#     放在结算之后：本周期仍按"未成熟"算，从下个周期开始按林场产出 ✓
+	_tick_growth(state, report)
+
 	report["income"] = income
 	report["upkeep"] = upkeep
 
@@ -181,3 +185,29 @@ static func settle_gacha_currency(state: Dictionary, report: Dictionary) -> void
 	Res.add(GameState.state, "cohesion", cohesion)
 	report["income"]["order_crystal"] = float(report["income"].get("order_crystal", 0.0)) + crystal
 	report["income"]["cohesion"] = float(report["income"].get("cohesion", 0.0)) + cohesion
+
+
+## 建筑成熟：累计 age，达到 growth_cycles 时加地物 + 换成成熟建筑 ✓
+static func _tick_growth(state: Dictionary, report: Dictionary) -> void:
+	for t in TileManager.owned_tiles(state):
+		for b in t.get("buildings", []):
+			var def := BuildingDB.find(str(b.get("id", "")))
+			if def == null or def.growth_cycles <= 0:
+				continue
+			var age := int(b.get("age", 0)) + 1
+			b["age"] = age
+			if age < def.growth_cycles:
+				continue
+			if def.mature_cover != "":
+				t["cover"] = def.mature_cover
+			if def.mature_to_id != "":
+				var old_name := def.display_name
+				var nd := BuildingDB.find(def.mature_to_id)
+				b["id"] = def.mature_to_id
+				b["level"] = 1
+				b["workers"] = 0
+				b.erase("age")
+				var msg := "%s 长成树林，已转为%s。" % [old_name,
+					nd.display_name if nd != null else def.mature_to_id]
+				report["events"].append(msg)
+				Journal.add(state, msg, "build")

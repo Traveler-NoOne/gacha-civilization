@@ -31,6 +31,18 @@ extends Resource
 @export var land: float = 0.4
 ## 只能建在拥有矿物资源点的地块上
 @export var needs_resource_node: bool = false
+
+## --- 2026-10-25：地物条件 / 成熟期（林场用；以后别的建筑也能用）---
+## 地块地物必须是其中之一才能建（空 = 不限制）
+@export var needs_cover: PackedStringArray = PackedStringArray()
+## 地块地物**不能**是其中之一（空 = 不限制）；林场用它来保证"种在空地上"✓
+@export var forbids_cover: PackedStringArray = PackedStringArray()
+## 建成后要经过这么多周期才算成熟（成熟前**不产出**，维护费照扣）✓
+@export var growth_cycles: int = 0
+## 成熟时给地块加的地物（如 "forest"）
+@export var mature_cover: String = ""
+## 成熟时把自己替换成这个建筑 id（如造林场 → 林场）
+@export var mature_to_id: String = ""
 ## 特殊效果标记（逗号分隔），由 GameState 解释；**只有声明过的才会被读到**
 @export var special: String = ""
 
