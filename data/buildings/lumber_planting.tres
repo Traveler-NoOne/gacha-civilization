@@ -12,7 +12,7 @@ subcategory = "木材"
 desc = "在**没有树木**的空地上造林：消耗大量生产力，建成后需要 4 个周期长成森林 —— 期间没有产出，但维护费照扣。长成后地块获得森林地物，本建筑自动转为「林场」。"
 max_workers_per_level = 0
 cost_base = {
-"production": 150.0,
+"production": 60.0,
 "wood": 10.0
 }
 land = 0.3

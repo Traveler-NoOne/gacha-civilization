@@ -9,21 +9,21 @@ sort_index = 12
 display_name = "林场"
 category = "工业建筑"
 subcategory = "木材"
-desc = "每级最多指派两个人手，每个人手每周期产 0.8 生产力与 0.4 木材，每级额外 +0.2 生产力。只能建在森林或雨林地块上 —— 木材来自这片林子本身。"
+desc = "每级最多指派两个人力，每个人力每周期产出 1.35 生产力与 0.4 木材，每级额外增加 0.35 生产力。只能建在森林或雨林地块上 —— 木材来自这片林子本身。"
 max_workers_per_level = 2
 yield_per_worker = {
-"production": 0.8,
+"production": 1.35,
 "wood": 0.4
 }
 yield_per_level = {
-"production": 0.2
+"production": 0.35
 }
 cost_base = {
-"production": 60.0,
+"production": 20.0,
 "wood": 10.0
 }
 cost_per_level = {
-"production": 40.0,
+"production": 15.0,
 "wood": 5.0
 }
 land = 0.4
