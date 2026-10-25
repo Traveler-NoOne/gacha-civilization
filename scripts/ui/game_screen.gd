@@ -25,15 +25,9 @@ var top_bar: TopBar
 ## 资源收支小窗（scripts/ui/parts/res_info_popup.gd）✓
 var res_info: ResInfoPopup
 var content_host: MarginContainer
-## v1.7.1:视窗ID <-> 按钮 配对，刷新高亮用
-var nav_buttons: Dictionary = {} 
+## 悬浮按钮层（scripts/ui/parts/floating_bar.gd）✓
+var floating: FloatingBar
 
-## v1.8.6：角落浮动按钮与浮窗（左上科技树 / 右上日志）
-const CORNER_MARGIN := 16.0
-const CORNER_TOP := 112.0
-var corner_tech_btn: Button
-var corner_log_btn: Button
-var end_btn: Button
 ## v1.8.11：统计面板（资源栏中间的「统计」按钮打开；默认看资源）
 var stats_panel: StatsPanel = null
 ## v1.8.8：二级浮窗注册表 id -> PagePanel（内部页面同时挂到 views[id]，保持旧调用点可用）
@@ -203,35 +197,17 @@ func _setup_world() -> void:
 # v1.8.7：悬浮按钮与浮窗（底栏取消，按钮直接悬在大世界上）
 # ---------------------------------------------------------------------------
 func _build_floating_ui() -> void:
-	# 左上角：科技树
-	corner_tech_btn = UIKit.normal("科技树", 13)
-	corner_tech_btn.custom_minimum_size = Vector2(UI.px(84), UI.px(34))
-	corner_tech_btn.tooltip_text = "科技树"
-	corner_tech_btn.pressed.connect(_toggle_tech_panel)
-	add_child(corner_tech_btn)
-
-	# 右上角：日志（书本图标）
-	corner_log_btn = UIKit.image_button("book-ball", "日志", 40, 40)
-	corner_log_btn.pressed.connect(_toggle_log_panel)
-	add_child(corner_log_btn)
-
-	# 左下角：至宝 / 世界泡（原来在底栏右侧）
-	# 它们现在是"盖在世界上的页面"，所以再点一次收回世界 —— 否则关不掉（世界按钮已随底栏删除）。
+	floating = FloatingBar.new()
+	add_child(floating)
+	var nav_items: Array = []
 	for v in VIEWS:
-		var vid := str(v["id"])
-		if vid == "world":
-			continue
-		var b := UIKit.normal(str(v["name"]), 14)
-		b.custom_minimum_size = Vector2(UI.px(96), UI.px(40))
-		b.pressed.connect(func() -> void: _toggle_page(vid))
-		add_child(b)
-		nav_buttons[vid] = b
-
-	# 右下角：结束周期（原来在底栏左侧）
-	end_btn = UIKit.primary("结束周期", 15)
-	end_btn.custom_minimum_size = Vector2(UI.px(100), UI.px(40))
-	end_btn.pressed.connect(_end_cycle)
-	add_child(end_btn)
+		if str(v["id"]) != DEFAULT_VIEW:
+			nav_items.append({"id": str(v["id"]), "name": str(v["name"])})
+	floating.setup(nav_items)
+	floating.tech_pressed.connect(_toggle_tech_panel)
+	floating.log_pressed.connect(_toggle_log_panel)
+	floating.nav_pressed.connect(_toggle_page)
+	floating.end_pressed.connect(_end_cycle)
 
 	resized.connect(_place_floating_ui)
 	# 状态变了就顺带刷新开着的科技浮窗（科研点与解锁状态会变）
@@ -244,23 +220,9 @@ func _build_floating_ui() -> void:
 ## ⚠️ 悬浮层一律用 **TOP_LEFT 锚点 + 按屏幕尺寸算绝对位置**，并在 resized 时重摆。
 ##（"锚右上 + 负偏移"那套很容易摆错：锚点若在 add_child 之前设，还没有父节点可参照。）
 func _place_floating_ui() -> void:
-	var bh := UI.px(40)
-	var margin := UI.px(CORNER_MARGIN)
-	if is_instance_valid(corner_tech_btn):
-		corner_tech_btn.position = Vector2(CORNER_MARGIN, CORNER_TOP)
-	if is_instance_valid(corner_log_btn):
-		corner_log_btn.position = Vector2(size.x - CORNER_MARGIN - bh, CORNER_TOP - 6.0)
-	# 左下角一排（至宝、世界泡），按 VIEWS 顺序相邻排开
-	var x := margin
-	var y := size.y - margin - bh   # 用已缩放的 margin，别用裸常量（否则高分辨率下底部留白偏小）
-	for vid in nav_buttons:
-		var b: Button = nav_buttons[vid]
-		if not is_instance_valid(b):
-			continue
-		b.position = Vector2(x, y)
-		x += b.custom_minimum_size.x + 8.0
-	if is_instance_valid(end_btn):
-		end_btn.position = Vector2(size.x - margin - UI.px(100), y)
+	if is_instance_valid(floating):
+		floating.layout(size)
+
 	if stats_panel != null and is_instance_valid(stats_panel):
 		# 展开在「统计」按钮的正下方（和"点资源弹收支窗"一个位置逻辑）
 		var gp := Vector2.ZERO
@@ -337,15 +299,8 @@ func _toggle_log_panel() -> void:
 
 
 func _refresh_nav() -> void:
-	# v1.7.1：改成按「配对」刷新。以前是靠按钮在栏里的顺序去 VIEWS 对号入座，
-	# 世界球搬到栏外（顺序变了）就会整体错位；存配对就不会。
-	for vid in nav_buttons:
-		var b: Button = nav_buttons[vid]
-		if not is_instance_valid(b):
-			continue
-		var active: bool = vid == current_view
-		UIKit.style_button(b, active)
-		b.add_theme_color_override("font_color", Palette.GOLD if active else Palette.TEXT)
+	if is_instance_valid(floating):
+		floating.set_nav_active(current_view)
 
 
 func _end_cycle() -> void:
@@ -399,47 +354,9 @@ func _quick_save() -> void:
 
 
 func _confirm_exit() -> void:
-	# v1.2：休眠页删除后，这里承接「退出到主菜单 / 退出到桌面」
-	open_dialog(_build_exit_dialog())
+	# 休眠页删除后，这里承接「退出到主菜单 / 退出到桌面」；内容在 scripts/ui/exit_dialog.gd ✓
+	open_dialog(ExitDialog.build(close_dialog, func() -> void: exit_to_menu.emit()))
 
-
-func _build_exit_dialog() -> DialogLayer:
-	var d := UIKit.dialog("休眠 / 退出", 420.0)
-	var v := UIKit.vbox(8)
-	v.add_child(UIKit.text_label("请选择退出方式", 15, Palette.GOLD))
-	var cur := int(GameState.state.get("current_slot", -1))
-	if cur < 0:
-		v.add_child(UIKit.dim("当前进度还没有保存过，退出前建议先保存（会存到槽位 2）。"))
-	else:
-		v.add_child(UIKit.dim("当前存档槽位：%d（周期 %d）。" % [cur + 1, int(GameState.state["cycle"])]))
-
-	var to_menu := UIKit.normal("退出到主菜单（先保存）", 14)
-	to_menu.pressed.connect(func() -> void:
-		close_dialog()
-		var slot := int(GameState.state.get("current_slot", -1))
-		if slot < 0:
-			slot = 1
-		Save.write(slot, GameState.state)
-		exit_to_menu.emit())
-	v.add_child(to_menu)
-
-	var to_desktop := UIKit.normal("退出到桌面（先保存）", 14)
-	UIKit.style_button(to_desktop, false, true)
-	to_desktop.pressed.connect(func() -> void:
-		close_dialog()
-		var slot := int(GameState.state.get("current_slot", -1))
-		if slot < 0:
-			slot = 1
-		Save.write(slot, GameState.state)
-		Save.write(Consts.AUTOSAVE_SLOT, GameState.state)
-		get_tree().quit())
-	v.add_child(to_desktop)
-
-	var cancel := UIKit.small("取消", 13)
-	cancel.pressed.connect(func() -> void: close_dialog())
-	v.add_child(cancel)
-	d.set_content(v)
-	return d
 
 # v1.2 作弊菜单
 func _open_cheat_menu() -> void:
