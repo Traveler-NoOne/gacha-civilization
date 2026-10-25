@@ -22,8 +22,8 @@ var current_view := DEFAULT_VIEW
 var views: Dictionary = {}
 ## 顶部资源栏（自成一体的控件，见 scripts/ui/parts/top_bar.gd）✓
 var top_bar: TopBar
-## 资源收支悬浮窗（v1.4.1）
-var _res_popup: Control = null
+## 资源收支小窗（scripts/ui/parts/res_info_popup.gd）✓
+var res_info: ResInfoPopup
 var content_host: MarginContainer
 ## v1.7.1:视窗ID <-> 按钮 配对，刷新高亮用
 var nav_buttons: Dictionary = {} 
@@ -103,6 +103,10 @@ func _build() -> void:
 
 	# v1.8.7：按钮全部改为悬浮（左上科技树 / 右上日志 / 左下至宝·世界泡 / 右下结束周期）
 	_build_floating_ui()
+
+	# 资源收支小窗：排在最后 → 盖在所有东西之上 ✓
+	res_info = ResInfoPopup.new()
+	add_child(res_info)
 
 	_refresh()
 
@@ -375,80 +379,15 @@ func _refresh() -> void:
 		v2.refresh()
 
 
-## 资源收支悬浮窗（v1.4.1）：基于点击位置弹出
+## 资源收支小窗（实现在 scripts/ui/parts/res_info_popup.gd）✓
 func _show_res_info(key: String, rect: Rect2) -> void:
-	_close_res_popup()
-	var layer := Control.new()
-	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	layer.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(layer)
-	_res_popup = layer
-
-	# 点击任意处关闭
-	var bg := Button.new()
-	bg.focus_mode = Control.FOCUS_NONE
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_STOP
-	bg.pressed.connect(_close_res_popup)
-	layer.add_child(bg)
-
-	var panel := UIKit.panel(Palette.BG_PANEL_2, Palette.LINE, 6)
-	panel.custom_minimum_size = Vector2(UI.px(250), UI.px(0))
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	layer.add_child(panel)
-	var v := UIKit.vbox(2)
-	panel.add_child(v)
-	v.add_child(UIKit.title("%s · 每周期收支" % Consts.res_name(key), 14))
-	if key == "pop":
-		v.add_child(UIKit.dim("人力不是产出资源，受住房上限约束。"))
-		var cap := Derived.housing_capacity(GameState.state)
-		v.add_child(_break_row("住房上限", float(cap)))
-		v.add_child(_break_row("已指派", float(Derived.assigned_pop(GameState.state))))
-		v.add_child(_break_row("空闲", float(Derived.free_pop(GameState.state))))
-	else:
-		var bd: Dictionary = Admin.resource_breakdown(GameState.state, key)
-		var inc: Array = bd["income"]
-		var upk: Array = bd["upkeep"]
-		var net := 0.0
-		for e in inc:
-			net += float(e["amount"])
-			v.add_child(_break_row(str(e["label"]), float(e["amount"])))
-		if not inc.is_empty() and not upk.is_empty():
-			var sep := ColorRect.new()
-			sep.color = Palette.LINE_SOFT
-			sep.custom_minimum_size = Vector2(UI.px(0), UI.px(1))
-			v.add_child(sep)
-		for e in upk:
-			net += float(e["amount"])
-			v.add_child(_break_row(str(e["label"]), float(e["amount"])))
-		if inc.is_empty() and upk.is_empty():
-			v.add_child(UIKit.dim("该资源本期没有收支。"))
-		v.add_child(UIKit.text_label("净收支 %+.1f / 周期" % net, 12,
-			Palette.OK if net >= 0.0 else Palette.BAD))
-
-	# 定位到点击位置下方，夹在视口内
-	var vs := get_viewport_rect().size
-	var pos := Vector2(rect.position.x, rect.end.y + 4.0)
-	pos.x = clampf(pos.x, 8.0, maxf(8.0, vs.x - 258.0))
-	pos.y = clampf(pos.y, 8.0, maxf(8.0, vs.y - 220.0))
-	panel.position = pos
-
-
-func _break_row(label_text: String, amount: float) -> Control:
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", UI.fs(8))
-	var l := UIKit.text_label(label_text, 11, Palette.TEXT_DIM)
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h.add_child(l)
-	h.add_child(UIKit.text_label("%+.1f" % amount, 12,
-		Palette.OK if amount >= 0.0 else Palette.BAD))
-	return h
+	if is_instance_valid(res_info):
+		res_info.show_for(key, rect)
 
 
 func _close_res_popup() -> void:
-	if is_instance_valid(_res_popup):
-		_res_popup.queue_free()
-	_res_popup = null
+	if is_instance_valid(res_info):
+		res_info.hide_popup()
 
 
 ## 快速保存到当前槽位（没槽位就存 1 号）✓
