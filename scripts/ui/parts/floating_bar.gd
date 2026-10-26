@@ -12,12 +12,18 @@ signal nav_pressed(id: String)
 signal end_pressed
 
 const CORNER_MARGIN := 16.0
-const CORNER_TOP := 112.0
+## 工具条（资源栏下方那条）的 y：资源栏 98 + 间隙 6
+const TOOLS_TOP := 104.0
+## 工具条按钮高度
+const TOOLS_H := 26.0
+## 左上角科技树按钮的 y：让开工具条
+const CORNER_TOP := TOOLS_TOP + TOOLS_H + 16.0
 
 var nav_buttons: Dictionary = {}
 var _tech: Button
 var _log: Button
 var _end: Button
+var _tools: HBoxContainer
 
 
 func _init() -> void:
@@ -51,10 +57,35 @@ func setup(nav_items: Array) -> void:
 	add_child(_end)
 
 
+## 世界页的四个动作（地图铺满后，它原来那条工具栏没地方放了）✓
+func add_tools(world: Control) -> void:
+	_tools = HBoxContainer.new()
+	_tools.add_theme_constant_override("separation", UI.fs(6))
+	add_child(_tools)
+	_add_tool("回到首都", func() -> void: world.call("center_on_capital"))
+	_add_tool("重置缩放", func() -> void: world.call("reset_map_view"))
+	var axis := _add_tool("显示坐标", Callable())
+	axis.toggle_mode = true
+	axis.toggled.connect(func(on: bool) -> void:
+		world.call("set_axis", on))
+	_add_tool("扩建地图（发展系统功能）", func() -> void: world.call("expand_map"))
+
+
+func _add_tool(text: String, cb: Callable) -> Button:
+	var b := UIKit.small(text, 12)
+	b.custom_minimum_size = Vector2(0, UI.px(TOOLS_H))
+	if cb.is_valid():
+		b.pressed.connect(cb)
+	_tools.add_child(b)
+	return b
+
+
 ## ⚠️ 一律**按屏幕尺寸算绝对坐标**，父节点 resized 时重调 ✓
 func layout(area: Vector2) -> void:
 	var bh := UI.px(40)
 	var margin := UI.px(CORNER_MARGIN)
+	if is_instance_valid(_tools):
+		_tools.position = Vector2(margin, UI.px(TOOLS_TOP))
 	if is_instance_valid(_tech):
 		_tech.position = Vector2(margin, UI.px(CORNER_TOP))
 	if is_instance_valid(_log):

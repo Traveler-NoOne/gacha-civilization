@@ -3,7 +3,6 @@ extends Control
 ## 对应设计文档「6世界」章节。
 
 var map: HexMapView
-var tip_label: Label
 var selected := ""
 
 
@@ -58,38 +57,6 @@ func _build() -> void:
 	root.add_child(map_panel)
 	var mv := VBoxContainer.new()
 	map_panel.add_child(mv)
-
-	var toolbar := HBoxContainer.new()
-	toolbar.add_theme_constant_override("separation", UI.fs(6))
-	mv.add_child(toolbar)
-	toolbar.add_child(UIKit.title("大世界", 16))
-	var b_center := UIKit.small("回到首都", 12)
-	b_center.pressed.connect(func() -> void:
-		map.center_on_axial(TileManager.coord_of(str(GameState.state["capital"]))))
-	toolbar.add_child(b_center)
-	var b_fit := UIKit.small("重置缩放", 12)
-	b_fit.pressed.connect(func() -> void: map.reset_view())
-	toolbar.add_child(b_fit)
-	var b_axis := UIKit.small("显示坐标", 12)
-	b_axis.toggle_mode = true
-	b_axis.toggled.connect(func(on: bool) -> void:
-		map.show_axis = on
-		map.queue_redraw())
-	toolbar.add_child(b_axis)
-	var b_expand := UIKit.small("扩建地图（发展系统功能）", 12)
-	b_expand.pressed.connect(func() -> void:
-		var added := WorldgenBuilder.expand_map(GameState.state, 1)
-
-		if added > 0:
-			Journal.add(GameState.state, "营地扩建：地图上限扩大，新增 %d 格。" % added, "world")
-			GameState.toast.emit("地图已扩大，新增 %d 格" % added)
-			GameState.state_changed.emit()
-		else:
-			GameState.toast.emit("已达地图大小上限"))
-	toolbar.add_child(b_expand)
-
-	tip_label = UIKit.dim("左键拖动平移　·　滚轮缩放　·　左键点击地块查看详情　·　中键回到首都", 11)
-	mv.add_child(tip_label)
 
 	map = HexMapView.new()
 	# Control 默认 custom_minimum_size 是 (200,200)：必须显式压低，否则会把父容器撑爆
@@ -691,13 +658,11 @@ func _refresh_unit_panel() -> void:
 	row2.add_child(bg)
 	col.add_child(row2)
 
-
 ## 离开世界页 = 放弃招募（客人保持客人，不做任何转换）
 func _on_visibility_changed() -> void:
 	if not visible and pick_mode == "recruit":
 		Units.cancel_recruit(GameState.state)
 		_end_pick()
-
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or pick_mode == "":
@@ -708,3 +673,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			_end_pick()
 		get_viewport().set_input_as_handled()
+
+func center_on_capital() -> void:
+	map.center_on_axial(TileManager.coord_of(str(GameState.state["capital"])))
+
+func reset_map_view() -> void:
+	map.reset_view()
+
+func set_axis(on: bool) -> void:
+	map.show_axis = on
+	map.queue_redraw()
+
+func expand_map() -> void:
+	var added := WorldgenBuilder.expand_map(GameState.state, 1)
+	if added > 0:
+		Journal.add(GameState.state, "营地扩建：地图上限扩大，新增 %d 格。" % added, "world")
+		GameState.toast.emit("地图已扩大，新增 %d 格" % added)
+		GameState.state_changed.emit()
+	else:
+		GameState.toast.emit("已达地图大小上限")

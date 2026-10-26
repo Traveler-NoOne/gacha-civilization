@@ -61,33 +61,24 @@ func _build() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var root := VBoxContainer.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", UI.fs(0))
-	add_child(root)
+	# --- 世界层：铺满全屏，它是最底层 ---
+	content_host = MarginContainer.new()
+	content_host.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(content_host)
+	content_host.set_script(preload("res://scripts/ui/view_host.gd"))
 
-	# --- 顶部资源栏（自成一体的控件）---
+	# --- 顶部资源栏：叠在世界之上（锚顶部，高 98）---
 	top_bar = TopBar.new()
-	root.add_child(top_bar)
+	add_child(top_bar)
+	top_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top_bar.offset_bottom = UI.px(98)
 	top_bar.menu_pressed.connect(_confirm_exit)
 	top_bar.save_pressed.connect(_quick_save)
 	top_bar.cheat_pressed.connect(_open_cheat_menu)
 	top_bar.stats_pressed.connect(_toggle_stats_panel)
 	top_bar.chip_clicked.connect(_show_res_info)
 
-	# --- 中间内容区 ---
-	content_host = MarginContainer.new()
-	content_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_host.add_theme_constant_override("margin_left", UI.px(10))
-	content_host.add_theme_constant_override("margin_right", UI.px(10))
-	content_host.add_theme_constant_override("margin_top", UI.px(8))
-	content_host.add_theme_constant_override("margin_bottom", UI.px(4))
-	root.add_child(content_host)
-	content_host.set_script(preload("res://scripts/ui/view_host.gd"))
-
-	# v1.8.7：底部栏整个取消 —— 按钮改为直接悬浮在大世界上（见 _build_floating_ui）。
-
-	# v1.8.8：压暗层。加在按钮**之前** → 它在按钮和浮窗下面；IGNORE 让它不吃输入。
+	# v1.8.8：压暗层（在按钮之前 → 在按钮和浮窗下面；IGNORE 让它不吃输入）
 	dim = ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.35)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -95,7 +86,7 @@ func _build() -> void:
 	dim.visible = false
 	add_child(dim)
 
-	# v1.8.7：按钮全部改为悬浮（左上科技树 / 右上日志 / 左下至宝·世界泡 / 右下结束周期）
+	# 悬浮按钮（左上科技树 / 右上日志 / 左下至宝·世界泡 / 右下结束周期）
 	_build_floating_ui()
 
 	# 资源收支小窗：排在最后 → 盖在所有东西之上 ✓
@@ -191,6 +182,10 @@ func _setup_world() -> void:
 	content_host.add_view(scr, DEFAULT_VIEW)
 	content_host.show_view(scr)
 	current_view = DEFAULT_VIEW
+	# 世界铺满后，它自己那条工具栏没地方放 → 交给悬浮层（资源栏下方）✓
+	if is_instance_valid(floating):
+		floating.add_tools(scr)
+		_place_floating_ui()
 
 ##刷新系统按钮排布
 # ---------------------------------------------------------------------------
