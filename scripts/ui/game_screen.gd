@@ -83,6 +83,9 @@ func _build() -> void:
 
 	# 悬浮按钮（左上科技树 / 右上日志 / 左下至宝·世界泡 / 右下结束周期）
 	_build_floating_ui()
+	# 工具条：世界层的四个动作（合并后这些方法就在本类里 → 传 self）✓
+	floating.add_tools(self)
+	_place_floating_ui()
 
 	# 资源收支小窗：排在最后 → 盖在所有东西之上 ✓
 	res_info = ResInfoPopup.new()
