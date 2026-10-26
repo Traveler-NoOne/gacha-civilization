@@ -7,7 +7,7 @@ extends Control
 ##   key  = 点到了哪一格（轴向坐标的字符串键）
 ##   uid  = 点到了哪个单位的图标（没点到单位则 ""）
 ##   gpos = 鼠标的全局坐标（浮窗要出现在鼠标位置）
-## 地图只报告"空间事实"；"这格是不是我的领地、要不要开窗口"属于语义，由 view_world_page 判断。
+## 地图只报告"空间事实"；"这格是不是我的领地、要不要开窗口"属于语义，由 game_screen 的世界层判断。
 signal tile_left_clicked(key: String, uid: String, gpos: Vector2)
 
 ## v1.8.5：右键点地块（用于弹"球形图标操作菜单"）
